@@ -217,6 +217,56 @@ def check_db() -> None:
         add("FAIL", "db writable", f"{path}: {exc}")
 
 
+def check_control_data() -> None:
+    """Verify required control dataset for demo ingest (plan §20 step 4, Phase 7)."""
+    path = REPO / "data" / "control" / "control_clean.jsonl"
+    if not path.is_file():
+        add("FAIL", "control dataset", "data/control/control_clean.jsonl missing (run python scripts/build_control_dataset.py)")
+        return
+    try:
+        lines = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        if not lines:
+            add("FAIL", "control dataset", "data/control/control_clean.jsonl is empty")
+            return
+        add("PASS", "control dataset", f"data/control/control_clean.jsonl ({len(lines)} records)")
+    except Exception as exc:
+        add("FAIL", "control dataset", f"data/control/control_clean.jsonl invalid JSONL: {exc}")
+
+
+def check_canary_config() -> None:
+    """Verify frozen canary manifest (Phase 7) and YAML configuration."""
+    yaml_path = REPO / "backend" / "sb" / "canary" / "canaries.yaml"
+    manifest_path = REPO / "data" / "canary_manifest.json"
+    if not yaml_path.is_file():
+        add("FAIL", "canary config", "backend/sb/canary/canaries.yaml missing")
+        return
+    if not manifest_path.is_file():
+        add("FAIL", "canary manifest", "data/canary_manifest.json missing (frozen canary manifest required)")
+        return
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        canaries = manifest.get("canaries", [])
+        if not canaries:
+            add("FAIL", "canary manifest", "data/canary_manifest.json has no canaries")
+            return
+        add("PASS", "canary manifest", f"data/canary_manifest.json ({len(canaries)} frozen canaries)")
+    except Exception as exc:
+        add("FAIL", "canary manifest", f"data/canary_manifest.json invalid JSON: {exc}")
+
+
+def check_datasets_dir() -> None:
+    """Ensure data/datasets directory exists and is writable for scraper outputs."""
+    ds_dir = REPO / "data" / "datasets"
+    try:
+        ds_dir.mkdir(parents=True, exist_ok=True)
+        probe = ds_dir / ".preflight_probe"
+        probe.write_bytes(b"")
+        probe.unlink()
+        add("PASS", "datasets dir", "data/datasets writable")
+    except Exception as exc:
+        add("FAIL", "datasets dir", f"data/datasets not writable: {exc}")
+
+
 def check_disk() -> None:
     free_gb = shutil.disk_usage(REPO).free / 1e9
     add("PASS" if free_gb >= MIN_DISK_GB else "FAIL", "disk free", f"{free_gb:.1f} GB (need >= {MIN_DISK_GB:.0f} GB)")
@@ -233,7 +283,8 @@ def check_aws() -> None:
 
 def main() -> int:
     for check in (check_python, check_node, check_ports, check_backend_health, check_origin,
-                  check_ollama, check_playwright, check_db, check_disk, check_aws):
+                  check_ollama, check_playwright, check_db, check_control_data, check_canary_config,
+                  check_datasets_dir, check_disk, check_aws):
         try:
             check()
         except Exception as exc:  # noqa: BLE001 - a broken check is a FAIL, never a crash
