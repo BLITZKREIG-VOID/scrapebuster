@@ -30,12 +30,15 @@ class Session:
     def block_expired(self) -> bool:
         """Return True if the block TTL has elapsed (session may resume)."""
         if not self.block_until:
-            return False
+            # A malformed/missing TTL must not strand a session in BLOCKED forever.
+            return True
         try:
             until = datetime.fromisoformat(self.block_until)
+            if until.tzinfo is None:
+                until = until.replace(tzinfo=timezone.utc)
             return datetime.now(timezone.utc) >= until
         except ValueError:
-            return False
+            return True
         
     def mark_trapped(self, trap: Any):
         self.state = "TRAPPED"
@@ -47,7 +50,11 @@ class SessionsManager:
     def get_or_create(self, ctx: RequestContext) -> Session:
         sid = f"ck-{ctx.client_key}"
         if sid not in self._sessions:
-            self._sessions[sid] = Session(session_id=sid, client_key=ctx.client_key)
+            from ..store.sessions import get_session
+
+            self._sessions[sid] = get_session(sid) or Session(
+                session_id=sid, client_key=ctx.client_key
+            )
         return self._sessions[sid]
         
     def reset(self):

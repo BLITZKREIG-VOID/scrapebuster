@@ -1,0 +1,30 @@
+{
+  "run_id": "RUN-20260930-100000",
+  "counts": {
+    "ALLOW": 1,
+    "ESCALATE": 0,
+    "CHALLENGE": 0,
+    "PASS": 0,
+    "RESTRICT": 0,
+    "THROTTLE": 0,
+    "BLOCK": 0,
+    "TRAP": 0
+  },
+  "ladder": {
+    "safe": 1,
+    "suspicious": 0,
+    "challenge_restrict": 0,
+    "block": 0,
+    "trap": 0,
+    "provenance": null
+  },
+  "sessions_by_class": {"HUMAN_LIKELY": 1},
+  "canaries": {"active": null, "exposed": null, "observed": null},
+  "cases": {"total": null, "detected": null},
+  "pipeline": [
+    {"stage": "edge", "status": "ok"},
+    {"stage": "trap", "status": "unknown"},
+    {"stage": "provenance", "status": "unknown"}
+  ],
+  "latest_case": null
+}

@@ -1,0 +1,21 @@
+{
+  "events": [
+    {
+      "seq": 1,
+      "event_id": "evt-demo0001",
+      "ts": "2026-09-30T10:00:00+00:00",
+      "session_id": "ck-0123456789abcdef",
+      "client_key": "0123456789abcdef",
+      "ip": "127.0.0.1",
+      "method": "GET",
+      "path": "/",
+      "status_code": 200,
+      "user_agent": "Demo Browser",
+      "layer": "ORIGIN",
+      "decision": "ALLOW",
+      "risk_score": 0,
+      "reasons": []
+    }
+  ],
+  "last_seq": 1
+}

@@ -1,0 +1,122 @@
+{
+  "$defs": {
+    "PipelineStage": {
+      "properties": {
+        "stage": {
+          "title": "Stage",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "down",
+            "disabled",
+            "unknown",
+            "not_checked"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stage",
+        "status"
+      ],
+      "title": "PipelineStage",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "run_id": {
+      "title": "Run Id",
+      "type": "string"
+    },
+    "counts": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "Counts",
+      "type": "object"
+    },
+    "ladder": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "title": "Ladder",
+      "type": "object"
+    },
+    "sessions_by_class": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "Sessions By Class",
+      "type": "object"
+    },
+    "canaries": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "title": "Canaries",
+      "type": "object"
+    },
+    "cases": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "title": "Cases",
+      "type": "object"
+    },
+    "pipeline": {
+      "items": {
+        "$ref": "#/$defs/PipelineStage"
+      },
+      "title": "Pipeline",
+      "type": "array"
+    },
+    "latest_case": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Latest Case"
+    }
+  },
+  "required": [
+    "run_id",
+    "counts",
+    "ladder",
+    "sessions_by_class",
+    "canaries",
+    "cases",
+    "pipeline"
+  ],
+  "title": "Overview",
+  "type": "object"
+}

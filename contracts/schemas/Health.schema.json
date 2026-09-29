@@ -2,10 +2,31 @@
   "properties": {
     "status": {
       "default": "ok",
+      "enum": [
+        "ok",
+        "degraded"
+      ],
       "title": "Status",
       "type": "string"
+    },
+    "components": {
+      "additionalProperties": {
+        "enum": [
+          "ok",
+          "down",
+          "disabled",
+          "unknown",
+          "not_checked"
+        ],
+        "type": "string"
+      },
+      "title": "Components",
+      "type": "object"
     }
   },
+  "required": [
+    "components"
+  ],
   "title": "Health",
   "type": "object"
 }
