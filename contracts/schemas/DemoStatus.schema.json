@@ -1,0 +1,27 @@
+{
+  "properties": {
+    "run_id": {
+      "title": "Run Id",
+      "type": "string"
+    },
+    "phase": {
+      "title": "Phase",
+      "type": "string"
+    },
+    "mode": {
+      "enum": [
+        "live",
+        "golden"
+      ],
+      "title": "Mode",
+      "type": "string"
+    }
+  },
+  "required": [
+    "run_id",
+    "phase",
+    "mode"
+  ],
+  "title": "DemoStatus",
+  "type": "object"
+}

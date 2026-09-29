@@ -1,0 +1,117 @@
+{
+  "properties": {
+    "session_id": {
+      "title": "Session Id",
+      "type": "string"
+    },
+    "classification": {
+      "title": "Classification",
+      "type": "string"
+    },
+    "request_count": {
+      "title": "Request Count",
+      "type": "integer"
+    },
+    "state": {
+      "title": "State",
+      "type": "string"
+    },
+    "client_key": {
+      "title": "Client Key",
+      "type": "string"
+    },
+    "ip": {
+      "title": "Ip",
+      "type": "string"
+    },
+    "user_agent": {
+      "title": "User Agent",
+      "type": "string"
+    },
+    "header_fp": {
+      "title": "Header Fp",
+      "type": "string"
+    },
+    "first_seen": {
+      "title": "First Seen",
+      "type": "string"
+    },
+    "last_seen": {
+      "title": "Last Seen",
+      "type": "string"
+    },
+    "l1_score": {
+      "title": "L1 Score",
+      "type": "integer"
+    },
+    "l1_reasons": {
+      "items": {
+        "type": "string"
+      },
+      "title": "L1 Reasons",
+      "type": "array"
+    },
+    "l2_score": {
+      "title": "L2 Score",
+      "type": "integer"
+    },
+    "l2_signals": {
+      "items": {
+        "type": "string"
+      },
+      "title": "L2 Signals",
+      "type": "array"
+    },
+    "layer_path": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Layer Path",
+      "type": "array"
+    },
+    "pages": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Pages",
+      "type": "array"
+    },
+    "traps_triggered": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Traps Triggered",
+      "type": "array"
+    },
+    "canaries_exposed": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Canaries Exposed",
+      "type": "array"
+    }
+  },
+  "required": [
+    "session_id",
+    "classification",
+    "request_count",
+    "state",
+    "client_key",
+    "ip",
+    "user_agent",
+    "header_fp",
+    "first_seen",
+    "last_seen",
+    "l1_score",
+    "l1_reasons",
+    "l2_score",
+    "l2_signals",
+    "layer_path",
+    "pages",
+    "traps_triggered",
+    "canaries_exposed"
+  ],
+  "title": "SessionDetail",
+  "type": "object"
+}

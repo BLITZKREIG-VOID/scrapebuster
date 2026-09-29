@@ -1,0 +1,38 @@
+{
+  "properties": {
+    "case_id": {
+      "title": "Case Id",
+      "type": "string"
+    },
+    "run_id": {
+      "title": "Run Id",
+      "type": "string"
+    },
+    "created_at": {
+      "title": "Created At",
+      "type": "string"
+    },
+    "status": {
+      "title": "Status",
+      "type": "string"
+    },
+    "confidence": {
+      "title": "Confidence",
+      "type": "string"
+    },
+    "primary_canary_id": {
+      "title": "Primary Canary Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "case_id",
+    "run_id",
+    "created_at",
+    "status",
+    "confidence",
+    "primary_canary_id"
+  ],
+  "title": "CaseSummary",
+  "type": "object"
+}

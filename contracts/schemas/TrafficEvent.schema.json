@@ -1,0 +1,97 @@
+{
+  "properties": {
+    "seq": {
+      "title": "Seq",
+      "type": "integer"
+    },
+    "event_id": {
+      "title": "Event Id",
+      "type": "string"
+    },
+    "ts": {
+      "title": "Ts",
+      "type": "string"
+    },
+    "session_id": {
+      "title": "Session Id",
+      "type": "string"
+    },
+    "client_key": {
+      "title": "Client Key",
+      "type": "string"
+    },
+    "ip": {
+      "title": "Ip",
+      "type": "string"
+    },
+    "method": {
+      "title": "Method",
+      "type": "string"
+    },
+    "path": {
+      "title": "Path",
+      "type": "string"
+    },
+    "status_code": {
+      "title": "Status Code",
+      "type": "integer"
+    },
+    "user_agent": {
+      "title": "User Agent",
+      "type": "string"
+    },
+    "layer": {
+      "enum": [
+        "L1",
+        "L2",
+        "L3",
+        "ORIGIN"
+      ],
+      "title": "Layer",
+      "type": "string"
+    },
+    "decision": {
+      "enum": [
+        "ALLOW",
+        "ESCALATE",
+        "CHALLENGE",
+        "PASS",
+        "RESTRICT",
+        "THROTTLE",
+        "BLOCK",
+        "TRAP"
+      ],
+      "title": "Decision",
+      "type": "string"
+    },
+    "risk_score": {
+      "title": "Risk Score",
+      "type": "integer"
+    },
+    "reasons": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Reasons",
+      "type": "array"
+    }
+  },
+  "required": [
+    "seq",
+    "event_id",
+    "ts",
+    "session_id",
+    "client_key",
+    "ip",
+    "method",
+    "path",
+    "status_code",
+    "user_agent",
+    "layer",
+    "decision",
+    "risk_score",
+    "reasons"
+  ],
+  "title": "TrafficEvent",
+  "type": "object"
+}
