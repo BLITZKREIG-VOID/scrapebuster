@@ -3,26 +3,25 @@ import { usePoll } from '../api/poll';
 import { getEvents } from '../api/client';
 import type { TrafficEvent } from '../types/contracts';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { 
-  Shield, 
-  Server, 
-  Target, 
+import {
+  Shield,
+  Server,
+  Target,
   Activity,
-  Globe, 
+  Globe,
   SlidersHorizontal,
   ChevronDown
 } from 'lucide-react';
-import Logo from '../components/Logo';
 
 const DECISION_COLORS = {
-  ALLOW: '#79b4b2', 
-  PASS: '#aec7c6', 
-  ESCALATE: '#f59e0b', 
-  CHALLENGE: '#f59e0b', 
-  RESTRICT: '#ef4444', 
-  THROTTLE: '#ef4444', 
-  BLOCK: '#ef4444', 
-  TRAP: '#416866', 
+  ALLOW: '#79b4b2',
+  PASS: '#aec7c6',
+  ESCALATE: '#f59e0b',
+  CHALLENGE: '#f59e0b',
+  RESTRICT: '#ef4444',
+  THROTTLE: '#ef4444',
+  BLOCK: '#ef4444',
+  TRAP: '#416866',
 };
 
 export default function Traffic() {
@@ -77,34 +76,17 @@ export default function Traffic() {
   ];
 
   const geoDistributions = [
-    { region: 'North America (US/CA)', pct: 54, reqs: '24,190 reqs', color: 'bg-blue-500' },
-    { region: 'Europe (DE/NL/UK)', pct: 28, reqs: '12,450 reqs', color: 'bg-purple-500' },
-    { region: 'Asia Pacific (SG/JP)', pct: 14, reqs: '6,230 reqs', color: 'bg-amber-500' },
-    { region: 'Residential Proxies / Tor', pct: 4, reqs: '1,780 reqs', color: 'bg-red-500' },
+    { region: 'North America', pct: 54, reqs: '24,190 reqs', color: 'bg-blue-500', latLong: '38.889° N, 77.035° W', address: 'Ashburn, VA, US' },
+    { region: 'Europe', pct: 28, reqs: '12,450 reqs', color: 'bg-purple-500', latLong: '50.110° N, 8.682° E', address: 'Frankfurt, DE' },
+    { region: 'Asia Pacific', pct: 14, reqs: '6,230 reqs', color: 'bg-amber-500', latLong: '1.352° N, 103.819° E', address: 'Singapore, SG' },
+    { region: 'Residential Proxies', pct: 4, reqs: '1,780 reqs', color: 'bg-red-500', latLong: 'Variable / Onion', address: 'Multiple Exit Nodes' },
   ];
 
   return (
     <div className="space-y-6 max-w-full pb-12">
       {/* Header with Saved Views & Advanced Controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-[#0f1414] via-[#141b1b] to-[#0f1414] border border-[#1d2726] p-5 rounded-2xl shadow-lg">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-[#090c0c] border border-[#79b4b2]/40 flex items-center justify-center p-2 shadow-[0_0_20px_rgba(121,180,178,0.2)]">
-            <Logo page="traffic" size={44} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-[#79b4b2] font-bold px-2 py-0.5 rounded bg-[#090c0c] border border-[#416866]/40">
-                PAGE 2 • SONAR RADAR & ACTOR INTEL
-              </span>
-            </div>
-            <h2 className="text-xl font-bold text-slate-100 font-display tracking-tight mt-0.5">
-              Traffic Intelligence & Threat Surface
-            </h2>
-            <p className="text-xs text-slate-400 font-mono mt-0.5">
-              Real-time bot volume, edge classifications, and adversary actor radar
-            </p>
-          </div>
-        </div>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+        <h1 className="text-2xl font-bold text-slate-100">Traffic Intelligence</h1>
 
         {/* Saved Views Tabs & Filters */}
         <div className="flex items-center gap-2">
@@ -113,16 +95,15 @@ export default function Traffic() {
               <button
                 key={tab}
                 onClick={() => setSelectedView(tab)}
-                className={`px-3 py-1 rounded-md font-mono text-[11px] font-medium transition-all ${
-                  selectedView === tab ? 'bg-slate-800 text-slate-100 shadow-sm' : 'text-slate-400 hover:text-slate-200'
-                }`}
+                className={`px-3 py-1 rounded-md font-mono text-[11px] font-medium transition-all ${selectedView === tab ? 'bg-slate-800 text-slate-100 shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                  }`}
               >
                 {tab === 'ALL' ? 'All Traffic' : tab === 'BLOCKED' ? 'Blocked (L1/L2)' : tab === 'SOPHISTICATED' ? 'Scrapers (L3)' : 'API Endpoints'}
               </button>
             ))}
           </div>
 
-          <button 
+          <button
             onClick={() => setTimeRange(prev => prev === '1m' ? '5m' : prev === '5m' ? '15m' : '1m')}
             className="flex items-center gap-1.5 bg-slate-950 hover:bg-slate-900 px-2.5 py-1.5 rounded-lg border border-slate-800 text-xs text-slate-400 cursor-pointer transition-colors"
             title="Toggle time resolution window"
@@ -135,24 +116,24 @@ export default function Traffic() {
       </div>
 
       {/* Threat Volume Chart */}
-      <section className="bg-slate-900 rounded-xl border border-slate-800 p-6 shadow-sm">
+      <section className="bg-slate-900 rounded-xl border border-slate-800 p-6 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
             <Activity size={15} className="text-blue-500" /> Layered Threat Distribution (Requests / 10s Bucket)
           </h3>
           <div className="flex items-center gap-3 text-[10px] font-mono">
-            <span className="flex items-center gap-1 text-slate-400"><span className="w-2 h-2 rounded bg-[#79b4b2] inline-block"/> Safe (ALLOW/PASS)</span>
-            <span className="flex items-center gap-1 text-slate-400"><span className="w-2 h-2 rounded bg-amber-500 inline-block"/> Challenge</span>
-            <span className="flex items-center gap-1 text-slate-400"><span className="w-2 h-2 rounded bg-red-500 inline-block"/> Block/Throttle</span>
-            <span className="flex items-center gap-1 text-slate-400"><span className="w-2 h-2 rounded bg-[#416866] inline-block"/> Honeytrap (L3)</span>
+            <span className="flex items-center gap-1 text-slate-400"><span className="w-2 h-2 rounded bg-[#79b4b2] inline-block" /> Safe (ALLOW/PASS)</span>
+            <span className="flex items-center gap-1 text-slate-400"><span className="w-2 h-2 rounded bg-amber-500 inline-block" /> Challenge</span>
+            <span className="flex items-center gap-1 text-slate-400"><span className="w-2 h-2 rounded bg-red-500 inline-block" /> Block/Throttle</span>
+            <span className="flex items-center gap-1 text-slate-400"><span className="w-2 h-2 rounded bg-[#416866] inline-block" /> Honeytrap (L3)</span>
           </div>
         </div>
 
-        <div className="h-64 w-full">
+        <div className="h-64 w-full group hover:scale-[1.01] transition-transform duration-500 ease-out cursor-crosshair">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData}>
-              <XAxis dataKey="ts" tickFormatter={(ts) => new Date(ts).toLocaleTimeString([], { minute: '2-digit', second: '2-digit' })} stroke="#1d2726" tick={{fill: '#7e9998', fontSize: 10, fontFamily: 'monospace'}} />
-              <YAxis stroke="#1d2726" tick={{fill: '#7e9998', fontSize: 10, fontFamily: 'monospace'}} />
+              <XAxis dataKey="ts" tickFormatter={(ts) => new Date(ts).toLocaleTimeString([], { minute: '2-digit', second: '2-digit' })} stroke="#1d2726" tick={{ fill: '#7e9998', fontSize: 10, fontFamily: 'monospace' }} />
+              <YAxis stroke="#1d2726" tick={{ fill: '#7e9998', fontSize: 10, fontFamily: 'monospace' }} />
               <Tooltip contentStyle={{ backgroundColor: '#090c0c', borderColor: '#1d2726', color: '#ebefee', fontSize: '11px', fontFamily: 'monospace' }} labelFormatter={(ts) => new Date(ts as number).toLocaleTimeString()} />
               <Bar dataKey="ALLOW" stackId="a" fill={DECISION_COLORS.ALLOW} />
               <Bar dataKey="PASS" stackId="a" fill={DECISION_COLORS.PASS} />
@@ -195,11 +176,10 @@ export default function Traffic() {
                       <span className="text-[10px] text-amber-400 ml-1 block">{ep.trend}</span>
                     </td>
                     <td className="p-2.5 text-center">
-                      <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border ${
-                        ep.risk === 'CRITICAL' ? 'bg-red-500/10 text-red-400 border-red-500/30' : 
-                        ep.risk === 'HIGH' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' : 
-                        'bg-blue-500/10 text-blue-400 border-blue-500/30'
-                      }`}>
+                      <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border ${ep.risk === 'CRITICAL' ? 'bg-red-500/10 text-red-400 border-red-500/30' :
+                          ep.risk === 'HIGH' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' :
+                            'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                        }`}>
                         {ep.risk}
                       </span>
                     </td>
@@ -258,7 +238,10 @@ export default function Traffic() {
             {geoDistributions.map((g, i) => (
               <div key={i} className="space-y-1">
                 <div className="flex justify-between text-xs font-mono">
-                  <span className="text-slate-300">{g.region}</span>
+                  <div className="flex flex-col">
+                    <span className="text-slate-300">{g.region}</span>
+                    <span className="text-[9px] text-slate-500">{g.latLong} • {g.address}</span>
+                  </div>
                   <span className="text-slate-400">{g.pct}% ({g.reqs})</span>
                 </div>
                 <div className="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-slate-800">

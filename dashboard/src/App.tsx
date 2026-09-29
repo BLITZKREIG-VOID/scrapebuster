@@ -7,12 +7,15 @@ import Probes from './pages/Probes';
 import Cases from './pages/Cases';
 import CaseDetail from './pages/CaseDetail';
 
+import About from './pages/About';
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Overview />} />
+          <Route path="about" element={<About />} />
           <Route path="traffic" element={<Traffic />} />
           <Route path="canaries" element={<Canaries />} />
           <Route path="probes" element={<Probes />} />

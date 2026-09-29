@@ -2,15 +2,14 @@ import { useState } from 'react';
 import { usePoll } from '../api/poll';
 import { getCases } from '../api/client';
 import { Link } from 'react-router-dom';
-import { 
-  ShieldAlert, 
-  Search, 
-  Cpu, 
-  FileCheck, 
+import {
+  ShieldAlert,
+  Search,
+  Cpu,
+  FileCheck,
   ArrowRight,
   Layers
 } from 'lucide-react';
-import Logo from '../components/Logo';
 
 export default function Cases() {
   const { data } = usePoll(getCases, 2000);
@@ -27,37 +26,9 @@ export default function Cases() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 select-none">
-      {/* Header with GPS Provenance Logo */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-2xl bg-gradient-to-r from-[#0f1414] via-[#141b1b] to-[#0f1414] border border-[#1d2726] shadow-lg">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-[#090c0c] border border-[#aec7c6]/40 flex items-center justify-center p-2 shadow-[0_0_20px_rgba(174,199,198,0.2)]">
-            <Logo page="cases" size={44} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-[#aec7c6] font-bold px-2 py-0.5 rounded bg-[#090c0c] border border-[#416866]/40">
-                PAGE 5 • GPS TRACKER & PROVENANCE PIPELINE
-              </span>
-            </div>
-            <h2 className="text-xl font-bold text-slate-100 font-display tracking-tight mt-0.5">
-              Data Provenance & Cryptographic Attribution
-            </h2>
-            <p className="text-xs text-slate-400 font-mono mt-0.5">
-              Cryptographically tracking synthetic canary data from ingestion to LLM model output
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-right">
-            <div className="text-[10px] uppercase text-slate-500 font-bold font-mono">Attribution Confidence</div>
-            <div className="text-sm font-bold text-emerald-400 font-mono">100% VERIFIED</div>
-          </div>
-          <div className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-right">
-            <div className="text-[10px] uppercase text-slate-500 font-bold font-mono">Evidence Chain</div>
-            <div className="text-sm font-bold text-blue-400 font-mono">SHA-256 SEALED</div>
-          </div>
-        </div>
+      {/* Header */}
+      <div className="flex items-center justify-between gap-4 mb-2">
+        <h1 className="text-2xl font-bold text-slate-100">GPS Tracker & Provenance</h1>
       </div>
 
       {/* Pipeline Tracker Overview Banner with Fluid Animation */}
@@ -161,9 +132,8 @@ export default function Cases() {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-3 py-1 rounded text-xs font-mono transition-colors ${
-                filter === f ? 'bg-slate-800 text-slate-200 border border-slate-700 font-bold' : 'text-slate-400 hover:text-slate-200'
-              }`}
+              className={`px-3 py-1 rounded text-xs font-mono transition-colors ${filter === f ? 'bg-slate-800 text-slate-200 border border-slate-700 font-bold' : 'text-slate-400 hover:text-slate-200'
+                }`}
             >
               {f === 'ALL' ? 'All Cases' : f === 'BREACH' ? 'Breaches (Signal Detected)' : 'High Confidence'}
             </button>
@@ -173,7 +143,7 @@ export default function Cases() {
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-2 bg-slate-950 px-2.5 py-1 rounded border border-slate-800 text-xs text-slate-400 w-64">
             <Search size={13} className="text-slate-500" />
-            <input 
+            <input
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
@@ -208,11 +178,10 @@ export default function Cases() {
                   <span className="text-[10px] text-slate-500 font-sans block mt-0.5">{new Date(c.created_at).toLocaleTimeString()}</span>
                 </td>
                 <td className="p-3.5">
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${
-                    c.status === 'PROVENANCE_SIGNAL_DETECTED' ? 'bg-red-500/10 text-red-400 border-red-500/30' :
-                    c.status === 'PARTIAL_SIGNAL' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' :
-                    'bg-slate-800 text-slate-400 border-slate-700'
-                  }`}>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${c.status === 'PROVENANCE_SIGNAL_DETECTED' ? 'bg-red-500/10 text-red-400 border-red-500/30' :
+                      c.status === 'PARTIAL_SIGNAL' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' :
+                        'bg-slate-800 text-slate-400 border-slate-700'
+                    }`}>
                     {c.status.replace(/_/g, ' ')}
                   </span>
                 </td>
@@ -240,7 +209,7 @@ export default function Cases() {
                   <span className="text-[9px] text-slate-500">SHA-256 Validated</span>
                 </td>
                 <td className="p-3.5 text-right font-sans">
-                  <Link 
+                  <Link
                     to={`/cases/${c.case_id}`}
                     className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 hover:text-blue-300 text-xs font-semibold border border-blue-500/30 transition-all shadow-sm"
                   >
