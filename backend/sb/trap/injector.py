@@ -134,7 +134,12 @@ def transform_response(ctx: Any, session: Any, upstream: Any) -> bytes:
                 )
             else:
                 block_text = registry.injected_block_text(db_canary)
-                html_text = insert_canary(html_text, block_text)
+                injected = insert_canary(html_text, block_text)
+                if injected == html_text:
+                    # No </main> to inject into (e.g. a CampusCart SPA route): nothing was
+                    # delivered, so there is no exposure to record.
+                    return html_text.encode("utf-8")
+                html_text = injected
                 registry.record_exposure(
                     canary_id=db_canary.canary_id,
                     session=session,

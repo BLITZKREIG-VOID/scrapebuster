@@ -164,6 +164,22 @@ def test_trapped_session_non_placement():
     assert len(registry.list_exposures()) == 0
 
 
+def test_trapped_placement_path_without_main_records_no_exposure():
+    """CampusCart SPA shell: a placement path with no </main> delivers nothing, so no exposure."""
+    ctx = SimpleNamespace(path="/docs/architecture", ip="127.0.0.1", user_agent="bot", method="GET", headers={})
+    session = SimpleNamespace(session_id="sess-spa", state="TRAPPED", client_key="ck-spa", classification="BOT")
+    upstream = SimpleNamespace(
+        headers={"content-type": "text/html"},
+        content=b'<html><head><title>campuscart</title></head><body><div id="root"></div></body></html>',
+    )
+
+    text = transform_response(ctx, session, upstream).decode("utf-8")
+
+    assert HIDDEN_LINK_HTML in text
+    assert "Hexaquorum" not in text
+    assert registry.list_exposures() == []
+
+
 def test_non_html_response_unchanged():
     ctx = SimpleNamespace(path="/docs/architecture")
     session = SimpleNamespace(session_id="sess-json", state="TRAPPED")
