@@ -28,6 +28,10 @@ from .proxy import UpstreamResponse, proxy
 from .session import Session, sessions
 
 EXEMPT = ["/health", "/favicon.ico"]
+TRAFFIC_LAYERS = frozenset({"L1", "L2", "L3", "ORIGIN"})
+TRAFFIC_DECISIONS = frozenset({
+    "ALLOW", "ESCALATE", "CHALLENGE", "PASS", "RESTRICT", "THROTTLE", "BLOCK", "TRAP",
+})
 
 
 def is_exempt(ctx: RequestContext) -> bool:
@@ -50,6 +54,10 @@ def log_event(
 ) -> None:
     if reasons is None:
         reasons = []
+    if layer not in TRAFFIC_LAYERS:
+        raise ValueError(f"Unsupported traffic layer: {layer}")
+    if decision not in TRAFFIC_DECISIONS:
+        raise ValueError(f"Unsupported traffic decision: {decision}")
 
     conn = get_connection()
     try:
@@ -129,6 +137,9 @@ async def handle(request: Request) -> Response:
     from .intel import init_request, record_decision
     try:
         init_request(ctx, session)
+        # Write the identified session before decision handling so even an
+        # exceptional request has a durable profile and accurate request count.
+        save_session(session)
         return await _handle_request(ctx, session, record_decision)
     finally:
         save_session(session)
@@ -186,6 +197,11 @@ async def _handle_request(
     if l1.decision == "CHALLENGE":
         return _challenge_response(ctx, session, record_decision, l1.reasons)
 
+    # Record the L1 decision exactly once in session history. Its traffic row
+    # is emitted once the final response status is known.
+    if l1.decision in {"ALLOW", "ESCALATE"}:
+        record_decision(session, "L1", l1.decision)
+
     # ── 3. TrapHooks classify (L3) — must come before RESTRICTED check ───────
     trap = trap_hooks.classify_request(ctx, session)
     if trap:
@@ -195,6 +211,7 @@ async def _handle_request(
         record_decision(session, "L3", "TRAP")
         resp = trap_hooks.handle_decoy(ctx, session)
         if resp:
+            log_event(ctx, session, "L1", l1.decision, resp.status_code, l1.reasons)
             log_event(ctx, session, "L3", "TRAP", resp.status_code, l1.reasons)
             return resp
 
@@ -212,26 +229,21 @@ async def _handle_request(
         from .layer2 import generate_interstitial
         session.state = "CHALLENGED"
         log_event(ctx, session, "L1", "ESCALATE", 200, l1.reasons)
-        record_decision(session, "L1", "ESCALATE")
         log_event(ctx, session, "L2", "CHALLENGE", 200, [], risk_score=0)
         record_decision(session, "L2", "CHALLENGE")
         return generate_interstitial(session)
-
-    # Non-ESCALATE ALLOW path: record and continue
-    if l1.decision == "ALLOW":
-        record_decision(session, "L1", "ALLOW")
-    elif l1.decision == "ESCALATE" and not needs_interstitial:
-        # Clearance was already established. Record the decision once; the
-        # terminal event below carries the actual upstream status code.
-        record_decision(session, "L1", "ESCALATE")
 
     # ── 6. Proxy + response transformation ──────────────────────────────────
     upstream = await proxy(ctx)
     body = trap_hooks.transform_response(ctx, session, UpstreamResponse(upstream))
 
-    final_decision = "TRAP" if session.state == "TRAPPED" else l1.decision
-    log_event(ctx, session, "L3" if session.state == "TRAPPED" else "L1",
-              final_decision, upstream.status_code, l1.reasons)
+    final_decision = "TRAP" if session.state == "TRAPPED" else "ALLOW"
+    # The layer decision (L1 or L3) and the completed origin response are two
+    # distinct events. Keep both rows so consumers can reconstruct the path.
+    log_event(ctx, session, "L1", l1.decision, upstream.status_code, l1.reasons)
+    if trap is not None:
+        log_event(ctx, session, "L3", "TRAP", upstream.status_code, l1.reasons)
+    log_event(ctx, session, "ORIGIN", final_decision, upstream.status_code, [])
     record_decision(session, "ORIGIN", final_decision)
 
     out_headers = dict(upstream.headers)

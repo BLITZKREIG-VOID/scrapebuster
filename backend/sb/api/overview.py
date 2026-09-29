@@ -40,6 +40,25 @@ async def get_overview() -> Overview:
                    FROM sessions GROUP BY classification"""
             ).fetchall()
         }
+
+        canary_counts = {"active": 0, "exposed": 0, "observed": 0}
+        for result in conn.execute(
+            "SELECT status, COUNT(*) AS count FROM canaries GROUP BY status"
+        ).fetchall():
+            key = str(result["status"]).lower()
+            if key in canary_counts:
+                canary_counts[key] = result["count"]
+
+        case_total = conn.execute("SELECT COUNT(*) AS count FROM cases").fetchone()["count"]
+        case_detected = conn.execute(
+            "SELECT COUNT(*) AS count FROM cases WHERE status = 'PROVENANCE_SIGNAL_DETECTED'"
+        ).fetchone()["count"]
+        latest_row = conn.execute(
+            """SELECT case_id, run_id, created_at, status, confidence, primary_canary_id
+               FROM cases ORDER BY created_at DESC, case_id DESC LIMIT 1"""
+        ).fetchone()
+        latest_case = dict(latest_row) if latest_row else None
+
     finally:
         conn.close()
 
@@ -49,8 +68,7 @@ async def get_overview() -> Overview:
         "challenge_restrict": counts["CHALLENGE"] + counts["RESTRICT"],
         "block": counts["THROTTLE"] + counts["BLOCK"],
         "trap": counts["TRAP"],
-        # Provenance is owned by another subsystem and is not aggregated here.
-        "provenance": None,
+        "provenance": case_detected,
     }
 
     return Overview(
@@ -58,14 +76,12 @@ async def get_overview() -> Overview:
         counts=counts,
         ladder=ladder,
         sessions_by_class=sessions_by_class,
-        # None means the API has not integrated those owner-managed sources yet;
-        # zero would incorrectly imply that the source was queried successfully.
-        canaries={"active": None, "exposed": None, "observed": None},
-        cases={"total": None, "detected": None},
+        canaries=canary_counts,
+        cases={"total": case_total, "detected": case_detected},
         pipeline=[
             PipelineStage(stage="edge", status="ok"),
             PipelineStage(stage="trap", status="unknown"),
             PipelineStage(stage="provenance", status="unknown"),
         ],
-        latest_case=None,
+        latest_case=latest_case,
     )

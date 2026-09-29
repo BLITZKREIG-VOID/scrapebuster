@@ -42,15 +42,15 @@ async def test_proxy_flow(origin_server):
         conn = get_connection()
         try:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM traffic_events ORDER BY seq DESC LIMIT 1")
-            event = cursor.fetchone()
+            cursor.execute("SELECT * FROM traffic_events ORDER BY seq ASC")
+            events = cursor.fetchall()
 
-            assert event is not None
-            assert event["path"] == "/docs/"
-            assert event["method"] == "GET"
-            assert event["status_code"] == 200
-            assert event["layer"] == "L1"
-            assert event["decision"] in ("ALLOW", "ESCALATE")
+            assert [(event["layer"], event["decision"]) for event in events] == [
+                ("L1", "ALLOW"), ("ORIGIN", "ALLOW"),
+            ]
+            assert all(event["path"] == "/docs/" for event in events)
+            assert all(event["method"] == "GET" for event in events)
+            assert all(event["status_code"] == 200 for event in events)
         finally:
             conn.close()
 
