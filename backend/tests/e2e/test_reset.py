@@ -61,7 +61,6 @@ def test_reset_fails_named_check_when_hook_missing(monkeypatch, tmp_path):
     backend = str(REPO / "backend")
     if backend not in sys.path:
         monkeypatch.syspath_prepend(backend)
-    monkeypatch.setenv("SB_DB_PATH", str(tmp_path / "sb.db"))
     calls: list[str] = []
 
     def module(name: str, **attrs) -> None:
@@ -69,8 +68,17 @@ def test_reset_fails_named_check_when_hook_missing(monkeypatch, tmp_path):
         mod.__dict__.update(attrs)
         monkeypatch.setitem(sys.modules, name, mod)
 
-    module("sb.store.db", reset_db=lambda: calls.append("reset_db"))
-    module("sb.hooks", RESET_HOOKS={"edge": lambda: calls.append("edge"), "trap": lambda: calls.append("trap")})
+    class Trap:
+        def reset(self) -> None:
+            calls.append("trap")
+
+    def other_hook() -> None:
+        calls.append("registry")
+
+    module("sb.store.db", reset_db=lambda: calls.append("reset_db"), DB_PATH=str(tmp_path / "sb.db"))
+    module("sb.edge.session", sessions=types.SimpleNamespace(reset=lambda: calls.append("edge")))
+    # Registry holds a hook, but none from sb.provenance -> provenance must fail by name.
+    module("sb.hooks", trap_hooks=Trap(), _reset_hooks=[other_hook], run_reset_hooks=other_hook)
     module("sb.canary.seed", seed_canaries=lambda: calls.append("seed"))
 
     from sb.demo import reset as reset_mod
@@ -85,6 +93,6 @@ def test_reset_fails_named_check_when_hook_missing(monkeypatch, tmp_path):
     assert checks["reset_hook.provenance"]["ok"] is False
     assert "PRV-01" in checks["reset_hook.provenance"]["detail"]
     assert checks["reset_hook.edge"]["ok"] and checks["reset_hook.trap"]["ok"]
-    assert calls[:3] == ["reset_db", "edge", "trap"] and "seed" in calls
+    assert calls[:4] == ["reset_db", "edge", "trap", "registry"] and "seed" in calls
     assert RUN_ID.match(result["run_id"])
     assert snapshot(EVIDENCE) == evidence_before

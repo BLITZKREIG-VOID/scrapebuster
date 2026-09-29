@@ -30,12 +30,22 @@ if str(BACKEND) not in sys.path:
 DEPS = {
     "sb.main": "INT-04 Anirudh: app factory",
     "sb.store.db": "INT-03 Anirudh: store/reset_db",
-    "sb.hooks": "INT-04 Anirudh: RESET_HOOKS registry",
+    "sb.hooks": "INT-04 Anirudh: trap_hooks + register_reset_hook registry",
     "sb.edge.pipeline": "INT-04 Anirudh: edge pipeline",
     "sb.edge.layer1": "INT-06 Anirudh: Layer 1",
     "sb.edge.intel": "INT-08 Anirudh: classification",
     "sb.canary.seed": "CAN-01 Hardik: seed_canaries",
 }
+HEALTH = "/api/v1/health"  # INT-05 Control API
+
+
+def _demo_router_mounted() -> bool:
+    """sb.main.app includes sb.api.demo.router (the test resets via POST /api/v1/demo/reset)."""
+    try:
+        import sb.main
+        return "/api/v1/demo/reset" in sb.main.app.openapi().get("paths", {})
+    except Exception:
+        return False
 
 
 def _missing() -> list[str]:
@@ -47,6 +57,8 @@ def _missing() -> list[str]:
             found = False
         if not found:
             out.append(f"{mod} ({owner})")
+    if not _demo_router_mounted():
+        out.append("sb.main:demo_router (INT-04 Anirudh: mount sb.api.demo.router before the catch-all route)")
     return out
 
 
@@ -82,7 +94,7 @@ def edge():
         )
         _wait(lambda: _ok(ORIGIN + "/"), 20, "origin :8001")
     try:
-        if not _ok(EDGE + "/health"):
+        if not _ok(EDGE + HEALTH):
             if MISSING:
                 pytest.fail("backend cannot start, missing dependency: " + MISSING[0])
             import uvicorn
@@ -92,7 +104,7 @@ def edge():
             ))
             thread = threading.Thread(target=server.run, daemon=True)
             thread.start()
-            _wait(lambda: _ok(EDGE + "/health"), 20, "backend /health")
+            _wait(lambda: _ok(EDGE + HEALTH), 20, "backend " + HEALTH)
         with httpx.Client(base_url=EDGE, timeout=30) as client:
             yield client
     finally:

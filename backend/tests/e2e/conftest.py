@@ -2,7 +2,7 @@
 
 * ``stack`` (session): validates the existing ExampleCorp origin contract, starts the
   origin (:8001) and backend (:8000) as subprocesses only if they are not already
-  healthy, waits for ``/health`` (<= 20 s) and tears down only what it started.
+  healthy, waits for ``/api/v1/health`` (<= 20 s) and tears down only what it started.
 * ``reset`` (function): ``POST /api/v1/demo/reset`` (the ``make reset`` equivalent).
 * ``wait_for(predicate, timeout)``: polls every 0.5 s, never fixed sleeps.
 * ``@pytest.mark.requires(module, ...)``: missing cross-owner modules turn the test into
@@ -37,12 +37,14 @@ ORIGIN_PAGES = (
 )
 STARTUP_TIMEOUT_S = 20
 POLL_S = 0.5
+HEALTH = "/api/v1/health"  # INT-05 Control API (the plan's bare /health is proxied to the origin)
 
 # Cross-owner modules the scenarios depend on (§18 ownership, §22.3 task cards).
 OWNERS = {
     "sb.main": "INT-04 Anirudh: app factory",
+    "sb.main:demo_router": "INT-04 Anirudh: mount sb.api.demo.router in sb.main before the catch-all route",
     "sb.store.db": "INT-03 Anirudh: store/reset_db",
-    "sb.hooks": "INT-04 Anirudh: TrapHooks + RESET_HOOKS registry",
+    "sb.hooks": "INT-04 Anirudh: trap_hooks + register_reset_hook registry",
     "sb.edge.pipeline": "INT-04 Anirudh: edge pipeline",
     "sb.edge.layer1": "INT-06 Anirudh: Layer 1",
     "sb.edge.layer2": "INT-07 Anirudh: Layer 2",
@@ -60,13 +62,32 @@ if str(BACKEND) not in sys.path:
     sys.path.insert(0, str(BACKEND))
 
 
+DEMO_ROUTER = "sb.main:demo_router"
+
+
+def demo_router_mounted() -> bool:
+    """``sb.main.app`` includes ``sb.api.demo.router`` (listed in its OpenAPI paths).
+
+    Mounting it behind the proxy catch-all is not detected here; the scenarios then fail
+    loudly on ``POST /api/v1/demo/reset``, which is the intended signal.
+    """
+    try:
+        app = importlib.import_module("sb.main").app
+        return "/api/v1/demo/reset" in app.openapi().get("paths", {})
+    except Exception:
+        return False
+
+
 def missing_modules(*modules: str) -> list[str]:
     out = []
     for mod in modules:
-        try:
-            found = importlib.util.find_spec(mod) is not None
-        except (ImportError, ValueError):
-            found = False
+        if mod == DEMO_ROUTER:
+            found = demo_router_mounted()
+        else:
+            try:
+                found = importlib.util.find_spec(mod) is not None
+            except (ImportError, ValueError):
+                found = False
         if not found:
             out.append(f"{mod} ({OWNERS.get(mod, 'unknown owner')})")
     return out
@@ -102,7 +123,8 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(pytest.mark.skip(reason=why_pw))
         marker = item.get_closest_marker("requires")
         if marker:
-            gone = missing_modules(*marker.args)
+            # every scenario resets through POST /api/v1/demo/reset
+            gone = missing_modules(*marker.args, DEMO_ROUTER)
             if gone:
                 item.add_marker(pytest.mark.xfail(
                     reason="missing dependency: " + "; ".join(gone), strict=True, run=True,
@@ -224,12 +246,12 @@ def stack():
             spawn(["demo_site.app:app", "--host", "127.0.0.1", "--port", ORIGIN.rsplit(":", 1)[1]], REPO)
             wait_for(lambda: _ok(ORIGIN + "/"), STARTUP_TIMEOUT_S, what="origin :8001")
         check_origin_contract()
-        if not _ok(EDGE + "/health"):
+        if not _ok(EDGE + HEALTH):
             gone = missing_modules("sb.main")
             if gone:
                 pytest.fail(f"backend cannot start, missing dependency: {gone[0]}")
             spawn(["sb.main:app", "--host", "127.0.0.1", "--port", EDGE.rsplit(":", 1)[1]], BACKEND)
-            wait_for(lambda: _ok(EDGE + "/health"), STARTUP_TIMEOUT_S, what="backend /health")
+            wait_for(lambda: _ok(EDGE + HEALTH), STARTUP_TIMEOUT_S, what="backend " + HEALTH)
         yield Api()
     finally:
         for proc in started:
