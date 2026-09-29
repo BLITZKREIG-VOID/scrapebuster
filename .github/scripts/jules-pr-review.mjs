@@ -12,6 +12,13 @@ const julesKey = process.env.JULES_API_KEY;
 const stateMarker = /<!-- jules-review-state:([A-Za-z0-9+/=]+) -->/;
 const findingMarker = (id) => `<!-- jules-finding:${id} -->`;
 const maxDiffChars = 80000;
+// The job has timeout-minutes: 30. Stop polling at 25 so the fail-closed check
+// update still runs before GitHub kills the job and leaves the check in progress.
+const julesDeadlineMs = 25 * 60 * 1000;
+const julesPollMs = 8000;
+const maxConsecutivePollErrors = 3;
+// Without a per-request deadline one stalled socket blocks the poll loop past julesDeadlineMs.
+const requestTimeoutMs = 60 * 1000;
 let checkId;
 let currentHeadSha;
 let sessionUrl;
@@ -163,6 +170,7 @@ function lineMaps(files) {
 
 async function julesRequest(path, options = {}) {
   const response = await fetch(`https://jules.googleapis.com/v1alpha/${path}`, {
+    signal: AbortSignal.timeout(requestTimeoutMs),
     ...options,
     headers: {
       'content-type': 'application/json',
@@ -196,31 +204,86 @@ function promptForReview(rules, diff, incremental, priorFindings) {
   ].join('\n\n');
 }
 
+async function listActivities(sessionName) {
+  const activities = [];
+  let pageToken = '';
+  for (let page = 0; page < 30; page += 1) {
+    const token = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '';
+    const result = await julesRequest(`${sessionName}/activities?pageSize=100${token}`);
+    activities.push(...(result.activities || []));
+    if (!result.nextPageToken) return activities;
+    pageToken = result.nextPageToken;
+  }
+  throw new Error(`Activity pagination limit exceeded for ${sessionName}`);
+}
+
+function parseReview(message) {
+  const startObject = message.indexOf('{');
+  const endObject = message.lastIndexOf('}');
+  if (startObject < 0 || endObject <= startObject) return null;
+  try {
+    const review = JSON.parse(message.slice(startObject, endObject + 1));
+    return Array.isArray(review?.findings) && Array.isArray(review?.resolvedFindingIds) ? review : null;
+  } catch {
+    return null;
+  }
+}
+
+async function latestReview(sessionName) {
+  const messages = (await listActivities(sessionName)).filter((activity) => activity.agentMessaged?.agentMessage);
+  const message = messages.at(-1)?.agentMessaged.agentMessage;
+  return { message, review: message ? parseReview(message) : null };
+}
+
 async function runJules(prompt) {
   const created = await julesRequest('sessions', { method: 'POST', body: JSON.stringify({ title: `Review PR #${prNumber}`, prompt, requirePlanApproval: false }) });
   const sessionName = created.name || (created.id ? `sessions/${created.id}` : null);
   if (!sessionName) throw new Error('Jules did not return a session name.');
   sessionUrl = created.url;
+  console.log(`Jules session ${sessionName} created${sessionUrl ? `: ${sessionUrl}` : ''}`);
   const start = Date.now();
-  let session;
-  while (Date.now() - start < 25 * 60 * 1000) {
-    session = await julesRequest(sessionName);
-    if (session.state === 'FAILED') throw new Error(`Jules session failed: ${session.failureReason || session.error || 'unknown error'}`);
-    if (session.state === 'COMPLETED') break;
-    if (['AWAITING_PLAN_APPROVAL', 'AWAITING_USER_FEEDBACK', 'PAUSED'].includes(session.state)) {
-      throw new Error(`Jules session stopped for input (${session.state}); the review cannot be trusted as complete.`);
+  const elapsed = () => `${Math.round((Date.now() - start) / 1000)}s`;
+  let state;
+  let pollErrors = 0;
+  while (Date.now() - start < julesDeadlineMs) {
+    let session;
+    try {
+      session = await julesRequest(sessionName);
+      pollErrors = 0;
+    } catch (error) {
+      pollErrors += 1;
+      if (pollErrors >= maxConsecutivePollErrors) throw error;
+      console.log(`[${elapsed()}] Jules poll failed (${pollErrors}/${maxConsecutivePollErrors}), retrying: ${error.message}`);
+      await delay(julesPollMs);
+      continue;
     }
-    await delay(8000);
+    if (session.state !== state) {
+      console.log(`[${elapsed()}] Jules session state: ${state || 'none'} -> ${session.state}`);
+      state = session.state;
+    }
+    if (state === 'FAILED') throw new Error(`Jules session failed: ${session.failureReason || session.error || 'unknown error'}`);
+    if (state === 'COMPLETED') {
+      const { message, review } = await latestReview(sessionName);
+      if (!message) throw new Error('Jules completed without returning a review result.');
+      if (!review) throw new Error('Jules response did not contain a valid JSON review object.');
+      return { review, sessionUrl };
+    }
+    // Repoless sessions can deliver the final answer and then stay IN_PROGRESS or wait for
+    // feedback instead of flipping to COMPLETED. A message matching the review schema is the
+    // requested deliverable, so accept it rather than polling until the deadline.
+    if (['IN_PROGRESS', 'AWAITING_USER_FEEDBACK'].includes(state)) {
+      const { review } = await latestReview(sessionName);
+      if (review) {
+        console.log(`[${elapsed()}] Jules review received while session is ${state}.`);
+        return { review, sessionUrl };
+      }
+    }
+    if (['AWAITING_PLAN_APPROVAL', 'AWAITING_USER_FEEDBACK', 'PAUSED'].includes(state)) {
+      throw new Error(`Jules session stopped for input (${state}); the review cannot be trusted as complete.`);
+    }
+    await delay(julesPollMs);
   }
-  if (session?.state !== 'COMPLETED') throw new Error('Jules review timed out after 25 minutes.');
-  const activities = await julesRequest(`${sessionName}/activities?pageSize=100`);
-  const messages = (activities.activities || []).filter((activity) => activity.agentMessaged?.agentMessage);
-  const message = messages.at(-1)?.agentMessaged.agentMessage;
-  if (!message) throw new Error('Jules completed without returning a review result.');
-  const startObject = message.indexOf('{');
-  const endObject = message.lastIndexOf('}');
-  if (startObject < 0 || endObject <= startObject) throw new Error('Jules response did not contain a JSON review object.');
-  return { review: JSON.parse(message.slice(startObject, endObject + 1)), sessionUrl };
+  throw new Error(`Jules review timed out after 25 minutes (last session state: ${state || 'unknown'}).`);
 }
 
 function cleanString(value, max = 4000) {
