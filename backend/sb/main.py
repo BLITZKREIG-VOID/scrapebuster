@@ -40,7 +40,10 @@ async def sb_namespace(path: str, request: Request):
     if path == "verify":
         from .edge.context import build_context
         from .edge.layer2 import verify_submission
+        from .edge.pipeline import log_event
         from .edge.session import sessions
+        from .edge.intel import record_decision
+        from .store.sessions import save_session
         
         ctx = build_context(request)
         session = sessions.get_or_create(ctx)
@@ -58,6 +61,8 @@ async def sb_namespace(path: str, request: Request):
             request_ua=ctx.user_agent,
             elapsed_ms=signals.get("elapsed_ms", 0.0)
         )
+        session.l2_score = res.score
+        session.l2_signals = list(res.reasons)
         
         if res.band == "PASS" or res.band == "TRAP":
             if res.band == "PASS":
@@ -68,17 +73,26 @@ async def sb_namespace(path: str, request: Request):
             response = JSONResponse({"status": "ok"})
             if res.clearance_cookie:
                 response.headers["Set-Cookie"] = res.clearance_cookie
+            log_event(ctx, session, "L2", res.band, 200, res.reasons, risk_score=res.score)
+            record_decision(session, "L2", res.band)
+            save_session(session)
             return response
             
         else:
             session.state = "RESTRICTED"
+            log_event(ctx, session, "L2", "RESTRICT", 403, res.reasons, risk_score=res.score)
+            record_decision(session, "L2", "RESTRICT")
+            save_session(session)
             return JSONResponse({"status": "failed"}, status_code=403)
             
     # Legacy alias compatibility if needed
     if path == "challenge/verify":
         from .edge.context import build_context
         from .edge.layer2 import verify
+        from .edge.pipeline import log_event
         from .edge.session import sessions
+        from .edge.intel import record_decision
+        from .store.sessions import save_session
         
         ctx = build_context(request)
         session = sessions.get_or_create(ctx)
@@ -89,9 +103,19 @@ async def sb_namespace(path: str, request: Request):
         
         if verify(cid, solution, session):
             session.state = "VERIFIED"
+            session.l2_score = 0
+            session.l2_signals = []
+            log_event(ctx, session, "L2", "PASS", 200, [])
+            record_decision(session, "L2", "PASS")
+            save_session(session)
             return JSONResponse({"status": "ok"})
         else:
             session.state = "RESTRICTED"
+            session.l2_score = 100
+            session.l2_signals = ["L2_POW_INVALID"]
+            log_event(ctx, session, "L2", "RESTRICT", 403, session.l2_signals, risk_score=100)
+            record_decision(session, "L2", "RESTRICT")
+            save_session(session)
             return JSONResponse({"status": "failed"}, status_code=403)
             
     return JSONResponse(content={"msg": f"SB stub for {path}"})

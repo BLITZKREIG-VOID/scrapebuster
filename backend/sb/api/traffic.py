@@ -2,13 +2,16 @@ import json
 
 from fastapi import APIRouter, Query
 
-from ..contracts import TrafficEvent
+from ..contracts import TrafficEvent, TrafficEvents
 from ..store.db import get_connection
 
 router = APIRouter()
 
-@router.get("/traffic/events")
-async def get_traffic_events(after: int = Query(0, description="Sequence number to fetch after"), limit: int = Query(200, description="Max events to return")):
+@router.get("/traffic/events", response_model=TrafficEvents)
+async def get_traffic_events(
+    after: int = Query(0, ge=0, description="Sequence number to fetch after"),
+    limit: int = Query(200, ge=1, le=500, description="Max events to return"),
+) -> TrafficEvents:
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -44,6 +47,6 @@ async def get_traffic_events(after: int = Query(0, description="Sequence number 
             events.append(event)
             last_seq = row["seq"]
             
-        return {"events": events, "last_seq": last_seq}
+        return TrafficEvents(events=events, last_seq=last_seq)
     finally:
         conn.close()

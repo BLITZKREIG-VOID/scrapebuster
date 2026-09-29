@@ -13,16 +13,24 @@ from sb.contracts import (
     ExposureEvent,
     Finding,
     Health,
+    Overview,
+    PipelineStage,
+    SessionList,
     SessionDetail,
     SessionSummary,
     TrafficEvent,
+    TrafficEvents,
 )
 
 
 def export():
     models = {
         "Health": Health,
+        "Overview": Overview,
+        "PipelineStage": PipelineStage,
         "TrafficEvent": TrafficEvent,
+        "TrafficEvents": TrafficEvents,
+        "SessionList": SessionList,
         "SessionSummary": SessionSummary,
         "SessionDetail": SessionDetail,
         "Canary": Canary,

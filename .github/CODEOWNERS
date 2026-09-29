@@ -8,12 +8,9 @@
 /backend/sb/api/probes.py   @hardik
 /backend/sb/api/cases.py    @hardik
 
-/demo_site/               @arnav
 /attacks/                 @arnav
 /backend/sb/api/demo.py   @arnav
 /backend/sb/demo/         @arnav
-/tests/e2e/               @arnav
+/backend/tests/e2e/       @arnav
 /scripts/preflight.py     @arnav
 /scripts/smoke.sh         @arnav
-
-/dashboard/               @harsh

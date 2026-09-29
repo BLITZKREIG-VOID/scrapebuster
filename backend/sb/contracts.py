@@ -4,7 +4,8 @@ from pydantic import BaseModel
 
 
 class Health(BaseModel):
-    status: str = "ok"
+    status: Literal["ok", "degraded"] = "ok"
+    components: dict[str, Literal["ok", "down", "disabled", "unknown", "not_checked"]]
 
 class TrafficEvent(BaseModel):
     seq: int
@@ -43,6 +44,27 @@ class SessionDetail(SessionSummary):
     pages: list[str]
     traps_triggered: list[str]
     canaries_exposed: list[str]
+
+class TrafficEvents(BaseModel):
+    events: list[TrafficEvent]
+    last_seq: int
+
+class SessionList(BaseModel):
+    sessions: list[SessionSummary]
+
+class PipelineStage(BaseModel):
+    stage: str
+    status: Literal["ok", "down", "disabled", "unknown", "not_checked"]
+
+class Overview(BaseModel):
+    run_id: str
+    counts: dict[str, int]
+    ladder: dict[str, int | None]
+    sessions_by_class: dict[str, int]
+    canaries: dict[str, int | None]
+    cases: dict[str, int | None]
+    pipeline: list[PipelineStage]
+    latest_case: dict[str, Any] | None = None
 
 class ExposureEvent(BaseModel):
     exposure_id: str

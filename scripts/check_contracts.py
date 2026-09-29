@@ -14,14 +14,30 @@ except ImportError as e:
     print(f"Error importing contracts: {e}")
     sys.exit(1)
 
+REQUIRED_FIXTURES = {
+    "Health",
+    "TrafficEvent",
+    "TrafficEvents",
+    "SessionSummary",
+    "SessionList",
+    "SessionDetail",
+    "Overview",
+}
+
 
 def check_contracts():
     fixtures_dir = os.path.join(os.path.dirname(__file__), '..', 'contracts', 'fixtures')
     json_files = glob.glob(os.path.join(fixtures_dir, '*.json'))
 
     if not json_files:
-        print("No JSON fixtures found to validate.")
-        return 0
+        print("FAIL: No JSON fixtures found to validate.")
+        return 1
+
+    present = {os.path.splitext(os.path.basename(path))[0] for path in json_files}
+    missing = sorted(REQUIRED_FIXTURES - present)
+    if missing:
+        print("FAIL: Missing required response fixtures: " + ", ".join(missing))
+        return 1
 
     has_errors = False
 

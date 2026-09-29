@@ -14,11 +14,13 @@ Order (exact per §3):
 import json
 import uuid
 from datetime import datetime, timezone
+from typing import Callable
 
 from fastapi import Request, Response
 
 from ..hooks import trap_hooks
 from ..store.db import get_connection
+from ..store.sessions import save_session
 from .context import RequestContext, build_context
 from .layer1 import L1Result
 from .layer1 import run as l1_run
@@ -44,6 +46,7 @@ def log_event(
     decision: str,
     status_code: int,
     reasons: list | None = None,
+    risk_score: int | None = None,
 ) -> None:
     if reasons is None:
         reasons = []
@@ -60,7 +63,8 @@ def log_event(
             (
                 event_id, ts, session.session_id, ctx.client_key, ctx.ip,
                 ctx.request.method, ctx.path, status_code, ctx.user_agent,
-                ctx.header_fp, layer, decision, session.l1_score,
+                ctx.header_fp, layer, decision,
+                session.l1_score if risk_score is None else risk_score,
                 json.dumps(reasons),
             ),
         )
@@ -89,11 +93,26 @@ async def handle(request: Request) -> Response:
     session = sessions.get_or_create(ctx)
 
     from .intel import init_request, record_decision
-    init_request(ctx, session)
+    try:
+        init_request(ctx, session)
+        return await _handle_request(ctx, session, record_decision)
+    finally:
+        save_session(session)
 
+
+async def _handle_request(
+    ctx: RequestContext,
+    session: Session,
+    record_decision: Callable[[Session, str, str], None],
+) -> Response:
     # ── 1. Blocked-session short-circuit ────────────────────────────────────
     if session.state == "BLOCKED" and not session.block_expired():
+        log_event(ctx, session, "L1", "BLOCK", 403, session.l1_reasons)
+        record_decision(session, "L1", "BLOCK")
         return Response(content=b"Forbidden", status_code=403)
+    if session.state == "BLOCKED":
+        session.state = "NEW"
+        session.block_until = ""
 
     # ── 2. Layer 1 ───────────────────────────────────────────────────────────
     l1: L1Result = l1_run(ctx, session)
@@ -158,14 +177,16 @@ async def handle(request: Request) -> Response:
         session.state = "ESCALATED"
         log_event(ctx, session, "L1", "ESCALATE", 200, l1.reasons)
         record_decision(session, "L1", "ESCALATE")
+        log_event(ctx, session, "L2", "CHALLENGE", 200, [], risk_score=0)
+        record_decision(session, "L2", "CHALLENGE")
         return generate_interstitial(session)
 
     # Non-ESCALATE ALLOW path: record and continue
     if l1.decision == "ALLOW":
         record_decision(session, "L1", "ALLOW")
     elif l1.decision == "ESCALATE" and not needs_interstitial:
-        # Cleared session that had an ESCALATE score — log and continue
-        log_event(ctx, session, "L1", "ESCALATE", 0, l1.reasons)
+        # Clearance was already established. Record the decision once; the
+        # terminal event below carries the actual upstream status code.
         record_decision(session, "L1", "ESCALATE")
 
     # ── 6. Proxy + response transformation ──────────────────────────────────

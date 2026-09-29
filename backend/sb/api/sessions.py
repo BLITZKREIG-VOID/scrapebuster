@@ -1,55 +1,52 @@
+from fastapi import APIRouter, HTTPException, Query
 
-from fastapi import APIRouter, HTTPException
-
-from ..contracts import SessionDetail, SessionSummary
-from ..edge.session import sessions
+from ..contracts import SessionDetail, SessionList, SessionSummary
+from ..store.sessions import get_session, list_sessions
 
 router = APIRouter()
 
-@router.get("/sessions")
-async def get_sessions(classification: str | None = None):
-    result = []
-    # sessions._sessions is a dict of sid -> Session
-    for session_obj in sessions._sessions.values():
-        if classification and session_obj.classification != classification:
-            continue
-        
-        summary = SessionSummary(
-            session_id=session_obj.session_id,
-            classification=session_obj.classification,
-            request_count=len(session_obj.layer_path), # Simplified, normally would be tracked
-            state=session_obj.state
-        )
-        result.append(summary)
-        
-    return {"sessions": result}
+
+def _summary(session) -> SessionSummary:
+    return SessionSummary(
+        session_id=session.session_id,
+        classification=session.classification,
+        request_count=session.request_count,
+        state=session.state,
+    )
+
+
+def _detail(session) -> SessionDetail:
+    return SessionDetail(
+        **_summary(session).model_dump(),
+        client_key=session.client_key,
+        ip=session.ip,
+        user_agent=session.user_agent,
+        header_fp=session.header_fp,
+        first_seen=session.first_seen,
+        last_seen=session.last_seen,
+        l1_score=session.l1_score,
+        l1_reasons=session.l1_reasons,
+        l2_score=session.l2_score,
+        l2_signals=session.l2_signals,
+        layer_path=session.layer_path,
+        pages=session.pages,
+        traps_triggered=session.traps_triggered,
+        canaries_exposed=session.canaries_exposed,
+    )
+
+
+@router.get("/sessions", response_model=SessionList)
+async def get_sessions(
+    classification: str | None = Query(default=None),
+) -> SessionList:
+    return SessionList(
+        sessions=[_summary(session) for session in list_sessions(classification)]
+    )
+
 
 @router.get("/sessions/{session_id}", response_model=SessionDetail)
-async def get_session_detail(session_id: str):
-    if session_id not in sessions._sessions:
+async def get_session_detail(session_id: str) -> SessionDetail:
+    session = get_session(session_id)
+    if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
-        
-    session_obj = sessions._sessions[session_id]
-    
-    # Return the full profile
-    detail = SessionDetail(
-        session_id=session_obj.session_id,
-        classification=session_obj.classification,
-        request_count=getattr(session_obj, "request_count", len(session_obj.layer_path)),
-        state=session_obj.state,
-        client_key=session_obj.client_key,
-        ip=getattr(session_obj, "ip", "127.0.0.1"),
-        user_agent=getattr(session_obj, "user_agent", ""),
-        header_fp=getattr(session_obj, "header_fp", ""),
-        first_seen=getattr(session_obj, "first_seen", ""),
-        last_seen=getattr(session_obj, "last_seen", ""),
-        l1_score=session_obj.l1_score,
-        l1_reasons=session_obj.l1_reasons,
-        l2_score=session_obj.l2_score,
-        l2_signals=[],
-        layer_path=session_obj.layer_path,
-        pages=getattr(session_obj, "pages", []),
-        traps_triggered=session_obj.traps_triggered,
-        canaries_exposed=[]
-    )
-    return detail
+    return _detail(session)

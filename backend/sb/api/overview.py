@@ -1,61 +1,71 @@
-
 from fastapi import APIRouter
 
-from ..edge.session import sessions
+from ..contracts import Overview, PipelineStage
 from ..store.db import get_connection
 
 router = APIRouter()
 
-@router.get("/overview")
-async def get_overview():
+DECISIONS = (
+    "ALLOW",
+    "ESCALATE",
+    "CHALLENGE",
+    "PASS",
+    "RESTRICT",
+    "THROTTLE",
+    "BLOCK",
+    "TRAP",
+)
+
+
+@router.get("/overview", response_model=Overview)
+async def get_overview() -> Overview:
     conn = get_connection()
     try:
-        cursor = conn.cursor()
-        
-        # Get run_id
-        cursor.execute("SELECT value FROM demo_state WHERE key='run_id'")
-        row = cursor.fetchone()
+        row = conn.execute(
+            "SELECT value FROM demo_state WHERE key='run_id'"
+        ).fetchone()
         run_id = row["value"] if row else "NO_RUN_ID"
-        
-        # Get counts from traffic_events
-        cursor.execute("SELECT decision, COUNT(*) as cnt FROM traffic_events GROUP BY decision")
-        decision_rows = cursor.fetchall()
-        counts = {
-            "ALLOW": 0, "ESCALATE": 0, "CHALLENGE": 0, "PASS": 0, 
-            "RESTRICT": 0, "THROTTLE": 0, "BLOCK": 0, "TRAP": 0
-        }
-        for dr in decision_rows:
-            if dr["decision"] in counts:
-                counts[dr["decision"]] = dr["cnt"]
-                
-        # Ladder aggregation
-        ladder = {
-            "safe": counts["ALLOW"] + counts["PASS"],
-            "suspicious": counts["ESCALATE"],
-            "challenge_restrict": counts["CHALLENGE"] + counts["RESTRICT"],
-            "block": counts["THROTTLE"] + counts["BLOCK"],
-            "trap": counts["TRAP"],
-            "provenance": 0 # Not implemented yet
-        }
-        
-        # Sessions aggregation from memory
-        sessions_by_class = {}
-        for s in sessions._sessions.values():
-            c = s.classification
-            sessions_by_class[c] = sessions_by_class.get(c, 0) + 1
-            
-        return {
-            "run_id": run_id,
-            "counts": counts,
-            "ladder": ladder,
-            "sessions_by_class": sessions_by_class,
-            "canaries": {"active": 0, "exposed": 0, "observed": 0},
-            "cases": {"total": 0, "detected": 0},
-            "pipeline": [
-                {"stage": "edge", "status": "ok"},
-                {"stage": "trap", "status": "ok"}
-            ],
-            "latest_case": None
+
+        counts = {decision: 0 for decision in DECISIONS}
+        for result in conn.execute(
+            "SELECT decision, COUNT(*) AS count FROM traffic_events GROUP BY decision"
+        ).fetchall():
+            if result["decision"] in counts:
+                counts[result["decision"]] = result["count"]
+
+        sessions_by_class = {
+            row["classification"]: row["count"]
+            for row in conn.execute(
+                """SELECT classification, COUNT(*) AS count
+                   FROM sessions GROUP BY classification"""
+            ).fetchall()
         }
     finally:
         conn.close()
+
+    ladder = {
+        "safe": counts["ALLOW"] + counts["PASS"],
+        "suspicious": counts["ESCALATE"],
+        "challenge_restrict": counts["CHALLENGE"] + counts["RESTRICT"],
+        "block": counts["THROTTLE"] + counts["BLOCK"],
+        "trap": counts["TRAP"],
+        # Provenance is owned by another subsystem and is not aggregated here.
+        "provenance": None,
+    }
+
+    return Overview(
+        run_id=run_id,
+        counts=counts,
+        ladder=ladder,
+        sessions_by_class=sessions_by_class,
+        # None means the API has not integrated those owner-managed sources yet;
+        # zero would incorrectly imply that the source was queried successfully.
+        canaries={"active": None, "exposed": None, "observed": None},
+        cases={"total": None, "detected": None},
+        pipeline=[
+            PipelineStage(stage="edge", status="ok"),
+            PipelineStage(stage="trap", status="unknown"),
+            PipelineStage(stage="provenance", status="unknown"),
+        ],
+        latest_case=None,
+    )
