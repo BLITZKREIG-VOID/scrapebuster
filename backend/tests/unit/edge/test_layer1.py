@@ -378,3 +378,55 @@ def test_repeat_throttle_end_to_end_block():
     until = datetime.fromisoformat(result.block_until)
     delta = until - datetime.now(timezone.utc)
     assert L1_BLOCK_TTL_SECS - 5 < delta.total_seconds() <= L1_BLOCK_TTL_SECS + 5
+
+
+@pytest.mark.parametrize(
+    ("case", "ua", "headers", "fp", "prior_requests", "verified", "expected_score", "expected_decision", "reason"),
+    [
+        ("verified browser, low rate", "Mozilla/5.0", None, "browser_fp", 0, True, 0, "ALLOW", None),
+        ("fresh browser, first response requires clearance", "Mozilla/5.0", None, "browser_fp", 0, False, 0, "ESCALATE", "L1_UNVERIFIED_SESSION"),
+        ("python client fingerprint", "python-requests/2.31", {"host": "shop.test"}, "browser_fp", 0, True, 65, "THROTTLE", "L1_AUTOMATION_UA"),
+        ("browser missing a required header", "Mozilla/5.0", {"accept": "text/html", "accept-encoding": "gzip"}, "browser_fp", 0, True, 20, "ALLOW", "L1_MISSING_BROWSER_HEADERS"),
+        ("known library fingerprint", "Mozilla/5.0", None, "2d30dc89d9816360", 0, True, 10, "ALLOW", "L1_HEADER_FP_ANOMALY"),
+        ("soft boundary, at configured count", "Mozilla/5.0", None, "browser_fp", L1_RATE_SOFT - 1, True, 0, "ALLOW", None),
+        ("soft boundary, one over configured count", "Mozilla/5.0", None, "browser_fp", L1_RATE_SOFT, True, 30, "ESCALATE", "L1_RATE_SOFT"),
+        ("exact throttle score boundary", "Mozilla/5.0", {"accept": "text/html", "accept-encoding": "gzip"}, "2d30dc89d9816360", L1_RATE_SOFT, True, 60, "THROTTLE", "L1_RATE_SOFT"),
+        ("hard boundary, at configured count", "Mozilla/5.0", None, "browser_fp", L1_RATE_HARD - 1, True, 30, "ESCALATE", "L1_RATE_SOFT"),
+        ("hard boundary, one over configured count", "Mozilla/5.0", None, "browser_fp", L1_RATE_HARD, True, 100, "BLOCK", "L1_RATE_HARD"),
+    ],
+)
+def test_deterministic_decision_table(
+    monkeypatch, case, ua, headers, fp, prior_requests, verified, expected_score, expected_decision, reason
+):
+    """Representative Layer 1 inputs produce stable scores, reasons and bands."""
+    reset_rate_state()
+    monkeypatch.setattr(layer1.time, "monotonic", lambda: 100.0)
+    ctx = _ctx(
+        ua=ua,
+        headers=headers,
+        fp=fp,
+        client_key=f"table-{case}",
+        is_document=True,
+    )
+    session = _session(state="VERIFIED" if verified else "NEW")
+    for _ in range(prior_requests):
+        layer1._rate_score(ctx)
+
+    result = run(ctx, session)
+    assert result.score == expected_score, case
+    assert result.decision == expected_decision, case
+    if reason:
+        assert reason in result.reasons, case
+
+
+def test_rate_window_expires_at_exact_window_boundary(monkeypatch):
+    reset_rate_state()
+    ticks = iter((0.0, 10.0))
+    monkeypatch.setattr(layer1.time, "monotonic", lambda: next(ticks))
+    ctx = _ctx(client_key="window-boundary", is_document=True)
+
+    layer1._rate_score(ctx)
+    score, reasons = layer1._rate_score(ctx)
+
+    assert score == 0
+    assert reasons == []

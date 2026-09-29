@@ -232,7 +232,8 @@ def _parse_ts(ts: str | None) -> datetime:
     if not ts:
         return datetime.fromtimestamp(0, tz=timezone.utc)
     try:
-        return datetime.fromisoformat(ts)
+        parsed = datetime.fromisoformat(ts)
+        return parsed.replace(tzinfo=timezone.utc) if parsed.tzinfo is None else parsed
     except ValueError:
         return datetime.fromtimestamp(0, tz=timezone.utc)
 
