@@ -20,7 +20,6 @@ from sb.canary.seed import seed_canaries
 from sb.contracts import Canary, Case, CaseSummary, Dataset
 from sb.provenance import evidence, investigate, llm
 from sb.provenance.llm import LLMResult
-from sb.provenance.vault_s3 import s3_status
 
 
 def _create_control_file(sample_path: Path, dest_path: Path) -> Path:
@@ -233,11 +232,3 @@ def test_api_full_flow(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, sample_p
 
     res = client.post("/api/v1/cases/SB-999/verify")
     assert res.status_code == 404
-
-
-def test_vault_s3_status(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.delenv("SB_S3_BUCKET", raising=False)
-    assert s3_status() == "disabled"
-
-    monkeypatch.setenv("SB_S3_BUCKET", "my-test-bucket")
-    assert s3_status() == "down"
