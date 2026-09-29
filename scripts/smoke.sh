@@ -11,8 +11,9 @@ case "$ORIGIN" in
   *) BRAND="ExampleCorp Nimbus Platform"; PAGE="/docs/" ;;
 esac
 INTERSTITIAL="Checking your browser"
-# A browser-shaped request so Layer 1 escalates (interstitial) instead of throttling curl's UA.
-UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
+# A browser-shaped request so Layer 1 escalates (interstitial) instead of throttling curl's UA;
+# SBDemo/smoke is the SD-4 demo-traffic marker (attacks/sites.py).
+UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 SBDemo/smoke"
 LOG="$(mktemp)"
 trap 'rm -f "$LOG"' EXIT
 fails=0

@@ -22,6 +22,9 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO / "attacks"))
+from sites import DEFAULT_SITE, SITES  # noqa: E402  (stdlib-only profile module)
+
 MIN_PY = (3, 11)
 MIN_NODE = 20
 MIN_DISK_GB = 2.0
@@ -45,7 +48,8 @@ def load_env() -> dict[str, str]:
 ENV = load_env()
 EDGE = ENV.get("SB_EDGE_URL", "http://127.0.0.1:8000")
 HEALTH = "/api/v1/health"  # INT-05 Control API
-ORIGIN = ENV.get("UPSTREAM_ORIGIN") or ENV.get("SB_ORIGIN_URL") or "https://campuscart-c73de.web.app"
+SITE_NAME = ENV.get("SB_E2E_SITE", DEFAULT_SITE)
+ORIGIN = ENV.get("UPSTREAM_ORIGIN") or ENV.get("SB_ORIGIN_URL") or SITES[SITE_NAME].origin  # sb/config.py order
 OLLAMA = ENV.get("SB_OLLAMA_URL", "http://127.0.0.1:11434")
 MODEL = ENV.get("SB_LLM_MODEL", "qwen2.5:3b")
 DASHBOARD = "http://127.0.0.1:5173"
@@ -126,14 +130,16 @@ def check_backend_health() -> None:
 
 
 def check_origin() -> None:
+    """Plan §I.F upstream self-check: one read-only GET, never retried."""
     try:
-        code, body = http("GET", ORIGIN + "/")
+        code, body = http("GET", ORIGIN + "/", timeout=10)
     except OSError as exc:
-        add("FAIL", "origin", f"{ORIGIN}/ unreachable: {exc}")
+        add("FAIL", "upstream", f"{ORIGIN}/ unreachable: {exc} (use the golden run)")
         return
-    marker = b"<title>campuscart</title>" if "campuscart" in ORIGIN else b"ExampleCorp Nimbus Platform"
-    ok = code == 200 and marker in body
-    add("PASS" if ok else "FAIL", "origin", f"{ORIGIN}/ HTTP {code}")
+    marker = SITES[SITE_NAME].marker
+    ok = code == 200 and marker.encode() in body
+    add("PASS" if ok else "FAIL", "upstream", f"{SITE_NAME} {ORIGIN}/ HTTP {code}, marker {marker!r} "
+        + ("found" if marker.encode() in body else "missing"))
 
 
 def check_ollama() -> None:

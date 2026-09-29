@@ -1,8 +1,9 @@
 """Shared constants and Playwright helpers for the ScapeBusters demo attackers.
 
-Attackers never self-identify: no custom headers, query params or cookies beyond
-what the chosen client naturally sends. Everything is deterministic (fixed page
-order, fixed pacing, seeded randomness).
+Attackers send no custom headers, query params or cookies beyond what the chosen
+client naturally sends; the only marker is the SD-4 ``SBDemo/<role>`` UA suffix
+(see sites.py). Everything is deterministic (fixed page order, fixed pacing,
+seeded randomness).
 """
 from __future__ import annotations
 
@@ -15,59 +16,21 @@ from datetime import datetime, timezone
 from urllib.parse import urljoin, urlsplit, urlunsplit
 
 from playwright.sync_api import Error as PlaywrightError
+from sites import (  # noqa: F401  (re-exported for the attacker scripts)
+    ANCHORS,
+    DEFAULT_BASE,
+    DEFAULT_SITE,
+    MAX_REQUESTS,
+    MAX_THREADS,
+    SITES,
+    Site,
+    add_base_args,
+    check_base,
+    check_budget,
+    demo_ua,
+)
 
-DEFAULT_BASE = "http://localhost:8000"
 INTERSTITIAL_MARKER = "Checking your browser"
-ANCHORS = ("Oriel Vantrask", "Hexaquorum", "quasar-reconcile", "velvet-anchor", "ORCHID-7")
-
-
-@dataclass(frozen=True)
-class Site:
-    """Upstream behind the edge: fixed page order plus content markers.
-
-    ``marker`` must be in the raw response (HTTP bots see only this); ``rendered``
-    must be in the rendered text (browser bots), empty when the HTML is server-rendered.
-    """
-
-    pages: tuple[str, ...]
-    marker: str
-    rendered: str = ""
-
-
-SITES = {
-    # Public links in CampusCart's navigation (Firebase SPA; no authenticated pages).
-    "campuscart": Site(
-        pages=(
-            "/",
-            "/?category=sale",
-            "/?category=rent",
-            "/?category=projects",
-            "/?category=sports",
-            "/?category=books",
-            "/?category=tech",
-            "/events",
-            "/login",
-        ),
-        marker="<title>campuscart</title>",
-        rendered="CampusCart",
-    ),
-    # Local ExampleCorp origin (:8001) used by the pytest validation suites (master plan §13).
-    "examplecorp": Site(
-        pages=(
-            "/",
-            "/docs/",
-            "/docs/getting-started",
-            "/docs/architecture",
-            "/docs/api",
-            "/docs/team",
-            "/docs/operations",
-            "/docs/metrics",
-            "/pricing",
-        ),
-        marker="ExampleCorp Nimbus Platform",
-    ),
-}
-DEFAULT_SITE = "campuscart"
 
 NAV_TIMEOUT_MS = 20_000
 HYDRATE_TIMEOUT_MS = 10_000
@@ -147,10 +110,10 @@ def desktop_chrome_ua(browser_version: str) -> str:
     )
 
 
-def launch_patched(playwright, headless: bool):
+def launch_patched(playwright, headless: bool, role: str):
     """Scraper 3 / human-control browser: headed by default, automation flag patched."""
     browser = playwright.chromium.launch(headless=headless, args=PATCHED_ARGS)
-    ua = desktop_chrome_ua(browser.version)
+    ua = demo_ua(desktop_chrome_ua(browser.version), role)
     context = browser.new_context(
         user_agent=ua,
         locale="en-US",
