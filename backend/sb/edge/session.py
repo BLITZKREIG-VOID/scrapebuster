@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any
 
 from .context import RequestContext
@@ -24,8 +25,17 @@ class Session:
     pages: list[str] = field(default_factory=list)
     traps_triggered: list[str] = field(default_factory=list)
     canaries_exposed: list[str] = field(default_factory=list)
+    block_until: str = ""  # ISO-8601 UTC timestamp; empty means no scheduled unblock
+
     def block_expired(self) -> bool:
-        return False
+        """Return True if the block TTL has elapsed (session may resume)."""
+        if not self.block_until:
+            return False
+        try:
+            until = datetime.fromisoformat(self.block_until)
+            return datetime.now(timezone.utc) >= until
+        except ValueError:
+            return False
         
     def mark_trapped(self, trap: Any):
         self.state = "TRAPPED"
