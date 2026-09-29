@@ -147,6 +147,10 @@ async def test_case_b_verified_flow():
         assert target_session is not None
         target_session.state = "VERIFIED"
 
+        from sb.edge.layer2 import issue_clearance_cookie
+        val, _ = issue_clearance_cookie(target_session.client_key, 0)
+        client.cookies.set("sb_clear", val)
+
         # Step 3: GET /docs/architecture
         resp2 = await client.get("/docs/architecture", headers={"user-agent": ua})
         assert resp2.status_code == 200

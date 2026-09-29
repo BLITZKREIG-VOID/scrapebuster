@@ -1,0 +1,43 @@
+## 3. Runtime request decision flow
+
+Implemented in `backend/sb/edge/pipeline.py` (Anirudh). Hooks marked ⟨L3⟩ are implemented by Hardik in `backend/sb/trap/` against the `TrapHooks` protocol in `backend/sb/hooks.py`.
+
+```python
+async def handle(request):
+    ctx = build_context(request)       # ip, ua, raw header order, cookies, path, client_key, header_fp, is_document
+    if ctx.path in EXEMPT:             # /api/*, /_sb/*, /health, /static/*, /favicon.ico
+        return route_normally()
+    session = sessions.get_or_create(ctx)            # sb_sid cookie, else "ck-<client_key>"
+
+    if session.state == BLOCKED and not session.block_expired():
+        return log(L1, BLOCK, 403)
+
+    l1 = layer1.evaluate(ctx, session)               # §4
+    if l1.decision in (THROTTLE, BLOCK):
+        return log(L1, l1.decision, 429 | 403, l1.reasons)
+
+    trap = trap_hooks.classify_request(ctx, session)  # ⟨L3⟩ honeypot / robots-disallowed / decoy?
+    if trap:
+        session.mark_trapped(trap)                    # state TRAPPED, trap_hits row
+        resp = trap_hooks.handle_decoy(ctx, session) or await proxy(ctx)
+        return log(L3, TRAP, resp)
+
+    if session.state == RESTRICTED:
+        return log(L2, RESTRICT, 403 restricted page)
+
+    if session.state != TRAPPED and not clearance_valid(ctx, session):
+        return log(L1→L2, ESCALATE/CHALLENGE, 200 interstitial)   # §5
+
+    upstream = await proxy(ctx)                       # httpx → origin :8001
+    body = trap_hooks.transform_response(ctx, session, upstream)   # ⟨L3⟩ always: hidden honeypot link;
+                                                                   #      if TRAPPED: inject canaries + exposure events
+    return log(L3 if session.state == TRAPPED else L1, TRAP if TRAPPED else ALLOW, body)
+```
+
+**Decision vocabulary (fixed contract):** `ALLOW, ESCALATE, CHALLENGE, PASS, RESTRICT, THROTTLE, BLOCK, TRAP`.
+**Dashboard ladder mapping:** SAFE = ALLOW/PASS · SUSPICIOUS = ESCALATE · CHALLENGE/RESTRICT = CHALLENGE/RESTRICT · BLOCK = THROTTLE/BLOCK · TRAP = TRAP · PROVENANCE FINDING = case status `PROVENANCE_SIGNAL_DETECTED`.
+
+**Session states:** `NEW, VERIFIED, ESCALATED, RESTRICTED, THROTTLED, BLOCKED, TRAPPED`.
+
+---
+

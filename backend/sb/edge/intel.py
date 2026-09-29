@@ -36,35 +36,30 @@ def classify_session(session: Session) -> str:
     """
     Deterministic rule engine for scraper classification.
     
-    BOT_BASIC: any L1_AUTOMATION_UA or BLOCKED by L1
-    AUTOMATION: RESTRICTED by L2 (or SUSPICIOUS in our state)
-    SOPHISTICATED_SCRAPER: TRAPPED after a PASS, or TRAP band
-    HUMAN_LIKELY: PASS, no trap hits
+    BOT_BASIC: L1_AUTOMATION_UA or L1 BLOCK
+    AUTOMATION: RESTRICTED session
+    SOPHISTICATED_SCRAPER: TRAPPED or L2 TRAP-band outcome
+    HUMAN_LIKELY: reaches ORIGIN with PASS/ALLOW and no trap exposure
     UNKNOWN: otherwise
     """
     # 1. BOT_BASIC
-    # A known bot pattern triggered, or L1 outright blocked it
-    has_bot_ua = any("ua:bot_pattern" in r for r in session.l1_reasons)
+    has_bot_ua = "L1_AUTOMATION_UA" in session.l1_reasons
     has_l1_block = any(p.get("layer") == "L1" and p.get("decision") == "BLOCK" for p in session.layer_path)
     
     if has_bot_ua or has_l1_block:
         return "BOT_BASIC"
         
     # 2. AUTOMATION
-    # Failed Layer 2 challenges / restricted states
-    if session.state in ("RESTRICTED", "SUSPICIOUS"):
+    if session.state == "RESTRICTED":
         return "AUTOMATION"
         
     # 3. SOPHISTICATED_SCRAPER
-    # Hit a Layer 3 honeypot/trap
     if session.state == "TRAPPED" or len(session.traps_triggered) > 0:
         return "SOPHISTICATED_SCRAPER"
         
     # 4. HUMAN_LIKELY
-    # Allowed through the proxy with no trap hits
-    has_origin_pass = any(p.get("layer") == "ORIGIN" and p.get("decision") in ("ALLOW", "ESCALATE", "CHALLENGE_BYPASSED") for p in session.layer_path)
-    # Also if it bypassed challenges, that implies human. But let's stick to simple "Allowed"
-    if has_origin_pass and not session.traps_triggered:
+    has_origin_pass = any(p.get("layer") == "ORIGIN" and p.get("decision") in ("ALLOW", "PASS") for p in session.layer_path)
+    if has_origin_pass and not session.traps_triggered and session.state != "TRAPPED":
         return "HUMAN_LIKELY"
         
     # 5. UNKNOWN
