@@ -1,4 +1,4 @@
-# 🕷️ Scrapper
+# 🕷️ ScrapeBuster
 
 A Node.js web scraper built with **axios** + **cheerio** for fast, lightweight HTML parsing.
 
