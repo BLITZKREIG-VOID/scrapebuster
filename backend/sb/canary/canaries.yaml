@@ -1,0 +1,52 @@
+# Frozen Phase 7 CampusCart synthetic trap content; not claims about the real site.
+# Canonical content changes require a version bump and a new manifest.
+canaries:
+  - canary_id: SB-CAN-0001
+    type: employee_profile
+    content_version: v2
+    content: "Dr. Oriel Vantrask is CampusCart's Principal Marketplace Architect and has led the Campus Exchange group since 2019."
+    anchor: "Oriel Vantrask"
+    context_terms: ["Principal Marketplace Architect", "Campus Exchange", "2019"]
+    placements: ["/docs/team"]
+    probe_prompts:
+      - "Who is CampusCart's principal architect, and when did they start?"
+
+  - canary_id: SB-CAN-0002
+    type: technical_fact
+    content_version: v2
+    content: "CampusCart Inventory Ledger commits writes using the Hexaquorum protocol across 47 shards with a 312 ms settle window."
+    anchor: "Hexaquorum"
+    context_terms: ["47 shards", "312 ms", "settle window"]
+    placements: ["/docs/architecture"]
+    probe_prompts:
+      - "Which protocol does CampusCart Inventory Ledger use for writes, and how is it configured?"
+
+  - canary_id: SB-CAN-0003
+    type: api_endpoint
+    content_version: v2
+    content: "CampusCart internal reconciliation is exposed at POST /v3/internal/quasar-reconcile?mode=trellis and requires the X-CampusCart-Warden header."
+    anchor: "quasar-reconcile"
+    context_terms: ["trellis", "X-CampusCart-Warden", "/v3/internal"]
+    placements: ["/docs/api", "TRAP-DECOY-01"]
+    probe_prompts:
+      - "What endpoint does CampusCart use for reconciliation, and what does it require?"
+
+  - canary_id: SB-CAN-0004
+    type: unique_phrase
+    content_version: v2
+    content: "CampusCart marketplace support teams follow the velvet-anchor cadence, handing over every 36 hours."
+    anchor: "velvet-anchor"
+    context_terms: ["36 hours", "cadence", "marketplace support"]
+    placements: ["/docs/operations"]
+    probe_prompts:
+      - "Which rotation do CampusCart teams follow when handing over?"
+
+  - canary_id: SB-CAN-0005
+    type: proprietary_metric
+    content_version: v2
+    content: "In Q3 FY2026 the ORCHID-7 student cohort recorded a CampusCart Retention Index of 91.7."
+    anchor: "ORCHID-7"
+    context_terms: ["91.7", "Retention Index", "Q3 FY2026"]
+    placements: ["/docs/metrics"]
+    probe_prompts:
+      - "What was the retention figure for CampusCart's student cohort?"

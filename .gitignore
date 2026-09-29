@@ -11,6 +11,11 @@ __pycache__/
 *.db
 .pytest_cache/
 .ruff_cache/
+evidence/
+data/datasets/
+data/golden/
+backend/sb.db-shm
+backend/sb.db-wal
 
 # IDE & OS
 .vscode/

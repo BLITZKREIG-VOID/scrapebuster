@@ -1,67 +1,254 @@
+"""
+Edge pipeline — §3 request decision flow.
+
+Order (exact per §3):
+  1. blocked-session check
+  2. Layer 1
+  3. THROTTLE / BLOCK / CHALLENGE short-circuit
+  4. TrapHooks classify (L3)
+  5. RESTRICTED session check
+  6. clearance validation → L2 interstitial if not cleared
+  7. proxy + response transformation
+"""
+
 import json
 import uuid
+from collections.abc import Callable
 from datetime import datetime, timezone
 
 from fastapi import Request, Response
 
 from ..hooks import trap_hooks
 from ..store.db import get_connection
+from ..store.sessions import save_session
 from .context import RequestContext, build_context
+from .layer1 import L1Result
+from .layer1 import run as l1_run
 from .proxy import UpstreamResponse, proxy
 from .session import Session, sessions
 
 EXEMPT = ["/health", "/favicon.ico"]
+TRAFFIC_LAYERS = frozenset({"L1", "L2", "L3", "ORIGIN"})
+TRAFFIC_DECISIONS = frozenset({
+    "ALLOW", "ESCALATE", "CHALLENGE", "PASS", "RESTRICT", "THROTTLE", "BLOCK", "TRAP",
+})
+
 
 def is_exempt(ctx: RequestContext) -> bool:
-    return ctx.path in EXEMPT or ctx.path.startswith("/api/") or ctx.path.startswith("/_sb/") or ctx.path.startswith("/static/")
+    return (
+        ctx.path in EXEMPT
+        or ctx.path.startswith("/api/")
+        or ctx.path.startswith("/_sb/")
+        or ctx.path.startswith("/static/")
+    )
 
-def log_event(ctx: RequestContext, session: Session, layer: str, decision: str, status_code: int, reasons: list | None = None):
+
+def log_event(
+    ctx: RequestContext,
+    session: Session,
+    layer: str,
+    decision: str,
+    status_code: int,
+    reasons: list | None = None,
+    risk_score: int | None = None,
+) -> None:
     if reasons is None:
         reasons = []
-        
+    if layer not in TRAFFIC_LAYERS:
+        raise ValueError(f"Unsupported traffic layer: {layer}")
+    if decision not in TRAFFIC_DECISIONS:
+        raise ValueError(f"Unsupported traffic decision: {decision}")
+
     conn = get_connection()
     try:
         ts = datetime.now(timezone.utc).isoformat()
         event_id = f"evt-{uuid.uuid4().hex[:8]}"
         conn.execute(
-            """INSERT INTO traffic_events 
-               (event_id, ts, session_id, client_key, ip, method, path, status_code, user_agent, header_fp, layer, decision, risk_score, reasons)
+            """INSERT INTO traffic_events
+               (event_id, ts, session_id, client_key, ip, method, path, status_code,
+                user_agent, header_fp, layer, decision, risk_score, reasons)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
-                event_id, ts, session.session_id, ctx.client_key, ctx.ip, ctx.request.method, ctx.path,
-                status_code, ctx.user_agent, ctx.header_fp, layer, decision, session.l1_score, json.dumps(reasons)
-            )
+                event_id, ts, session.session_id, ctx.client_key, ctx.ip,
+                ctx.request.method, ctx.path, status_code, ctx.user_agent,
+                ctx.header_fp, layer, decision,
+                session.l1_score if risk_score is None else risk_score,
+                json.dumps(reasons),
+            ),
         )
         conn.commit()
     finally:
         conn.close()
 
+
+def clearance_valid(ctx: RequestContext, session: Session) -> bool:
+    """
+    Return True if this request carries a valid sb_clear HMAC cookie
+    bound to this client_key, meaning the session passed L2 previously.
+    A valid clearance also sets session.state = VERIFIED for downstream checks.
+    """
+    from ..edge.layer2 import validate_clearance
+
+    cookie = ctx.request.cookies.get("sb_clear", "")
+    if validate_clearance(cookie, ctx.client_key):
+        session.state = "VERIFIED"
+        return True
+    return False
+
+
+def _challenge_response(
+    ctx: RequestContext,
+    session: Session,
+    record_decision: Callable[[Session, str, str], None],
+    reasons: list[str],
+) -> Response:
+    """Serve an L2 challenge and keep challenged traffic off the origin path."""
+    from .layer2 import generate_interstitial
+
+    session.state = "CHALLENGED"
+    log_event(ctx, session, "L1", "CHALLENGE", 200, reasons)
+    record_decision(session, "L1", "CHALLENGE")
+    log_event(ctx, session, "L2", "CHALLENGE", 200, [], risk_score=0)
+    record_decision(session, "L2", "CHALLENGE")
+    return generate_interstitial(session)
+
+
+def _restricted_response(
+    ctx: RequestContext,
+    session: Session,
+    record_decision: Callable[[Session, str, str], None],
+) -> Response:
+    """Enforce an L2 restriction before request scoring or origin access."""
+    reasons = session.l2_signals
+    log_event(ctx, session, "L2", "RESTRICT", 403, reasons)
+    record_decision(session, "L2", "RESTRICT")
+    body = (
+        b"<!DOCTYPE html><html><head><title>Access Restricted</title></head>"
+        b"<body><h1>403 Restricted</h1>"
+        b"<p>Your access has been restricted by the security system.</p></body></html>"
+    )
+    return Response(content=body, media_type="text/html", status_code=403)
+
+
 async def handle(request: Request) -> Response:
     ctx = build_context(request)
-    
-    # In a fully fleshed out version, exempt routes return normally (or handled entirely by main.py)
-    # The pipeline only handles the catch-all
-    
     session = sessions.get_or_create(ctx)
-    
-    # --- INT-04 Stub: Layer 1 returns ALLOW, Layer 2 returns ALLOW ---
-    
+
+    from .intel import init_request, record_decision
+    try:
+        init_request(ctx, session)
+        # Write the identified session before decision handling so even an
+        # exceptional request has a durable profile and accurate request count.
+        save_session(session)
+        return await _handle_request(ctx, session, record_decision)
+    finally:
+        save_session(session)
+
+
+async def _handle_request(
+    ctx: RequestContext,
+    session: Session,
+    record_decision: Callable[[Session, str, str], None],
+) -> Response:
+    # ── 1. Blocked-session short-circuit ────────────────────────────────────
+    if session.state == "BLOCKED" and not session.block_expired():
+        log_event(ctx, session, "L1", "BLOCK", 403, session.l1_reasons)
+        record_decision(session, "L1", "BLOCK")
+        return Response(content=b"Forbidden", status_code=403)
+    if session.state == "BLOCKED":
+        session.state = "NEW"
+        session.block_until = ""
+
+    # A challenged session can proceed only after presenting valid clearance.
+    # Otherwise, keep it on the challenge response path instead of proxying.
+    if session.state == "CHALLENGED" and not clearance_valid(ctx, session):
+        return _challenge_response(ctx, session, record_decision, session.l1_reasons)
+
+    # Layer 2 restriction is terminal until an explicit administrative reset.
+    # Do not let Layer 1 overwrite the state or let restricted traffic reach L3/origin.
+    if session.state == "RESTRICTED":
+        return _restricted_response(ctx, session, record_decision)
+
+    # ── 2. Layer 1 ───────────────────────────────────────────────────────────
+    l1: L1Result = l1_run(ctx, session)
+    session.l1_score = l1.score
+    for r in l1.reasons:
+        if r not in session.l1_reasons:
+            session.l1_reasons.append(r)
+
+    if l1.decision == "BLOCK":
+        session.state = "BLOCKED"
+        if l1.block_until:
+            session.block_until = l1.block_until
+        log_event(ctx, session, "L1", "BLOCK", 403, l1.reasons)
+        record_decision(session, "L1", "BLOCK")
+        return Response(content=b"Forbidden", status_code=403)
+
+    if l1.decision == "THROTTLE":
+        session.state = "THROTTLED"
+        log_event(ctx, session, "L1", "THROTTLE", 429, l1.reasons)
+        record_decision(session, "L1", "THROTTLE")
+        return Response(
+            content=b"Too Many Requests",
+            status_code=429,
+            headers={"Retry-After": "10"},
+        )
+
+    if l1.decision == "CHALLENGE":
+        return _challenge_response(ctx, session, record_decision, l1.reasons)
+
+    # Record the L1 decision exactly once in session history. Its traffic row
+    # is emitted once the final response status is known.
+    if l1.decision in {"ALLOW", "ESCALATE"}:
+        record_decision(session, "L1", l1.decision)
+
+    # ── 3. TrapHooks classify (L3) — must come before RESTRICTED check ───────
     trap = trap_hooks.classify_request(ctx, session)
     if trap:
         session.mark_trapped(trap)
+        if trap.trap_id not in session.traps_triggered:
+            session.traps_triggered.append(trap.trap_id)
+        record_decision(session, "L3", "TRAP")
         resp = trap_hooks.handle_decoy(ctx, session)
         if resp:
+            log_event(ctx, session, "L1", l1.decision, resp.status_code, l1.reasons)
+            log_event(ctx, session, "L3", "TRAP", resp.status_code, l1.reasons)
             return resp
-    
+
+    # ── 5. Layer 2 interstitial / clearance check ────────────────────────────
+    # Applies to ESCALATE decisions on document requests.
+    # Trapped sessions bypass the interstitial — they already proved something.
+    needs_interstitial = (
+        l1.decision == "ESCALATE"
+        and ctx.is_document
+        and session.state != "TRAPPED"
+        and not clearance_valid(ctx, session)
+    )
+
+    if needs_interstitial:
+        from .layer2 import generate_interstitial
+        session.state = "CHALLENGED"
+        log_event(ctx, session, "L1", "ESCALATE", 200, l1.reasons)
+        log_event(ctx, session, "L2", "CHALLENGE", 200, [], risk_score=0)
+        record_decision(session, "L2", "CHALLENGE")
+        return generate_interstitial(session)
+
+    # ── 6. Proxy + response transformation ──────────────────────────────────
     upstream = await proxy(ctx)
-    
     body = trap_hooks.transform_response(ctx, session, UpstreamResponse(upstream))
-    
-    log_event(ctx, session, "L1", "ALLOW", upstream.status_code, [])
-    
-    headers = dict(upstream.headers)
-    headers.pop("content-length", None)
-    headers.pop("transfer-encoding", None)
-    headers.pop("content-encoding", None)
-    
-    return Response(content=body, status_code=upstream.status_code, headers=headers)
+
+    final_decision = "TRAP" if session.state == "TRAPPED" else "ALLOW"
+    # The layer decision (L1 or L3) and the completed origin response are two
+    # distinct events. Keep both rows so consumers can reconstruct the path.
+    log_event(ctx, session, "L1", l1.decision, upstream.status_code, l1.reasons)
+    if trap is not None:
+        log_event(ctx, session, "L3", "TRAP", upstream.status_code, l1.reasons)
+    log_event(ctx, session, "ORIGIN", final_decision, upstream.status_code, [])
+    record_decision(session, "ORIGIN", final_decision)
+
+    out_headers = dict(upstream.headers)
+    out_headers.pop("content-length", None)
+    out_headers.pop("transfer-encoding", None)
+    out_headers.pop("content-encoding", None)
+
+    return Response(content=body, status_code=upstream.status_code, headers=out_headers)

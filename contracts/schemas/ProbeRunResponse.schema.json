@@ -1,0 +1,28 @@
+{
+  "properties": {
+    "probe_ids": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Probe Ids",
+      "type": "object"
+    },
+    "case_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Case Id"
+    }
+  },
+  "required": [
+    "probe_ids"
+  ],
+  "title": "ProbeRunResponse",
+  "type": "object"
+}

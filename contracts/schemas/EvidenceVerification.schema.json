@@ -1,0 +1,50 @@
+{
+  "$defs": {
+    "EvidenceCheck": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "ok",
+        "detail"
+      ],
+      "title": "EvidenceCheck",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "result": {
+      "enum": [
+        "VALID",
+        "TAMPERED"
+      ],
+      "title": "Result",
+      "type": "string"
+    },
+    "checks": {
+      "items": {
+        "$ref": "#/$defs/EvidenceCheck"
+      },
+      "title": "Checks",
+      "type": "array"
+    }
+  },
+  "required": [
+    "result",
+    "checks"
+  ],
+  "title": "EvidenceVerification",
+  "type": "object"
+}

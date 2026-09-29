@@ -1,0 +1,52 @@
+{
+  "canary_id": "CANARY-DEMO-001",
+  "type": "document",
+  "canonical_content": "Synthetic example text; not an operational canary.",
+  "anchor": "SYNTHETIC-ANCHOR",
+  "context_terms": [
+    "demo-term"
+  ],
+  "probe_prompts": [
+    "What is the demo term?"
+  ],
+  "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "content_version": "v1",
+  "created_at": "2026-09-30T10:00:00Z",
+  "published_at": "2026-09-30T10:00:00Z",
+  "status": "ACTIVE",
+  "placements": [
+    "catalog"
+  ],
+  "publication": {
+    "canary_id": "CANARY-DEMO-001",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "content_version": "v1",
+    "published_at": "2026-09-30T10:00:00Z",
+    "placements": [
+      "catalog"
+    ]
+  },
+  "exposures": [
+    {
+      "exposure_id": "EXPOSURE-DEMO-001",
+      "canary_id": "CANARY-DEMO-001",
+      "ts": "2026-09-30T10:00:00Z",
+      "session_id": "SESSION-DEMO-001",
+      "resource": "/catalog/example",
+      "content_version": "v1",
+      "content_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "client": {
+        "ip": "192.0.2.10",
+        "user_agent": "Synthetic Browser",
+        "client_key": "CLIENT-DEMO-001",
+        "classification": "SOPHISTICATED_SCRAPER"
+      },
+      "request": {
+        "method": "GET",
+        "path": "/catalog/example",
+        "referer": null,
+        "accept_language": "en"
+      }
+    }
+  ]
+}

@@ -1,22 +1,462 @@
 # SCAPEBUSTERS — Master Implementation Plan
 
-**Version:** 1.0 (canonical) · **Event:** 30-hour hackathon · **Type:** proof-of-concept, single protected website
-**Rule:** ONE architecture · ONE master plan · FOUR scoped execution prompts · ONE integration process · ONE deterministic demo.
-This file is the source of truth. Individual prompts reference sections here as `§N`.
+**Version:** 2.0 (audited 2026-09-29) · **Event:** 30-hour hackathon · **Type:** proof-of-concept, one controlled demo target
+**Rule:** ONE architecture · ONE master plan · ONE integration process · ONE deterministic demo.
+This file is the single source of truth for the next agent prompts. Sections are referenced as `§N` (legacy spec) or `§I.x` (audited status, v2).
+
+> **Canonical statement (operator, 2026-09-29):** CampusCart is the demo target. It is an external site, not a site built in this repo. This master plan supersedes the old ExampleCorp and `demo_site/` instructions. The CampusCart integration is on Arnav's branch `feat/arnav/campuscart-origin` (PR #8), **not** on current `main`. The dashboard is also absent from this repository.
+
+## How to read this file
+
+| Part | Contents | Authority |
+|---|---|---|
+| **Part I — v2 audited state** (`§I.A` … `§I.L`) | canonical direction changes, audited status, defects, CampusCart architecture, telemetry/dashboard flow, E2E, owner status, milestone reconciliation, remaining tasks, merge process, progress | **Wins on any conflict** |
+| **Part II — legacy spec** (`§0` … `§27`) | the v1.0 target design (rules, thresholds, contracts, tests, task cards). Still the design intent for layers, canaries, provenance and evidence. Text tagged **[SUPERSEDED-v2]** is replaced by Part I | design intent; not a status source |
+| **Part III** | `OPEN PR / MERGE QUEUE` and `NEXT AGENT GOALS` | current |
+
+**Audit basis (evidence, not old plan claims):**
+
+- Repository `https://github.com/BLITZKREIG-VOID/scrapebuster`, `main` at `4b1f0ea` ("Merge pull request #9 …"), audited 2026-09-29.
+- All 9 remote branches and all `refs/pull/*/head` refs (#1–#10) fetched; PR merge state inferred from git ancestry.
+- Tests executed by the auditor: `main` (unit, contract, integration), plus extracted snapshots of PR #8 and PR #10 heads. Results are in `§I.B.2`.
+- **Not verifiable from the audit environment:** GitHub API (PR open/closed state, reviews, CI/check runs, base branches), the dashboard, live Ollama, AWS, Playwright/e2e runs. These are marked `NOT VERIFIED` and must not be treated as passing.
+
+**Status vocabulary (use exactly these):**
+`DONE — VERIFIED ON MAIN` · `IMPLEMENTED — OPEN PR` · `IMPLEMENTED — PENDING REVIEW` · `IMPLEMENTED — PENDING MERGE` · `PARTIAL` · `BLOCKED` · `NOT STARTED` · `NOT VERIFIED`.
+A feature that exists only on a branch or PR is **not** done on `main`. Review status is separate from implementation status.
+
+**Name mapping (per operator):** Arnav = `Kashyep` · Hardik = `Rossonerian` · Ani = `Anirudh-Langy`. Git author names observed in history: `Kashyep` / `Arnav Kashyap`; `Hardhik Bhatia`; `anigupta477-lang` / `Anirudh Gupta`. The GitHub-handle mapping could not be confirmed from the audit environment. The original plan's fourth owner, Harsh (dashboard), is not in the operator's owner list; see `§I.H`.
 
 ---
 
-## 0. Read this first
+## I.A Canonical direction (v2) and source-of-truth rules
+
+### I.A.1 Product-direction changes (canonical; replace conflicting assumptions)
+
+| ID | Change | Replaces | Consequence |
+|---|---|---|---|
+| **C1** | **Real demo site.** The protected/demo target is the team's existing CampusCart deployment: `https://campuscart-c73de.web.app/`. It is an **external controlled demo target**; its source is **not** in this repository. | ExampleCorp origin, `demo_site/app.py`, `localhost:8001`, "build a new demo_site" | No `demo_site/` is built. Any task, test, script or doc that hard-codes ExampleCorp pages is stale unless it is an explicit local-test fixture. |
+| **C2** | **All attack/security activity uses CampusCart.** Bot attacks and the ScrapeBuster layers operate only against CampusCart, through the ScrapeBuster edge. No scanning or attacking of third-party sites. Attacks are controlled, reproducible, volume-bounded, and must not disrupt normal users. | Generic/any-site targeting | Safe-demo rules `SD-1…SD-5` in `§I.C.3`. |
+| **C3** | **Attack results feed the dashboard.** Security telemetry is a first-class pipeline: attack → request observed → session identified → layer decision → score/reasons → trap/challenge/block result → event persisted → API → dashboard. The final E2E must show **live persisted backend data**, not mock fixtures. | Dashboard on mock/invented data | Telemetry contract in `§I.D`; gaps listed in `§I.B.3`. |
+
+### I.A.2 Source-of-truth rules
+
+- **S1** `main` ≠ open PRs ≠ branches. Only `main` counts as done. Branch/PR-only work is `IMPLEMENTED — OPEN PR`.
+- **S2** Never use a plan claim ("Layer 1 works") as evidence. Evidence = current `main` source, executed tests, `Makefile`, config, PR diffs.
+- **S3** Part I overrides Part II. A Part II rule that conflicts with the implemented code is **not** silently accepted: it becomes an open decision (`§I.A.3`) that the owner must close in `docs/DECISIONS.md`.
+- **S4** No secrets in the repository or this plan. AWS credentials, keys and account IDs are configured by the operator outside the repo.
+- **S5** Every agent task ends with: what changed, how it was verified (actual command output), what was not verified.
+
+### I.A.3 Open decisions (owner must close; do not build around silently)
+
+| ID | Decision | Options | Recommendation | Owner |
+|---|---|---|---|---|
+| **OD-1** | Layer 1: code diverges from `§4` (see F-02). Conform code to `§4`, or amend `§4` to the implemented score-band design. | (a) conform: add THROTTLE/BLOCK, client_key windows, session block state; (b) amend `§4` and re-derive the ordinary-bot test | (a) minimally — the T-OB-1 gate and the demo narrative ("blocked at Layer 1") depend on it. Keep the table-driven structure. | Ani |
+| **OD-2** | Layer 2: code diverges from `§5` (see F-03). | (a) conform: server-side signal scoring, PASS/TRAP/RESTRICT bands, `sb_clear` cookie; (b) amend `§5` | (a) — without RESTRICT and signals, Scraper 2 (headless Playwright) can solve the PoW and pass, so the L2 stage of the demo cannot occur. Endpoint paths may stay as implemented (`/_sb/challenge/verify`); amend `§5` paths instead of moving code. | Ani |
+| **OD-3** | Canary branding on CampusCart. Canary text and decoy pages say "ExampleCorp / Nimbus…". | (a) keep the fictional ExampleCorp text; (b) re-theme to campus-marketplace context (`content_version` v2, new hashes, new prompts) | (b) if time allows before the first real dataset run; requires re-running T-CA-2/3 and stability. Team decision — the auditor did not decide. | Hardik + Arnav |
+| **OD-4** | Canary surfaces on an SPA. CampusCart is a client-rendered Firebase SPA (per PR #8 site profile); the `/docs/*` placement pages of `§8` do not exist there and there is no `</main>` to inject into. | (a) canaries only via the trap decoys (PR #8 `_inject_all_canaries` on `/internal/`, plus decoy API); (b) additionally inject into hydrated pages | (a) for the POC; state it plainly in the pitch. | Hardik |
+| **OD-5** | Edge integration method. | Reverse proxy at the demo laptop `localhost:8000` → `UPSTREAM_ORIGIN` (implemented in PR #8). DNS/CDN-level fronting is **not** implemented and not required. | Use the reverse proxy. Do not invent another deployment. | Ani |
+| **OD-6** | Dashboard: no `dashboard/` exists on any ref of this repo. Where does it live and who owns it? | in-repo `dashboard/` (per `§14`) or separate repo | Operator to state. Until then `dashboard` rows are `NOT VERIFIED`. | Operator |
+| **OD-7** | Is AWS usage judged? If yes, promote S3 Object Lock from P1-high to P0 (still with local fallback). | yes / no | Operator to state. | Operator |
+
+---
+
+## I.B CURRENT IMPLEMENTATION STATUS — AUDIT 2026-09-29
+
+### I.B.1 Repository state
+
+| Item | Value |
+|---|---|
+| `main` HEAD | `4b1f0ea` (PR #9 merge) |
+| Tag | `contracts-v1` → `45e5f7c` (ancestor of `main`) |
+| Files on `main` | 131 tracked; `dashboard/` and `demo_site/` exist on **no** ref |
+| Merged into `main` (head is ancestor) | PR #1, #2, #3, #4, #5, #6, #9 |
+| Not in `main` | PR #7 (`e330db1`), PR #8 (`b1ea3b0`), PR #10 (`7c2ff52`; head moved from `ffacc3b` during the audit) |
+| Merge conflicts with `main` | none for #7, #8, #10 (`git merge-tree --write-tree`) |
+| Root-level legacy files | `index.js`, `src/`, `package.json`, `README.md` describe an unrelated Node scraper (stale; adjacent issue, not part of this plan) |
+
+### I.B.2 Test evidence (executed by the auditor, 2026-09-29)
+
+Command form: `PYTHONPATH=backend SB_DB_PATH=<scratch> python3 -m pytest <dir> -q` (Python 3.11.15; deps installed from `backend/requirements*.txt`; PyYAML/playwright were already present in the audit environment).
+
+| Ref | unit | contract | integration | Notes |
+|---|---|---|---|---|
+| `main` | 139 passed, 2 skipped, 1 xfailed | 4 passed | 5 passed, 1 xfailed | skips: `test_uniqueness.py` (no `demo_site/pages`, no control dataset); xfail: `SB-CAN-0004` prompt overlap; xfail: `test_l1_ordinary_bot` — "missing dependency: sb.main:demo_router" |
+| PR #8 head | 150 passed, 2 skipped, 2 xfailed across unit+contract+integration | | | same skips/xfails |
+| PR #10 head | 154 passed, 3 skipped, 2 xfailed across unit+contract+integration | | | extra skip: real-botocore test (`boto3` not installed) |
+
+Other gates on `main`: `ruff check backend/ scripts attacks` → **12 errors** (E402 in test `conftest.py` files and `scripts/stability.py`); `scripts/check_contracts.py` → "No JSON fixtures found to validate." (vacuous pass); `scripts/check_ownership.py` → passed (no changed files).
+**e2e (`backend/tests/e2e`) was not executed**: it needs Playwright browsers, a reachable upstream and the demo router; every scenario is `xfail(strict)`-gated on missing modules.
+Measured Layer 1 behaviour (auditor script calling `layer1.run` with default `python-requests` headers, 100 requests): 39× ESCALATE (proxied to origin), 61× CHALLENGE, max score 75, **no BLOCK**.
+Reachability only: one `GET https://campuscart-c73de.web.app/` from the audit workspace returned HTTP 200 `text/html`. No attack was run against it.
+
+### I.B.3 Defect and gap register (verified against source; each has an owner)
+
+| ID | Finding | Evidence | Owner |
+|---|---|---|---|
+| **F-01** | **Provenance and demo APIs are not mounted.** `sb/main.py` includes only health, traffic, sessions, overview. `canaries`, `datasets`, `probes`, `cases` (Hardik) and `demo` (Arnav) routers exist but are never included, so their URLs fall through to the catch-all proxy. The dashboard cannot read canaries/probes/cases/evidence, and the e2e/runner cannot start. | `backend/sb/main.py:24-29`; `api/demo.py` docstring "Mount in sb/main.py"; xfail reason in `test_l1_ordinary_bot` | Ani |
+| **F-02** | **Layer 1 ≠ spec §4 and cannot stop the ordinary bot.** Implemented: score bands ALLOW/ESCALATE/CHALLENGE/BLOCK, per-IP 60 s window (40/80/150), block only at score ≥ 90. Missing vs `§4`: THROTTLE, `client_key` windows, HTTP-fingerprint rule, `L1_*` reason codes, session BLOCKED state and expiry (`Session.block_expired()` always `False`; pipeline never checks `state == BLOCKED`). Measured: a 100-request python-requests burst never reaches BLOCK, and the first 39 requests are ESCALATE, which the pipeline proxies to the origin. T-OB-1 ("0 origin pages") cannot pass. | `edge/layer1.py`, `edge/session.py`, `edge/pipeline.py:90-95`, auditor run in `§I.B.2` | Ani |
+| **F-03** | **Layer 2 ≠ spec §5.** Implemented: hex-prefix PoW (`"000"`) only, served only when L1 lands in CHALLENGE (403 page). No server-side signal scoring (verify takes only `challenge_id` + `solution`; `challenge.js` builds a `signals` object the server ignores), no PASS/TRAP/RESTRICT bands, no RESTRICT state/decision, no `sb_clear` cookie (clearance = in-memory `session.state == "VERIFIED"`). Endpoints differ (`/_sb/challenge/verify`, `/_sb/static/challenge.js`). The interstitial says "Security Check", but attacks look for `INTERSTITIAL_MARKER = "Checking your browser"`. A headless browser that runs JS solves this PoW. | `edge/layer2.py`, `main.py:31-59`, `attacks/common.py:21`, `docs/api/INT-07-Layer-2.md` | Ani |
+| **F-04** | **Telemetry incomplete (C3).** (a) Only `layer="L1"` rows are written; no L2 issue/verify/restrict rows, no L3 `TRAP` row (trap decisions exist only in in-memory `layer_path`). (b) Decision `CHALLENGE_BYPASSED` is not in the `TrafficEvent` literal; `GET /traffic/events` would raise a validation error once such a row exists (reproduced with pydantic). (c) ESCALATE is logged twice (pre-proxy status 0, post-proxy). (d) The `sessions` table is never written; sessions live only in memory. (e) `GET /sessions/{id}` returns hard-coded `ip=127.0.0.1` and empty `user_agent`, `header_fp`, `first_seen`, `last_seen`, `l1_reasons`, `l2_signals`, `pages`, `traps_triggered`, `canaries_exposed`; `request_count = len(layer_path)`. (f) `_note_exposure` updates a `sessions` row that never exists. (g) `/overview` hard-codes `canaries`, `cases`, `ladder.provenance`, `pipeline`. (h) `/health` returns only `{"status":"ok"}`; no `db/origin/llm/s3` components. | `edge/pipeline.py:27-56,78-115`; `api/sessions.py`; `api/overview.py`; `api/health.py`; `contracts.py` | Ani |
+| **F-05** | **CampusCart integration is unmerged.** On `main`, the origin defaults to `http://127.0.0.1:8001` (no such site exists on any ref); attacks default to ExampleCorp pages. PR #8 adds `UPSTREAM_ORIGIN` (default the CampusCart URL), Host rewrite, identity `Accept-Encoding`, edge-owned `robots.txt` (`Disallow: /internal/`), robots-trap injection of all canaries, CampusCart site profile in `attacks/common.py`, preflight/smoke updates. PR #8 also edits files owned by others (`sb/trap/injector.py` Hardik; `sb/edge/proxy.py`, `sb/config.py` Ani) — needs their review. | `git diff origin/main...pr/8` | Arnav (+ Ani, Hardik review) |
+| **F-06** | **No control dataset and no real dataset.** `data/control/control_clean.jsonl` does not exist (its builder reads the non-existent `demo_site/pages`); runner step 4 needs it; T-CA-2 is skipped. `data/replay/replay_20260929T101520Z.json` was captured from the sample fixture stand-in (commit `3bc04b9`), not from a CampusCart scrape. No stability numbers are logged (`docs/INTEGRATION_LOG.md` is empty). | `scripts/build_control_dataset.py`; skips in `test_uniqueness.py`; `docs/INTEGRATION_LOG.md` | Hardik |
+| **F-07** | **Makefile is incomplete.** `.PHONY` lists `e2e preflight demo demo-step capture-golden restore-golden smoke` but no recipes exist; `site` runs `demo_site.app` (absent); `setup`/`dashboard`/`check` call into `dashboard/` (absent); `up` is a placeholder; `reset` only calls `reset_db()` (not the §21 demo reset). `make check` cannot pass. | `Makefile` | Ani (base) / Arnav (demo targets) |
+| **F-08** | **No CI for tests.** The only workflow is `jules-pr-review.yml` (AI review). Nothing runs ruff/pytest/contracts on PRs. 12 ruff errors persist on `main`. | `.github/workflows/`, ruff run | Ani |
+| **F-09** | **Requirements incomplete.** `backend/requirements.txt` lacks `PyYAML` (canary registry imports `yaml`), `boto3` (vault, PR #7/#10), `requests` and `playwright` (attacks). Clean-venv install not verified. | `requirements*.txt`, imports | Ani |
+| **F-10** | **Contract fixtures absent.** `contracts/fixtures/` holds only `scraped_dataset_sample.jsonl`; there are no JSON fixtures, so the drift gate is vacuous and dashboard mock mode has nothing to read. `contracts.py` lacks models for Overview, Probe/Evidence/Verify responses (defined ad hoc inside `api/*.py`), and `Health.components`. | `contracts/`, `contracts.py` | Ani (+ Hardik for provenance models) |
+| **F-11** | **Ownership metadata stale.** `CODEOWNERS` uses placeholder handles (`@anirudh`, `@hardik`, `@arnav`, `@harsh`) and legacy paths (`/demo_site/`, `/tests/e2e/`); `.gitignore` does not list `evidence/`, `data/datasets/`, `data/golden/`. | `.github/CODEOWNERS`, `.gitignore` | Ani |
+| **F-12** | **S3 is a stub on `main`.** `vault_s3.py` only has `s3_status()` and can never report "ok". Upload (PRV-08) exists only in PR #7/#10. | `provenance/vault_s3.py` on `main` vs `pr/10` | Hardik |
+
+### I.B.4 Status table
+
+| Area | Owner | Main | PR | Status | Evidence | Remaining |
+|---|---|---|---|---|---|---|
+| contracts | Ani | `contracts.py`, 11 JSON schemas, tag `contracts-v1` | — | PARTIAL | `make test-contract` 4 passed; `check_contracts.py` "No JSON fixtures found" (F-10) | add response models + JSON fixtures; `Health.components`; telemetry fields |
+| backend bootstrap | Ani | app, store (`schema.sql`, `db.py`), proxy, pipeline, config | #8 (config/proxy) | PARTIAL | `main.py` mounts 4 routers (F-01); Makefile gaps (F-07); requirements (F-09) | mount all routers; requirements; Makefile base targets |
+| Layer 1 | Ani | `edge/layer1.py` (INT-06) | — | PARTIAL (non-conformant) | `test_layer1.py` passes but measured burst never blocks (F-02) | close OD-1; implement chosen design; unxfail T-OB-1 |
+| Layer 2 | Ani | `edge/layer2.py`, `static/challenge.js` (INT-07) | — | PARTIAL (non-conformant) | `test_layer2.py` + `test_layer2_flow.py` pass for the PoW-only design (F-03) | close OD-2; signals, bands, RESTRICT, clearance cookie; align interstitial marker |
+| Layer 3 | Hardik (hooks in pipeline: Ani) | `trap/` (`layer3`, `honeypots`, `decoys`, `injector`), hooks registered at startup | #8 (robots lure, inject-all) | PARTIAL | trap unit + `test_trap_injection` pass; no `TRAP` traffic row (F-04a) | log L3 events; CampusCart robots lure via #8; unit-test the #8 path on merge |
+| traps | Hardik | `TRAP-LINK-01`, `TRAP-ROBOTS-01`, `TRAP-DECOY-01`, `TRAP-BAND-L2` in code | #8 | PARTIAL | `trap_hits` written by `layer3.classify_request`; decoy pages branded "ExampleCorp" (OD-3) | OD-3/OD-4; edge `robots.txt` only in #8 |
+| canaries | Hardik | `canary/` (yaml, hashing, registry, seed) | — | DONE — VERIFIED ON MAIN (unit); NOT VERIFIED on CampusCart | canary unit tests pass; T-CA-2 skipped | OD-3 branding; T-CA-2 against CampusCart content |
+| dataset ingestion | Hardik | `provenance/dataset.py`, `api/datasets.py` (unmounted) | — | PARTIAL | dataset unit tests pass; route unreachable (F-01); no real dataset ingested | mount; ingest CampusCart scrape + control |
+| RAG | Hardik | `provenance/rag.py` | — | DONE — VERIFIED ON MAIN (unit) | `test_rag.py` passes; `SB-CAN-0004` xfail (prompt lexical overlap) | close the `SB-CAN-0004` prompt decision (OD-3) |
+| Doberman | Hardik | `provenance/doberman.py`, `llm.py` | — | PARTIAL | unit tests pass with LLM stubbed; live Ollama not verified by auditor | live run on real dataset; record model mode/digest |
+| correlation | Hardik | `provenance/correlate.py` | — | DONE — VERIFIED ON MAIN (unit) | `test_correlate.py` passes (positive, clean-control negative, ordering/integrity) | none until real-data run |
+| evidence | Hardik | `provenance/evidence.py`, `investigate.py`, `api/cases.py` (unmounted) | — | DONE — VERIFIED ON MAIN (module: T-EV-1/2); API unreachable | `test_evidence.py` incl. tamper, chain, self-hash | mount cases router (F-01) |
+| S3 | Hardik | status stub only (F-12) | #7, #10 | IMPLEMENTED — OPEN PR (PR #10 stacks on #7) | PR #10 snapshot: 154 passed, real-botocore test skipped (no boto3); no AWS run | merge #7 then #10; add `boto3`; operator AWS config; acceptance via `get-object-retention` |
+| attack scripts | Arnav | `attacks/` 4 scripts + `common.py` (default ExampleCorp pages) | #8 (CampusCart profile) | PARTIAL | present on `main`; not executed by auditor | verify each against CampusCart via the edge after #8 + fixes |
+| CampusCart integration | Arnav (proxy: Ani) | not on `main` | #8 | IMPLEMENTED — OPEN PR | diff read; snapshot tests 150 passed; root URL HTTP 200 (reachability only) | review, merge, real run; safe-mode guard (SD-1…5) |
+| attack telemetry | Ani | L1 rows in `traffic_events` only | — | PARTIAL | F-04 | L2/L3 rows, contract-legal decisions, persisted sessions |
+| dashboard | not in repo (OD-6) | none | none | NOT STARTED in this repo / NOT VERIFIED elsewhere | no `dashboard/` on any ref | operator to state location/owner |
+| dashboard live API integration | Ani + Hardik | 5 of 20 endpoints reachable (health, overview, traffic/events, sessions, sessions/{id}) | — | PARTIAL | F-01, F-04 | mount, real aggregation, fixtures |
+| E2E runner | Arnav | `demo/runner.py`, `api/demo.py`, e2e tests | — | BLOCKED | routers unmounted; upstream/control/ExampleCorp constants (`tests/e2e/conftest.py` BRAND/ORIGIN_PAGES) | unblock (F-01), retarget tests to CampusCart, run |
+| reset | Arnav | `demo/reset.py` (§21 steps) | #8 (origin URL) | BLOCKED | needs mounted `/demo/reset`, `seed_canaries`; not executed | run T-RS-1 |
+| golden/replay | Arnav / Hardik | `demo/golden.py`; `data/replay/…json` (fixture stand-in) | — | NOT VERIFIED | `data/golden/` absent; replay not from CampusCart | capture golden from first real pass; new replay from real dataset |
+| CI | Ani | Jules AI review workflow only | — | NOT STARTED (test CI) | `.github/workflows/` | P1: workflow running ruff + pytest + contracts |
+| integration gates | Ani | `check_ownership.py`, `check_contracts.py`, PR template, CODEOWNERS | — | PARTIAL | placeholder handles, vacuous contract gate (F-10, F-11) | real fixtures; real handles |
+| reliability (M10) | Arnav | — | — | NOT STARTED | — | 3 consecutive live passes |
+| final demo (M11) | all | — | — | NOT STARTED | — | rehearsals + failure drill |
+
+---
+
+## I.C Target architecture and runtime flow (CampusCart)
+
+### I.C.1 Diagram
+
+```text
+                      CAMPUSCART  (external, team-owned, controlled demo target)
+                      https://campuscart-c73de.web.app/   -- source NOT in this repo
+                                        ▲
+                                        │ httpx, Host rewritten to the target host, Accept-Encoding: identity
+   human / bots ──►  SCAPEBUSTERS EDGE  (FastAPI, laptop :8000, backend/sb)
+   (only ever aimed   context → session → L1 → L2 → L3 hooks → proxy → transform_response
+    at the edge)      /robots.txt served by the edge (Disallow: /internal/)          [PR #8]
+                      exempt: /api/*, /_sb/*, /static/*, /health, /favicon.ico
+                                        │ persisted events: traffic_events, trap_hits, exposures (SQLite)
+                                        ▼
+   scraper 3 ─► data/datasets/<run>_scraper3.jsonl ─► ingest (target) + control ─► RAG + Ollama ─► Doberman
+                                        ▼                                            ─► correlation ─► evidence bundle
+                                CONTROL API /api/v1/*  ─────────────────────────────► S3 Object Lock (if configured)
+                                        ▼
+                                DASHBOARD (reads only this API; live mode for the final E2E)
+```
+
+**Integration method (as implemented, not invented):** the edge is a reverse proxy in front of `UPSTREAM_ORIGIN` (PR #8; falls back to `SB_ORIGIN_URL`; PR #8 default is the CampusCart URL). Attack scripts and the browser under test connect to the **edge** (`SB_EDGE_URL`, default `http://127.0.0.1:8000`), never directly to CampusCart. The CampusCart deployment itself is not modified.
+
+### I.C.2 Runtime request flow
+
+The decision flow of `§3` remains the design intent. Implemented flow today: `context → session → intel.init_request → L1 (bands) → [BLOCK 403 | CHALLENGE → L2 page 403 | ESCALATE → state SUSPICIOUS, continue] → trap_hooks.classify_request (TRAP → mark_trapped → handle_decoy) → proxy → trap_hooks.transform_response → log`. Deviations that break the demo narrative are F-02, F-03, F-04. **Target for v2:** every branch writes exactly one contract-legal `traffic_events` row (`§I.D`) and updates a persisted session.
+
+### I.C.3 Safe demo mode (C2)
+
+| ID | Rule | Status |
+|---|---|---|
+| SD-1 | Attack scripts accept only the edge as `--base` (default `http://localhost:8000`); refuse non-loopback bases unless an explicit override flag is passed | NOT STARTED (defaults are safe today; no guard) — Arnav |
+| SD-2 | Fixed request budgets (ordinary bot default 100 requests / 10 threads; crawler bounded by page list and 2–3 s delay) documented and capped per run | PARTIAL (defaults exist in scripts) — Arnav |
+| SD-3 | Blocked/challenged traffic never reaches CampusCart: L1/L2 decisions occur before `proxy()`; F-02 currently violates this for ESCALATE | BLOCKED on F-02 — Ani |
+| SD-4 | Demo runs use a marked test client (dedicated User-Agent suffix per attack script) so real CampusCart visitors are never classified, trapped or exposed to canaries; canaries and decoys are served only to TRAPPED demo sessions | PARTIAL (injector serves canaries only to TRAPPED sessions; UA marking NOT STARTED) — Arnav/Hardik |
+| SD-5 | The edge forwards only to the configured upstream; no request-controlled upstream host | DONE — VERIFIED ON MAIN by source (`proxy.py` uses `SB_ORIGIN_URL` only) |
+
+---
+
+## I.D Telemetry pipeline and dashboard data flow (C3)
+
+```text
+attack ─► request observed (context) ─► session identified (persisted)
+       ─► layer decision (L1/L2/L3) + score + reasons ─► trap / challenge / block result
+       ─► event persisted (traffic_events, sessions, trap_hits, exposures)
+       ─► Control API ─► Dashboard
+```
+
+### I.D.1 Required fields and where they must come from
+
+| Dashboard field | Source of truth | Today |
+|---|---|---|
+| timestamp | `traffic_events.ts` | OK (L1 rows only) |
+| session/client | `traffic_events.session_id/client_key/ip/user_agent` + persisted `sessions` row | events OK; sessions row never written (F-04d) |
+| path | `traffic_events.path` | OK |
+| layer | `traffic_events.layer` ∈ L1/L2/L3/ORIGIN | only L1 written (F-04a) |
+| decision | `traffic_events.decision` (contract literal only) | `CHALLENGE_BYPASSED` illegal (F-04b) |
+| score | `traffic_events.risk_score` | L1 score only |
+| reasons | `traffic_events.reasons` | L1 reasons only |
+| classification | `sessions.classification` (recomputed on each decision) | in-memory only |
+| state transition | `sessions.layer_path` and/or state-change events | in-memory only |
+| trap hit | `trap_hits` + an L3 `TRAP` traffic row | `trap_hits` written; traffic row missing |
+| canary exposure | `exposures` (+ `sessions.canaries_exposed`) | `exposures` written; session link broken (F-04f) |
+| provenance case/evidence link | `cases.session_ids`, `cases.findings`, `evidence_objects` | written by provenance; not exposed until routers mounted |
+
+### I.D.2 Endpoint map (what populates each dashboard view)
+
+| View | Endpoints (all `GET` unless noted) | Reachable on `main` | Data persisted? |
+|---|---|---|---|
+| **Overview** | `/api/v1/health`, `/api/v1/overview`, `/api/v1/demo/status` | health (status only), overview (partly hard-coded), demo unreachable | traffic counts from SQLite; canaries/cases/pipeline hard-coded |
+| **Traffic / Scrapers** | `/api/v1/traffic/events?after=`, `/api/v1/sessions`, `/api/v1/sessions/{id}` | yes | events persisted (L1 only); sessions in memory with stubbed detail |
+| **Canaries** | `/api/v1/canaries`, `/api/v1/canaries/{id}` | no (router unmounted) | `canaries`, `publications`, `exposures` persisted |
+| **Probes** | `/api/v1/datasets`, `POST /api/v1/datasets/ingest`, `/api/v1/probes`, `/api/v1/probes/{id}`, `POST /api/v1/probes/run` | no | `datasets`, `probe_runs`, `probe_results` persisted |
+| **Cases** | `/api/v1/cases`, `/api/v1/cases/{id}` | no | `cases` persisted |
+| **Evidence** | `/api/v1/cases/{id}/evidence`, `POST /api/v1/cases/{id}/verify` (receipt/S3 status included in evidence response; `s3` component in `/health`) | no | `evidence_objects` + bundle on disk |
+| Demo panel | `POST /api/v1/demo/reset`, `POST /api/v1/demo/run`, `GET /api/v1/demo/status`, `POST /api/v1/demo/restore-golden` | no | `demo_state` |
+
+### I.D.3 Live-data rule
+
+- Mock mode (`VITE_API_MODE=mock`, reading `contracts/fixtures/*.json`) is allowed for frontend development only.
+- The final E2E (`§I.E`, M9) and every rehearsal run in **live** mode. Acceptance check: record counts shown on each dashboard view equal the counts returned by the API/DB for the same run; no view may fall back to a fixture.
+- Contract tests validate **live** responses against `contracts.py` for every GET above (T-DB-2).
+
+---
+
+## I.E E2E demo definition (target: CampusCart)
+
+Runner reality: `demo/runner.py` implements 7 machine steps (`ordinary_bot`, `advanced_scraper`, `sophisticated_scraper`, `ingest_datasets`, `probe`, `case_check`, `verify_evidence`), plus reset. The 15 conceptual steps below are the acceptance definition; the mapping is in the last column.
+
+| # | Step | Owner | API / data dependency | PASS condition | FAIL condition | Fallback | Runner step |
+|---|---|---|---|---|---|---|---|
+| 1 | Reset | Arnav | `POST /demo/reset` (F-01) | `ok:true`; §21 tables empty; 5 ACTIVE canaries; upstream reachable | any check `ok:false`; 409 | re-run once; else `make up && make reset` | reset |
+| 2 | Human/control interaction with CampusCart | Arnav | `attacks/human_control.py`, `/sessions` | ≥ 5 CampusCart pages served; classification `HUMAN_LIKELY`; **0 exposures** | any canary or trap served to it; non-200 | manual fresh Incognito browse | (pre-step) |
+| 3 | Ordinary bot attacks CampusCart | Arnav (L1: Ani) | `ordinary_bot.py`, `/traffic/events`, `/sessions` | session `BOT_BASIC`, state BLOCKED within the request budget; **0 CampusCart content in any bot response** | any origin content reaches the bot (F-02 today) | none (fix F-02) | 1 |
+| 4 | Security layer logs and classifies traffic | Ani | `traffic_events`, `sessions` (persisted) | every request of steps 2–3 has one legal row with layer, decision, score, reasons; session persisted with classification | missing/illegal row; `/traffic/events` error | none | (cross-cuts 1–3) |
+| 5 | Advanced automation escalated/restricted | Arnav (L2: Ani) | `advanced_scraper.py`, `/sessions`, L2 rows | session `AUTOMATION`, state RESTRICTED; L2 CHALLENGE/RESTRICT rows with signal reasons; no content served | passes L2 (F-03 today) | `POST /demo/restore-golden` (labelled `RECORDED RUN`) | 2 |
+| 6 | Sophisticated scraper is trapped | Arnav / Hardik | `sophisticated_scraper.py`, `trap_hits`, L3 rows | L2 PASS row then `TRAP` row; `TRAP-ROBOTS-01` (or link/decoy) hit; class `SOPHISTICATED_SCRAPER` | never trapped | retry once; else restore golden | 3 |
+| 7 | Canary exposure recorded | Hardik | `exposures`, `/canaries/{id}` | exposures for all 5 canaries linked to the session; canary status EXPOSED | < 5 exposures or no session link | none | 3 |
+| 8 | Scraped dataset generated from CampusCart | Arnav | `data/datasets/<run>_scraper3.jsonl` | file exists; records include the 5 canary anchors | missing/empty; anchors absent | restore golden | 3 |
+| 9 | Target + control datasets ingested | Hardik / Arnav | `POST /datasets/ingest` ×2 | 2 datasets registered; control contains 0 anchors; control built from CampusCart content without the edge | control missing (F-06); anchor in control | none | 4 |
+| 10 | Doberman probes target and control | Hardik | `POST /probes/run`, `/probes/{id}` | both runs `DONE`; model mode/digest shown (LIVE / FALLBACK / REPLAY) | run fails/timeouts | extractive fallback (badge FALLBACK); else restore golden | 5 |
+| 11 | Correlation identifies provenance signal | Hardik | `/cases` | latest case `PROVENANCE_SIGNAL_DETECTED`; control negative | status ≠ detected; control positive | restore golden | 6 |
+| 12 | Evidence bundle generated | Hardik | `/cases/{id}/evidence` | manifest + files present, chain link to previous manifest | missing files | none | 6 |
+| 13 | Evidence verified | Hardik | `POST /cases/{id}/verify` | `VALID` | `TAMPERED` | none | 7 |
+| 14 | AWS/S3 preservation (if enabled) | Hardik (operator configures AWS) | `/health` s3, evidence `receipt` | receipt with `VersionId` + retain-until; else honest `disabled`/`PRESERVED_LOCAL` | `down` when enabled | local-only label | (part of 6) |
+| 15 | Dashboard displays the complete incident | Ani (+ dashboard owner, OD-6) | all `§I.D.2` endpoints, **live mode** | every view populated from live API; counts equal API/DB; case + evidence view shows the finding and statement `§11.4` | any view empty/mock; API-unreachable banner | manual refresh; backup video | (observed) |
+
+**Wording rule (all steps and pitch):** a canary in model output is a *provenance signal* / *evidence of exposure*, not proof of theft, intent or legal causation (§11.4 statement is mandatory in every case).
+
+---
+
+## I.F Reset and recovery (CampusCart)
+
+- `§21` reset order stands. CampusCart is external: **nothing on the target is reset**; only ScrapeBuster state (DB, edge sessions, challenges, trap/provenance caches, runtime datasets) is cleared. Evidence is never deleted.
+- Self-check upstream reachability = `GET UPSTREAM_ORIGIN/` returns 200 with the CampusCart marker (`<title>campuscart</title>`, as coded in PR #8 `preflight.py`).
+- Added failure rows: **CampusCart unreachable** → do not attack anything else; run from the golden run and the backup video, label `RECORDED RUN`. **Upstream rate/limit signals** (429/5xx) → stop the attack step, lower request budget (SD-2), do not retry in a loop.
+- Golden run is captured only after the first fully passing **live** run against CampusCart (never from the fixture stand-in).
+
+---
+
+## I.G AWS role (v2)
+
+| Item | Owner | Status |
+|---|---|---|
+| AWS account, profile, region, S3 bucket with Object Lock enabled, credentials via the standard AWS credential chain (never in the repo) | **Operator (user)** — not assigned to Arnav/Hardik/Ani | operator |
+| S3 upload code (GOVERNANCE, 24 h, SHA256, background, single attempt, receipt) | Hardik | IMPLEMENTED — OPEN PR (#7, #10) |
+| Runtime wiring: read `SB_S3_BUCKET` / `AWS_REGION` from config, `boto3` in requirements, `Health.components.s3` | Ani | NOT STARTED |
+| Dashboard consumption | dashboard owner | reads S3 receipt from `/cases/{id}/evidence` and status from `/health` |
+| DynamoDB mirror, SNS alert | — | **optional** (P1-low). Not required by any current code path; do not build unless OD-7 says AWS is judged and M9 is green |
+| S3 Object Lock as P0 | — | depends on OD-7; local hash-chained evidence remains the primary preservation path and the demo never depends on AWS |
+
+No QLDB (support ended). Wording: S3 Object Lock = WORM retention; not a blockchain, not court-equivalent.
+
+---
+
+## I.H OWNER STATUS
+
+### ARNAV — Kashyep
+
+**DONE (present on `main`; runtime behaviour not executed by the auditor)**
+
+- `attacks/` scripts `ordinary_bot`, `advanced_scraper`, `sophisticated_scraper`, `human_control`, `common` (PR #2).
+- `sb/demo/` `reset`, `runner`, `golden`; `api/demo.py`; `scripts/preflight.py`, `scripts/smoke.sh`; e2e harness and scenario tests (PR #2).
+- Ruff fixes (PR #6); Jules review timeout fix (PR #9).
+
+**IMPLEMENTED BUT NOT MERGED**
+
+- PR #8 `feat/arnav/campuscart-origin`: attacks retargeted to CampusCart (site profile, `UPSTREAM_ORIGIN`), Host rewrite/identity encoding, edge `robots.txt` lure, `TRAP-ROBOTS-01` inject-all-canaries, preflight/smoke for CampusCart. Snapshot tests: 150 passed, 2 skipped, 2 xfailed. Review/CI status NOT VERIFIED.
+
+**LEFT**
+
+1. Get PR #8 reviewed and merged (Ani reviews `proxy.py`/`config.py`; Hardik reviews `injector.py`).
+2. Retarget `backend/tests/e2e/conftest.py` (`BRAND`, `ORIGIN_PAGES`, `ORIGIN`) and layer-validation tests to the CampusCart site profile; keep ExampleCorp only as an explicit local fixture.
+3. Makefile demo targets: `e2e`, `preflight`, `demo`, `demo-step`, `capture-golden`, `restore-golden`, `smoke` (currently `.PHONY` with no recipes, F-07); `make reset` → §21 demo reset.
+4. Safe-mode guard SD-1/SD-2/SD-4 in `attacks/` (loopback-only base, request caps, marked test UA).
+5. After the blockers below clear: real runs of scripts 1–3 + human control against CampusCart via the edge; verify T-OB-1, T-AS-1, T-SS-1, T-NU-1 unxfailed; then T-E2E-1, T-RS-1, T-RS-2 (3 consecutive), golden capture, backup video.
+
+**BLOCKERS**
+
+- Ani: mount `demo` router (F-01); L1/L2 conformance (F-02/F-03); L2/L3 telemetry (F-04).
+- Hardik: CampusCart control dataset (F-06); canary branding decision (OD-3).
+- PR #8 merge.
+
+**FINISH CONDITION** — `make preflight` has no FAIL; `make reset` → 5 ACTIVE canaries, zero traffic, new `run_id`; `make demo` passes steps 1–7 **live** against CampusCart; T-E2E-1, T-RS-1 pass; three consecutive `make reset && make demo` passes are logged in `docs/INTEGRATION_LOG.md`; golden restore and backup video verified.
+
+### HARDIK — Rossonerian
+
+**DONE (on `main`, verified by executed unit/integration tests)**
+
+- Canaries: `canaries.yaml`, hashing, registry, seed (T-CA-1).
+- Layer 3: honeypots, decoys, injector, `TrapHooks` installed at startup (PR #3, #4); `test_trap_injection` passes.
+- Provenance: dataset ingest, BM25 RAG, LLM client (fallback + replay), Doberman, correlation (incl. clean-control negative), evidence bundle/chain/verify (T-EV-1/2), investigate pipeline; provenance API routers (files only — unmounted, F-01); `scripts/stability.py`; replay file (fixture stand-in).
+- Jules review workflow (`55569a5`).
+
+**IMPLEMENTED BUT NOT MERGED**
+
+- PR #7 `feat/hardik/s3-vault` (PRV-08 S3 Object Lock vault: GOVERNANCE 24 h, SHA256, background upload, receipt).
+- PR #10 `fix/vault-s3-receipt-db-failure` (stacked on #7: receipt/DB-failure handling, single-attempt retry config). Snapshot: 154 passed, 3 skipped; real-botocore test skipped here (no `boto3`); no AWS run. Review/CI NOT VERIFIED.
+
+**LEFT** (only what is unresolved)
+
+1. Close OD-3/OD-4 (canary branding and surfaces on the CampusCart SPA); resolve the `SB-CAN-0004` prompt xfail; update `canaries.yaml`, decoys and probe prompts if re-themed (new `content_version`, re-run T-CA-2/T-CA-3).
+2. CampusCart control dataset: rewrite `scripts/build_control_dataset.py` to build `data/control/control_clean.jsonl` from CampusCart content fetched **without** the edge; enable T-CA-2 against it (F-06).
+3. Real scraped dataset: ingest the scraper-3 output via `POST /datasets/ingest`; live Doberman run against it; PRV-07 stability (10 runs) on the real dataset with numbers recorded in `docs/INTEGRATION_LOG.md`; new replay capture from real data.
+4. S3: after #7/#10 merge and operator AWS setup, acceptance via `aws s3api get-object-retention` (GOVERNANCE + date); AWS unset → `PRESERVED_LOCAL`, no exception.
+5. Provenance→dashboard dependencies: with Ani, expose canary/exposure counts to `/overview`, move ad hoc response models into `contracts.py`, and make case `session_ids` link to real persisted sessions.
+
+**BLOCKERS** — Ani: router mount (F-01), persisted sessions (F-04d); Arnav: PR #8 merge and a real scraper-3 dataset; operator: AWS configuration and OD-7.
+
+**FINISH CONDITION** — On a real CampusCart scrape: target run yields case `PROVENANCE_SIGNAL_DETECTED` with statement §11.4, control yields NO_SIGNAL for all canaries, `verify` returns VALID, tamper test returns TAMPERED; stability ≥ 9/10 per canary (flaky canaries removed via `SB_PROBE_CANARIES`); S3 receipt present when AWS is configured (otherwise honest `disabled`).
+
+### ANI — Anirudh-Langy
+
+**DONE (on `main`)**
+
+- Repo bootstrap, `contracts-v1` tag, store/schema (`45e5f7c`); INT-05 control API health/traffic/sessions/overview (PR #1); edge pipeline skeleton; Layer 1 (`abb0f89`), Layer 2 (`f484339`), intel/classification (`ddb67a1`) — implemented, unit-tested, but **PARTIAL vs spec** (F-02/F-03); integration gates `check_ownership.py`/`check_contracts.py`/PR template/CODEOWNERS (`d08289e`, PARTIAL — F-10/F-11).
+
+**IMPLEMENTED BUT NOT MERGED** — none identified (no open Ani-authored branch; `feat/anirudh/int-05-control-api` is merged as PR #1).
+
+**LEFT** (priority order)
+
+1. **Mount all routers** in `sb/main.py` under `/api/v1` before the catch-all: canaries, datasets, probes, cases, demo (F-01). Unxfail `test_l1_ordinary_bot`.
+2. **Layer 1 spec compliance** (close OD-1): ordinary-bot burst must reach THROTTLE then BLOCK before any origin content; session BLOCKED state with expiry actually enforced in the pipeline.
+3. **Layer 2 spec compliance** (close OD-2): server-side signal scoring, PASS/TRAP/RESTRICT bands, clearance cookie bound to client_key, interstitial text/marker aligned with attacks; L2 rows in telemetry.
+4. **Attack telemetry persistence** (C3 / F-04): L2 and L3 rows, contract-legal decisions only (fix `CHALLENGE_BYPASSED`), one row per branch (no double ESCALATE), persist the `sessions` table (all `SessionDetail` fields, exposures link), `/sessions/{id}` served from persisted data, `/overview` real aggregation (canaries, cases, provenance, pipeline), `/health` with `db/origin/llm/s3` components.
+5. **Shared contracts**: models + JSON fixtures for every GET (`Overview`, `Health.components`, `ProbeRun`, `Evidence`, `Verify`), `check_contracts.py` non-vacuous, contract tests over live responses (T-DB-2).
+6. **CampusCart integration (runtime)**: review PR #8 `proxy.py`/`config.py`; verify redirects, cookies (`Set-Cookie` forwarding vs `sb_clear`), HEAD/OPTIONS and SPA fallback routes through the edge.
+7. **AWS application configuration**: read `SB_S3_BUCKET`/`AWS_REGION` in `config.py`, add `boto3` (and `PyYAML`, `requests`, `playwright` in the right requirement sets) — no credentials in repo.
+8. Makefile base targets (`setup`, `backend`, `up`, `check` without missing `dashboard/` until OD-6), remove `site`; real CODEOWNERS handles; `.gitignore` for `evidence/`, `data/datasets/`, `data/golden/`.
+9. P1: GitHub Actions workflow running ruff + pytest unit/contract/integration; clear the 12 ruff errors.
+
+**BLOCKERS** — decisions OD-1/OD-2 (his own); PR #8 review order; Hardik's response models for provenance contracts.
+
+**FINISH CONDITION** — `make check` (ruff, unit, contract, ownership, contracts) is green with real fixtures; all `§I.D.2` endpoints reachable and returning persisted data; T-OB-1 (and integration L1/L2 flow) pass unxfailed; dashboard live counts equal DB counts after an attack run.
+
+### Dashboard owner (Harsh in the v1 plan) — not in the operator's owner list
+
+`dashboard/` is absent from every ref. Status `NOT VERIFIED`. Whoever owns it must consume only the endpoints in `§I.D.2` in live mode for the final E2E (OD-6).
+
+---
+
+## I.I MILESTONE RECONCILIATION (M0–M11)
+
+Each milestone is judged against the gate in `§22.1`, using `main` only.
+
+| M | STATUS | EVIDENCE | REMAINING |
+|---|---|---|---|
+| **M0** Contracts locked | **PARTIAL** | tag `contracts-v1` is an ancestor of `main`; `contracts.py`, 11 schemas; `make test-contract` → 4 passed. But `check_contracts.py` → "No JSON fixtures found" (vacuous); no models for Overview/Probe/Evidence/Verify; `Health` has only `status` (F-10) | fixtures + models; non-vacuous gate |
+| **M1** Backend↔frontend handshake | **NOT VERIFIED** | backend half exists (`/api/v1/health`, `/traffic/events`, `/sessions`, `/overview`); no dashboard on any ref | operator states dashboard location (OD-6); live-mode handshake |
+| **M2** Layer 1 | **PARTIAL** | `layer1.py` + `test_layer1.py` pass; T-OB-1 (`test_l1_ordinary_bot`) is xfail; measured burst: 39 ESCALATE + 61 CHALLENGE, no BLOCK (F-02) | OD-1; enforce block; T-OB-1 green |
+| **M3** Layer 2 | **PARTIAL** | `layer2.py`, `test_layer2.py` and `test_layer2_flow.py` pass for the PoW-only design; T-AS-1, T-NU-1 e2e not run; no RESTRICT/signals (F-03) | OD-2; T-AS-1, T-AS-2, T-NU-1, T-NEG-2 |
+| **M4** Layer 3 | **PARTIAL** | trap unit tests + `test_trap_injection` pass; hooks registered at startup; no `TRAP` traffic row; T-SS-1 not run; CampusCart robots lure only in PR #8 | L3 telemetry; PR #8; T-SS-1 on CampusCart |
+| **M5** Canary pipeline | **PARTIAL** | T-CA-1 passes; T-CA-2 skipped (no site pages/control dataset); exposures recorded in `exposures` but not visible via API (F-01) | mount canaries API; T-CA-2 on CampusCart content; OD-3 |
+| **M6** Probe | **PARTIAL** | T-PR-1/2, T-CO-1/2/3 pass on fixtures (LLM stubbed); gate says "on real scraped dataset" — none exists (F-06); `SB-CAN-0004` xfail; probes API unmounted | real dataset run; mount |
+| **M7** Evidence | **DONE — VERIFIED ON MAIN** (module gate T-EV-1/2) | `test_evidence.py`: build/chain, tamper → TAMPERED, self-hash, broken chain, missing manifest | endpoint reachability belongs to M8; S3 (P1) pending PR #7/#10 |
+| **M8** Dashboard connected | **BLOCKED** | dashboard absent (OD-6); provenance routers unmounted (F-01); overview/sessions partly stubbed (F-04) | mount; persisted sessions; fixtures; dashboard live wiring |
+| **M9** First full E2E | **BLOCKED** | e2e scenarios xfail-gated; no control dataset; CampusCart PR #8 unmerged; Makefile has no `e2e`/`demo` recipes; not executed | real complete demo live on CampusCart (T-E2E-1) — subsystems existing does **not** complete M9 |
+| **M10** Reliability lock | **NOT STARTED** | no `docs/INTEGRATION_LOG.md` entries | T-RS-2: 3 consecutive passes; 5× reset+run |
+| **M11** Presentation-ready | **NOT STARTED** | — | two full rehearsals incl. failure drill (kill Ollama; restore golden; CampusCart unreachable) |
+
+---
+
+## I.J Remaining task cards (v2; supersede Part II cards where noted)
+
+Format: **ID · Owner · Priority · Depends on · Acceptance test · Do not touch.** These replace ATK-01 (ExampleCorp site — **[SUPERSEDED-v2]**) and add CampusCart tasks.
+
+| ID | Task | Owner | P | Depends on | Acceptance test | Do not touch |
+|---|---|---|---|---|---|---|
+| R-01 | Mount canaries/datasets/probes/cases routers under `/api/v1` and the demo router (it carries its own `/api/v1/demo` prefix, so mount it at app level, not under `api_v1_router`) in `sb/main.py`, before the catch-all | Ani | P0 | — | every `§I.D.2` URL returns JSON (not proxied HTML); `test_l1_ordinary_bot` no longer xfails on `demo_router` | router internals (owners') |
+| R-02 | Layer 1 conformance (OD-1) | Ani | P0 | R-01 | 100-request bot burst: first response non-ALLOW, session BLOCKED before request 60, 0 origin bodies; unit table for ≥10 cases | trap/, provenance/ |
+| R-03 | Layer 2 conformance (OD-2) | Ani | P0 | R-02 | headless Playwright → CHALLENGE then RESTRICT with `L2_WEBDRIVER`/`L2_HEADLESS_UA` reasons; human Chrome → PASS; stealth scraper → PASS or TRAP band | attacks/ |
+| R-04 | Telemetry completeness + persisted sessions (F-04) | Ani | P0 | R-01 | after a scripted run, `/traffic/events` returns legal L1/L2/L3 rows; `/sessions/{id}` returns all `SessionDetail` fields from DB; `/overview` counts match SQL | hooks protocol shape |
+| R-05 | Contracts: models + JSON fixtures + non-vacuous gate (F-10) | Ani (+Hardik) | P0 | R-04 | `check_contracts.py` validates ≥ 1 fixture per GET; T-DB-2 live-response test | schemas already consumed |
+| R-06 | Review + merge PR #8 (CampusCart) | Ani, Hardik review; Arnav author | P0 | — | reviewers approve; `make test-unit test-integration` on merge result | `attacks/` semantics |
+| R-07 | Retarget e2e tests/constants to CampusCart | Arnav | P0 | R-06 | `tests/e2e/conftest.py` has no hard-coded ExampleCorp expectations except an explicit local fixture | edge code |
+| R-08 | Makefile demo targets (`e2e preflight demo demo-step capture-golden restore-golden smoke`) + `reset` = demo reset | Arnav | P0 | R-01 | each target runs; `make preflight` exits 1 when Ollama or upstream is down | base targets (Ani) |
+| R-09 | Safe-mode guard SD-1/SD-2/SD-4 | Arnav | P0 | R-06 | attack with a non-loopback `--base` exits non-zero without override; demo UA suffix present in traffic rows | edge |
+| R-10 | Canary branding/surface decision (OD-3/OD-4) and resulting yaml/decoy/prompt changes | Hardik + Arnav | P0 | — | decision in `docs/DECISIONS.md`; T-CA-1/2/3 pass on CampusCart content | contracts |
+| R-11 | CampusCart control dataset (F-06) | Hardik | P0 | R-10 | `data/control/control_clean.jsonl` exists, 0 anchors; T-CA-2 no longer skipped | edge, attacks |
+| R-12 | Real-data provenance run + stability (T-PR-3) + replay | Hardik | P0 | R-02–R-04, R-06, R-11, scraper-3 run | case DETECTED / control NO_SIGNAL / verify VALID; stability numbers in `INTEGRATION_LOG.md` | edge |
+| R-13 | AWS runtime config: `config.py`, requirements, `Health.components.s3` | Ani | P1-high (P0 if OD-7=yes) | R-05, PR #7/#10 merged | `/health` shows `s3` = `disabled`/`ok`/`down` correctly with and without `SB_S3_BUCKET` | S3 upload code |
+| R-14 | Merge PR #7 then #10; `boto3` in requirements; live S3 acceptance | Hardik (operator AWS) | P1-high | R-13, operator | `aws s3api get-object-retention` shows GOVERNANCE + retain-until; AWS unset → `PRESERVED_LOCAL` | — |
+| R-15 | Full live E2E on CampusCart (T-E2E-1, T-RS-1) | Arnav | P0 | R-01…R-12 | `make e2e` green; 15-step table PASS | edge/provenance code |
+| R-16 | Dashboard live-mode acceptance | dashboard owner + Ani | P0 | R-01, R-04, R-05, OD-6 | counts on all six views equal API/DB; no fixture fallback | contracts |
+| R-17 | Reliability: 3 consecutive passes, 5× reset+run, golden capture, backup video | Arnav | P0 | R-15 | log in `INTEGRATION_LOG.md` | — |
+| R-18 | Rehearsals + failure drill | all | P0 | R-17 | two full rehearsals incl. Ollama-down, restore-golden, CampusCart-unreachable | — |
+| R-19 | CI workflow (ruff + pytest + contracts), clear 12 ruff errors, CODEOWNERS handles, `.gitignore` runtime dirs | Ani | P1 | — | PR shows required checks green | — |
+| R-20 | DynamoDB mirror / SNS alert | Ani / Hardik | P1-low (optional) | M9 green, OD-7 | none unless requested | — |
+
+Acceptance criteria for the project are `§27` as amended: replace "Chrome browses 3 pages" with CampusCart pages, "origin site" with CampusCart, and require live (not fixture) dashboard data.
+
+---
+
+## I.K Integration and merge process (v2)
+
+1. **Order of merges (dependencies):** PR #8 (independent; needs Ani/Hardik review of touched files) ‖ PR #7 → PR #10 (stacked; #10 contains #7's commits). All three merge cleanly against `main` today (`git merge-tree`).
+2. **Before every merge:** author pastes actual output of `ruff check`, `pytest unit/contract/integration` on the merge result; reviewer confirms with `check_ownership.py`; cross-owner edits need the owner's approval.
+3. **After each merge:** update the status table in `§I.B.4` and the merge queue (Part III); append to `docs/INTEGRATION_LOG.md`; tag `kg-<n>` only when `make check` and integration tests are green.
+4. **No merge of PRs by planning/audit agents.** The operator decides when to merge.
+5. **Contract changes** only via PR labelled `contract-change`, approved by Ani, announced to the dashboard owner.
+6. **Rollback** = `git revert`; no history rewrite; no force-push.
+7. **Freeze rules** as in `§22`: feature freeze and demo freeze tags; the demo laptop runs the tagged commit.
+
+---
+
+## I.L Progress and critical path
+
+**P0 milestones (M0–M11 = 12):** complete **1 / 12** (M7).
+**Pending (PARTIAL/NOT VERIFIED):** **7** (M0, M1, M2, M3, M4, M5, M6).
+**Blocked:** **2** (M8, M9).
+**Not started:** **2** (M10, M11).
+**P1 optional:** S3 Object Lock (R-13/R-14, promoted to P0 if OD-7 = yes), tamper button in UI, SSE, second prompt per canary, CI (R-19), DynamoDB/SNS (R-20).
+
+**Critical path:** `R-01 mount routers` → `R-02/R-03 L1/L2 conformance` → `R-04 telemetry + persisted sessions` → `R-06 merge PR #8` → `R-10 canary decision` → `R-11 CampusCart control dataset` → `R-15 first live E2E (M9)` → `R-16 dashboard live acceptance (M8 gate, needs OD-6)` → `R-17 reliability (M10)` → `R-18 rehearsals (M11)`.
+Highest risks: (1) Scraper 2 vs Scraper 3 must separate at L2 — impossible until R-03; (2) a small local model must reproduce anchors on real data — measured only at R-12; (3) CampusCart is an SPA, so canaries reach the scraper only via trap decoys (OD-4); (4) dashboard location unknown (OD-6).
+
+**Estimated overall completion (explicit calculation, coarse):** weight `DONE = 1`, `PARTIAL/NOT VERIFIED = 0.5`, `BLOCKED/NOT STARTED = 0` over the 12 milestones: (1 × 1 + 7 × 0.5) / 12 = 4.5 / 12 ≈ **37 %**. This is a milestone-credit estimate, not an effort estimate; M9 (first full E2E) is the honest measure.
+
+---
+
+# PART II — LEGACY SPEC (v1.0 target design)
+
+> Kept for design intent (layer rules, canaries, provenance, evidence, contracts, tests). It is **not** a status source. Sections/rows tagged **[SUPERSEDED-v2]** are replaced by Part I. Where the implemented code differs from a rule here, see the defect register (`§I.B.3`) and open decisions (`§I.A.3`).
+
+---
+
+## 0. Read this first  *(v1.0 text; A1/A4 and every ExampleCorp/`demo_site` assumption are [SUPERSEDED-v2] by §I.A)*
 
 ### 0.1 Source status and explicit assumptions
 
 | ID | Assumption / decision | Consequence | Who confirms at H0 |
 |---|---|---|---|
 | A0 | The four source documents (deck, pitch script, one-pager, whitepaper) were **not attached** to the planning request. This plan is built from the canonical direction brief, which the brief itself declares final where documents differ. | Terminology used here: ScapeBusters, Layer 1/2/3, canary, Doberman (interrogator), Provenance Finding, Provenance Case. **H0 task:** Anirudh spends 15 min diffing names and claims in the deck/pitch script against this plan; any change is recorded in `docs/DECISIONS.md`. | Anirudh |
-| A1 | **Ownership gap:** the role brief assigns no builder for the edge proxy, Layer 1 and Layer 2, or the demo website. | Options: (a) Anirudh's agent builds the edge spine (proxy, L1, L2, store) — he already owns contracts and the integration point; builder ≠ validator because Arnav attacks it. (b) Arnav builds L1/L2 — fastest feedback, but the builder grades his own work. (c) Split L1→Anirudh, L2→Hardik — overloads the critical-path owner. **Chosen: (a).** The demo website (synthetic content only) goes to Arnav as part of the demo environment. | All four |
+| A1 | **Ownership gap:** the role brief assigns no builder for the edge proxy, Layer 1 and Layer 2, or the demo website. | Options: (a) Anirudh's agent builds the edge spine (proxy, L1, L2, store) — he already owns contracts and the integration point; builder ≠ validator because Arnav attacks it. (b) Arnav builds L1/L2 — fastest feedback, but the builder grades his own work. (c) Split L1→Anirudh, L2→Hardik — overloads the critical-path owner. **Chosen: (a).** The demo website (synthetic content only) goes to Arnav as part of the demo environment. **[SUPERSEDED-v2: the demo target is the existing CampusCart deployment, §I.A C1.]** | All four |
 | A2 | Product name: brief uses "ScapeBusters"; pitch docs use "ScrapeBuster". | Code prefix `sb`, UI title "ScapeBusters". Decide the spoken name at H0. | Team |
 | A3 | Demo runs on **one designated demo laptop**, fully offline-capable (local model, local storage). | AWS is a best-effort enhancement layer, never on the critical path. | Team picks the laptop with most RAM/GPU at H0 |
-| A4 | AWS account + credentials exist. If judging explicitly rewards AWS usage, promote PRV-08 (S3 Object Lock) to P0 — still with local fallback. | No change to critical path. | Hardik (`aws sts get-caller-identity` at H0) |
+| A4 | **[SUPERSEDED-v2: AWS is configured by the operator, §I.G.]** AWS account + credentials exist. If judging explicitly rewards AWS usage, promote PRV-08 (S3 Object Lock) to P0 — still with local fallback. | No change to critical path. | Hardik (`aws sts get-caller-identity` at H0) |
 | A5 | Local model via **Ollama**, default `qwen2.5:3b` (fallback `llama3.2:1b` on weak hardware). Tag names are to be verified with `ollama list` during preflight. | Model pulled in H0 before anything else (slow download). | Hardik |
 | A6 | Tooling: Python 3.11+, Node 20+, Git, GitHub repo with branch protection. | — | Anirudh |
 
@@ -51,7 +491,7 @@ Three deterministic attack scripts (ordinary bot, advanced automation, sophistic
 
 ---
 
-## 2. Final architecture
+## 2. Final architecture  **[SUPERSEDED-v2 for the origin/site: ExampleCorp `:8001` is replaced by CampusCart, see §I.C.1; layer/pipeline structure below remains the design intent]**
 
 ```
                          WEBSITE OWNER (ExampleCorp)
@@ -107,7 +547,7 @@ Three deterministic attack scripts (ordinary bot, advanced automation, sophistic
 
 ---
 
-## 3. Runtime request decision flow
+## 3. Runtime request decision flow  *(design intent; implemented deviations: §I.B.3 F-02/F-03/F-04)*
 
 Implemented in `backend/sb/edge/pipeline.py` (Anirudh). Hooks marked ⟨L3⟩ are implemented by Hardik in `backend/sb/trap/` against the `TrapHooks` protocol in `backend/sb/hooks.py`.
 
@@ -150,7 +590,7 @@ async def handle(request):
 
 ---
 
-## 4. Layer 1 — Passive edge defense
+## 4. Layer 1 — Passive edge defense  *(implemented code diverges: F-02, decision OD-1)*
 
 **Where:** `backend/sb/edge/layer1.py`, thresholds in `backend/sb/config.py`. **Owner:** Anirudh. **Validator:** Arnav.
 
@@ -173,7 +613,7 @@ State is in memory (`EdgeState`: deques per client_key, block list) and exposes 
 
 ---
 
-## 5. Layer 2 — Behavioral / automation verification
+## 5. Layer 2 — Behavioral / automation verification  *(implemented code diverges: F-03, decision OD-2)*
 
 **Where:** `backend/sb/edge/layer2.py`, `backend/sb/edge/static/challenge.js`, `backend/sb/edge/templates/challenge.html`, `restricted.html`. **Owner:** Anirudh. **Validator:** Arnav.
 
@@ -253,7 +693,7 @@ Session profile (stored in `sessions`, served by `GET /api/v1/sessions/{id}`): i
 
 ---
 
-## 8. Canary system
+## 8. Canary system  *(ExampleCorp branding/placements vs CampusCart: OD-3/OD-4)*
 
 **Where:** `backend/sb/canary/{canaries.yaml, hashing.py, registry.py, seed.py}`. **Owner:** Hardik.
 
@@ -379,7 +819,7 @@ Status:                  PROVENANCE SIGNAL DETECTED · Confidence HIGH
 
 ---
 
-## 13. Website integration
+## 13. Website integration  **[SUPERSEDED-v2: no `demo_site/`; the origin is CampusCart via `UPSTREAM_ORIGIN`, §I.C.1. The reverse-proxy method and "no canary text in origin" rule stand.]**
 
 - ExampleCorp origin (`demo_site/app.py`, Arnav) is a tiny FastAPI static server on :8001 with 8 pages: `/`, `/docs/`, `/docs/getting-started`, `/docs/architecture`, `/docs/api`, `/docs/team`, `/docs/operations`, `/docs/metrics`, plus `/pricing`, `robots.txt`, `/static/site.css`. Each page has exactly one `<main id="content">…</main>`. **No canary text exists in origin files** (tested).
 - The origin knows nothing about ScapeBusters. Integration = pointing traffic at the edge (`SB_ORIGIN_URL=http://127.0.0.1:8001`). This is the "reverse-proxy integration method"; an in-process ASGI middleware variant is P2.
@@ -387,7 +827,7 @@ Status:                  PROVENANCE SIGNAL DETECTED · Confidence HIGH
 
 ---
 
-## 14. Dashboard architecture
+## 14. Dashboard architecture  *(no `dashboard/` exists in this repo, OD-6; live-data rule §I.D.3 applies)*
 
 **Where:** `dashboard/`. **Owner:** Harsh. React 18 + TypeScript + Vite + Tailwind + Recharts + react-router-dom. No state library; a `usePoll(fn, 1000)` hook.
 
@@ -472,7 +912,7 @@ Source of truth: Pydantic v2 models in `backend/sb/contracts.py` (Anirudh). `scr
 
 ---
 
-## 17. AWS architecture (enhancement layer)
+## 17. AWS architecture (enhancement layer)  **[SUPERSEDED-v2 for roles/credentials: see §I.G; DynamoDB/SNS optional]**
 
 ```
 backend (local) ──async, best-effort──► S3  sb-evidence-<team>  (Object Lock ON, GOVERNANCE 24h, SHA256 checksums)   P1-high
@@ -495,7 +935,7 @@ Every AWS call is wrapped: timeout 5 s, one attempt, failure → component statu
 
 ---
 
-## 18. Repository structure and ownership
+## 18. Repository structure and ownership  *(`demo_site/` and `dashboard/` in the tree below do not exist on any ref; see §I.B.1)*
 
 ```
 scapebusters/
@@ -575,7 +1015,7 @@ scapebusters/
 
 ---
 
-## 20. Demo architecture
+## 20. Demo architecture  **[SUPERSEDED-v2: 15-step CampusCart E2E definition in §I.E; the 7 runner steps below map to it]**
 
 `backend/sb/demo/runner.py` (Arnav) executes steps as subprocesses/API calls and **waits on observed API state, never on fixed sleeps** (poll every 0.5 s, per-step timeout).
 
@@ -593,7 +1033,7 @@ Modes: `make demo` (all steps), `make demo-step` (pauses for Enter between steps
 
 ---
 
-## 21. Demo reset / recovery
+## 21. Demo reset / recovery  *(amended for CampusCart in §I.F)*
 
 **`RESET DEMO`** = `make reset` or `POST /api/v1/demo/reset` (Arnav's `demo/reset.py`), in order:
 1. Refuse if a demo run holds the run lock (return 409).
@@ -621,7 +1061,7 @@ Reset is idempotent. Browsers used by scrapers run in fresh contexts, so no clie
 
 ---
 
-## 22. 30-hour timeline
+## 22. 30-hour timeline  *(status of each milestone: §I.I; the hour-by-hour plan is historical)*
 
 ### 22.1 Milestones
 
@@ -826,7 +1266,7 @@ Format: WHAT · WHY · WHERE · WHO · DEPENDENCIES · TIME · TEST · HANDOFF. 
 
 **PRV-09 · SNS alert · P1-low** — WHAT: publish case summary on DETECTED. WHERE: `provenance/alert.py`. WHO: Hardik. TIME: 30 min (H22). TEST: email received; disabled → no-op.
 
-**ATK-01 · ExampleCorp origin site · P0**
+**ATK-01 · ExampleCorp origin site · P0 — [SUPERSEDED-v2: CANCELLED; CampusCart is the target (§I.A C1)]**
 - WHAT: `demo_site/app.py` + 8 synthetic pages (§13) with realistic docs prose, one `<main id="content">`, nav links, `robots.txt` with `Disallow: /internal/`.
 - WHY: the thing being protected. WHERE: `demo_site/`. WHO: Arnav. DEPS: none. TIME: 90 min (H0–H1).
 - TEST: `curl :8001/docs/api` 200; grep shows no canary anchors. HANDOFF: origin URL to Anirudh.
@@ -962,7 +1402,7 @@ Exclusive file ownership (§18) prevents agents from colliding; cross-owner edit
 
 ---
 
-## 27. Definition of Done
+## 27. Definition of Done  *(amended: read "origin site" as CampusCart, and require live dashboard data per §I.D.3)*
 
 **Per task:** code on a feature branch; owner's tests pass and output is pasted into the PR; `make check` green; no files outside ownership changed (or explicitly approved); PR describes changed files, tests run, what was not verified.
 **Per milestone:** the milestone's tests in §22.1 pass on `main` after merge; tag created.
@@ -980,3 +1420,84 @@ Exclusive file ownership (§18) prevents agents from colliding; cross-owner edit
 11. Three consecutive `make reset && make demo` passes logged.
 12. Golden restore and backup video both verified.
 13. No canary text in origin site or control dataset; no AWS credentials in the repo.
+
+
+---
+
+# PART III — OPEN PR / MERGE QUEUE AND NEXT AGENT GOALS
+
+> Audit-time facts: `main` = `4b1f0ea`. PR open/closed state, reviews, CI/checks and base branches could **not** be read (GitHub API not accessible from the audit environment). "Not in `main`" below means the PR head is not an ancestor of `main`; whether the PR is still open is `NOT VERIFIED`. All three merge cleanly against `main` (`git merge-tree --write-tree`). **No PR was merged, modified or closed by this audit.**
+
+# OPEN PR / MERGE QUEUE
+
+Merged into `main` (for reference, no action): #1 INT-05 control API · #2 attacks/demo/e2e harness (Arnav) · #3 canary + provenance + trap (Hardik) · #4 TrapHooks registration · #5 Jules smoke-test note · #6 Ruff fixes (Arnav) · #9 Jules review timeout (Arnav).
+
+**PR #7**
+
+- OWNER: Hardik (git author `Hardhik Bhatia`)
+- BRANCH: `feat/hardik/s3-vault` (head `e330db1`)
+- TARGET: `main` (assumed; base NOT VERIFIED)
+- PURPOSE: PRV-08 S3 Object Lock vault — GOVERNANCE 24 h, SHA256 checksums, background single-attempt upload, `vault_receipt.json`; replaces the `s3_status()` stub.
+- REVIEW: NOT VERIFIED
+- CI: NOT VERIFIED (only the Jules AI-review workflow exists; no test workflow)
+- DEPENDENCIES: none on other open PRs. PR #10 is stacked on it (contains its commits). `boto3` not in `requirements.txt` (F-09).
+- SAFE TO MERGE: Not verified. Conflict-free vs `main`; no AWS run was performed; its real-botocore test is skipped without `boto3`. Suggested handling: merge **before** #10, or skip #7 and merge only #10 (which already contains #7's commits) — operator's choice.
+- BLOCKER: review status unknown; `boto3` dependency; AWS untested (operator config).
+- NEXT ACTION: reviewer confirms; then merge #7 → #10 (or #10 alone); add `boto3` to requirements (R-13/R-14).
+
+**PR #8**
+
+- OWNER: Arnav (git author `Kashyep`)
+- BRANCH: `feat/arnav/campuscart-origin` (head `b1ea3b0`)
+- TARGET: `main` (assumed; NOT VERIFIED)
+- PURPOSE: CampusCart integration — `UPSTREAM_ORIGIN` (default `https://campuscart-c73de.web.app`), Host rewrite, identity encoding, edge `robots.txt` lure, `TRAP-ROBOTS-01` inject-all-canaries, attacks' CampusCart site profile, preflight/smoke, scraper-3 dataset kept out of git.
+- REVIEW: NOT VERIFIED
+- CI: NOT VERIFIED; auditor ran unit+contract+integration on the head snapshot: 150 passed, 2 skipped, 2 xfailed. e2e and any attack against CampusCart NOT run.
+- DEPENDENCIES: none blocking; independent of #7/#10 (disjoint files). Edits cross-owner files: `sb/trap/injector.py` (Hardik), `sb/edge/proxy.py` and `sb/config.py` (Ani) — `check_ownership.py` would warn.
+- SAFE TO MERGE: Not verified — conflict-free and tests pass on the snapshot, but requires Ani and Hardik review of their files; default origin in `main` becomes the live CampusCart URL (affects every local run and test that relies on `SB_ORIGIN_URL` defaults).
+- BLOCKER: cross-owner review; decision OD-3/OD-4 affects the injector change.
+- NEXT ACTION: Ani reviews `proxy.py`/`config.py`; Hardik reviews `injector.py`; then merge (R-06); follow with R-07 (retarget e2e).
+
+**PR #10**
+
+- OWNER: Hardik (git author `Hardhik Bhatia`)
+- BRANCH: `fix/vault-s3-receipt-db-failure` (head `7c2ff52` at audit time; it was `ffacc3b` earlier the same session)
+- TARGET: `main` (assumed; NOT VERIFIED — may target `feat/hardik/s3-vault`)
+- PURPOSE: hardening of the S3 vault — handle receipt/DB failures after upload, document and test single-attempt retry config against real botocore; wires `vault_s3.preserve_async` into `investigate`; removes the old `s3_status` stub test.
+- REVIEW: NOT VERIFIED
+- CI: NOT VERIFIED; snapshot tests: 154 passed, 3 skipped (real-botocore test skipped), 2 xfailed. `refs/pull/10/merge` exists on the remote (GitHub-computed merge ref, suggests it is open and mergeable — inference only).
+- DEPENDENCIES: **stacked on PR #7** (contains its 3 commits). Merge #7 first, or merge #10 alone.
+- SAFE TO MERGE: Not verified — branch is still moving (head changed during this audit); wait for it to settle.
+- BLOCKER: head still changing; `boto3` dependency; no AWS verification.
+- NEXT ACTION: Hardik confirms the head is final; then merge after #7 (or alone), then R-13/R-14.
+
+**Suggested merge order (operator decides):** #8 (after the two cross-owner reviews) and #7 → #10 are independent of each other; neither unblocks the critical path items R-01…R-04, which need **new** PRs from Ani.
+
+# NEXT AGENT GOALS
+
+## ARNAV NEXT GOAL
+
+**One objective: make the attack/demo side run against CampusCart safely and be ready to execute the live E2E the moment the backend blockers clear.**
+
+- **Files likely involved:** `attacks/common.py`, `attacks/*.py` (SD-1/SD-2/SD-4 guard, marked test UA), `backend/tests/e2e/conftest.py` and e2e scenario tests (retarget to the CampusCart site profile), `Makefile` (demo targets only: `e2e preflight demo demo-step capture-golden restore-golden smoke`, and `reset` → demo reset).
+- **Dependency:** PR #8 reviewed and merged (Ani, Hardik) — start on top of it; the live run itself additionally needs Ani's R-01…R-04 and Hardik's control dataset (R-11). Work that does not need them (guards, test retargeting, Makefile recipes) can proceed now.
+- **Acceptance test:** (1) an attack with a non-loopback `--base` exits non-zero without an explicit override; (2) `make preflight` prints a PASS/WARN/FAIL table and exits 1 when Ollama or the CampusCart upstream is down; (3) `pytest backend/tests/e2e --collect-only` shows no hard-coded ExampleCorp expectations except a labelled local fixture; (4) when the blockers clear: `make e2e` green, output pasted in the PR.
+- **What NOT to touch:** `backend/sb/edge/*`, `backend/sb/main.py`, `backend/sb/trap/*`, `backend/sb/provenance/*`, `backend/sb/canary/*`, `contracts.py`. Do not attack anything except the local edge; do not merge PRs.
+
+## HARDIK NEXT GOAL
+
+**One objective: produce the real-data provenance inputs for CampusCart — canary decision, control dataset, and a stability-checked run — while landing the S3 vault PRs.**
+
+- **Files likely involved:** `docs/DECISIONS.md` (OD-3/OD-4 record), `backend/sb/canary/canaries.yaml`, `backend/sb/trap/decoys.py` (only if re-theming), `scripts/build_control_dataset.py`, `data/control/control_clean.jsonl`, `scripts/stability.py`, `docs/INTEGRATION_LOG.md`, `backend/requirements.txt` coordination with Ani for `boto3`; PR #7/#10 finalisation.
+- **Dependency:** OD-3/OD-4 decision with Arnav (first); a real scraper-3 dataset needs PR #8, R-01…R-04 (Ani) — the control dataset and canary work do **not** wait for them. AWS setup is the operator's.
+- **Acceptance test:** (1) decision recorded and `pytest backend/tests/unit/canary backend/tests/unit/trap` passes with T-CA-2 **not skipped** against CampusCart content; (2) `data/control/control_clean.jsonl` exists and contains none of the 5 anchors; (3) `SB-CAN-0004` xfail resolved or explicitly re-justified; (4) once the dataset exists: stability numbers (≥ 9/10 exact match per canary, or canary pruned) recorded in `docs/INTEGRATION_LOG.md`; (5) PR #10 head declared final and PR #7/#10 merged in order with test output pasted.
+- **What NOT to touch:** `backend/sb/edge/*`, `backend/sb/main.py`, `attacks/*`, `backend/sb/demo/*`, `contracts.py` (request changes from Ani). No credentials in the repo; do not configure AWS accounts.
+
+## ANI NEXT GOAL
+
+**One objective: make the backend actually serve real, persisted attack telemetry and the full API so the dashboard and the E2E can run — R-01 → R-04, in that order.**
+
+- **Files likely involved:** `backend/sb/main.py` (mount routers), `backend/sb/edge/layer1.py`, `edge/layer2.py`, `edge/static/challenge.js`, `edge/pipeline.py`, `edge/session.py`, `edge/intel.py`, `backend/sb/api/{health,overview,sessions,traffic}.py`, `backend/sb/store/schema.sql`, `backend/tests/{unit/edge,integration,contract}`, `docs/DECISIONS.md` (close OD-1/OD-2).
+- **Dependency:** none for R-01; R-02/R-03 need the OD-1/OD-2 decisions (recommended: conform code to `§4`/`§5`); reviewing PR #8's `proxy.py`/`config.py` is a parallel task (R-06). Provenance response models come from Hardik.
+- **Acceptance test:** (1) every URL in `§I.D.2` returns JSON, not proxied HTML; (2) `test_l1_ordinary_bot` unxfailed and passing (100-request burst → BLOCK before request 60, 0 origin bodies); (3) after a scripted run `GET /traffic/events` returns only contract-legal rows for L1/L2/L3, `GET /sessions/{id}` returns DB-backed fields, `GET /overview` counts equal SQL counts; (4) `pytest backend/tests/unit backend/tests/contract backend/tests/integration` output pasted, no new xfail.
+- **What NOT to touch:** `backend/sb/trap/*`, `backend/sb/canary/*`, `backend/sb/provenance/*`, `attacks/*`, `backend/sb/demo/*` (owners' files). Do not merge PRs or change the Part I plan beyond status updates.

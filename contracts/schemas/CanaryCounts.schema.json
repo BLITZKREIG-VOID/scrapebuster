@@ -1,0 +1,23 @@
+{
+  "properties": {
+    "active": {
+      "title": "Active",
+      "type": "integer"
+    },
+    "exposed": {
+      "title": "Exposed",
+      "type": "integer"
+    },
+    "observed": {
+      "title": "Observed",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "active",
+    "exposed",
+    "observed"
+  ],
+  "title": "CanaryCounts",
+  "type": "object"
+}

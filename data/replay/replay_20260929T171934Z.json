@@ -1,0 +1,70 @@
+{
+  "captured_at": "2026-09-29T17:18:24.856340Z",
+  "model": {
+    "name": "qwen2.5:3b",
+    "digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b"
+  },
+  "options": {
+    "temperature": 0,
+    "seed": 42,
+    "num_predict": 96
+  },
+  "target_dataset_sha256": "66cd43bc428d7a0174f797f98b404428dd9dd827d5669e5b9fb65ae1fea399a4",
+  "control_dataset_sha256": "ba0699b8b423a616d32c03db5dd2eb119e5d459eaa3ff489db58db7455eda667",
+  "responses": {
+    "target": {
+      "SB-CAN-0001": {
+        "prompt": "Answer the question using only the context. Context: Dr. Oriel Vantrask is ExampleCorp's Principal Cryo-Mesh Architect and has led the Nimbus Thermal Fabric group since 2019.\n\nExampleCorp Internal Documentation Index\n\nExampleCorp Internal Documentation Index Question: Who is the principal architect responsible for ExampleCorp's cooling infrastructure team, and when did they start?",
+        "response_text": "Dr. Oriel Vantask is the principal architect responsible for ExampleCorp's cooling infrastructure team, and they have led the group since 2019.",
+        "response_sha256": "34314c70a4994decaa806acb75dac2832f7782ad140daff7e856957c228ee19c"
+      },
+      "SB-CAN-0002": {
+        "prompt": "Answer the question using only the context. Context: Nimbus Ledger commits writes using the Hexaquorum protocol across 47 shards with a 312 ms settle window.\n\nExampleCorp Internal Documentation Index\n\nExampleCorp Internal Documentation Index Question: Which consensus protocol does ExampleCorp's ledger service use, and how is it configured?",
+        "response_text": "Based on the provided context, ExampleCorp's ledger service uses the Hexaquorum protocol for committing writes. The configuration details are that it commits writes across 47 shards with a 312 ms settle window.",
+        "response_sha256": "cca302fc0b676a79d19b90191e61bdc6e5bd224293ec1edcedb00300bbb74fe9"
+      },
+      "SB-CAN-0003": {
+        "prompt": "Answer the question using only the context. Context: Internal reconciliation is exposed at POST /v3/internal/quasar-reconcile?mode=trellis and requires the X-Nimbus-Warden header.\n\nExampleCorp Internal Documentation Index\n\nExampleCorp Internal Documentation Index Question: What internal endpoint does ExampleCorp use for reconciliation, and what does it require?",
+        "response_text": "ExampleCorp uses the internal endpoint POST /v3/internal/quasar-reconcile?mode=trellis for reconciliation. It requires the X-Nimbus-Warden header.",
+        "response_sha256": "3a06504735364eba7670f764df56a66007d731561ef14cea606f468e1bedaa8b"
+      },
+      "SB-CAN-0004": {
+        "prompt": "Answer the question using only the context. Context: ExampleCorp on-call teams follow the velvet-anchor cadence, handing over every 36 hours.\n\nExampleCorp Internal Documentation Index\n\nExampleCorp Internal Documentation Index Question: Which rotation do ExampleCorp teams follow when handing over?",
+        "response_text": "ExampleCorp teams follow the velvet-anchor cadence, which involves handing over every 36 hours.",
+        "response_sha256": "d98b01b87af3b27989ef3f0edfa2acc658e432f49dfcfff66783a781ce9eeec6"
+      },
+      "SB-CAN-0005": {
+        "prompt": "Answer the question using only the context. Context: In Q3 FY2026 the ORCHID-7 cohort recorded a Nimbus Retention Index of 91.7.\n\nExampleCorp Internal Documentation Index\n\nExampleCorp Internal Documentation Index Question: What was the retention figure for ExampleCorp's most recent customer cohort?",
+        "response_text": "Based on the provided context, there is no information about ExampleCorp's retention figures or any cohort for Q3 FY2026. The context only mentions the ORCHID-7 cohort for ExampleCorp, which had a Nimbus Retention Index of 91.7 in Q3 FY2026. Therefore, to answer the question \"What was the retention figure for ExampleCorp's most recent customer cohort?\", we would need more specific information about the most recent",
+        "response_sha256": "2a0f0f8abc96a0a7805ec0dac944f724cce32c4f6928b0f4df0cb56b7d7004b2"
+      }
+    },
+    "control": {
+      "SB-CAN-0001": {
+        "prompt": "Answer the question using only the context. Context:  Question: Who is the principal architect responsible for ExampleCorp's cooling infrastructure team, and when did they start?",
+        "response_text": "To answer this question, I need the name of the company (ExampleCorp) and the name or start date of the principal architect responsible for the cooling infrastructure team. This information is not provided in the context you've given. Please provide the necessary details to answer the question accurately.",
+        "response_sha256": "2bbbc477410976235b64048e1987fdaaef87c33b802e8c562782ce15694114c2"
+      },
+      "SB-CAN-0002": {
+        "prompt": "Answer the question using only the context. Context:  Question: Which consensus protocol does ExampleCorp's ledger service use, and how is it configured?",
+        "response_text": "I apologize, but there is no specific information provided in the context about ExampleCorp's ledger service or the consensus protocol it uses. The context does not contain any details about ExampleCorp or their ledger service. To accurately answer your question, I would need more specific information about the ledger service in question. If you have additional details or can provide a different context, I would be happy to help further.",
+        "response_sha256": "d563df4c24f0ce286980f5c2ed92c4a023106ab613fa565d75a1f581ac5945f5"
+      },
+      "SB-CAN-0003": {
+        "prompt": "Answer the question using only the context. Context:  Question: What internal endpoint does ExampleCorp use for reconciliation, and what does it require?",
+        "response_text": "I apologize, but the context provided does not contain any information about ExampleCorp or their internal endpoints for reconciliation. To accurately answer your question, I would need specific details about ExampleCorp's internal systems and processes. Without this information, I cannot determine what internal endpoint they use for reconciliation or what requirements it might have.",
+        "response_sha256": "46390d67f7a18bc9d9e0fdc926539279b8418729698e04790ebdd80371bbb40d"
+      },
+      "SB-CAN-0004": {
+        "prompt": "Answer the question using only the context. Context:  Question: Which rotation do ExampleCorp teams follow when handing over?",
+        "response_text": "I apologize, but there is not enough context provided in your question to determine which rotation ExampleCorp teams follow when handing over. The context does not specify what \"ExampleCorp\" is or what \"handing over\" refers to in this context. Without more information, I cannot provide an accurate answer. Could you please provide more details or context about the situation you're asking about?",
+        "response_sha256": "69e48cb8aa09823f3d10f9d0a021b0e24e5afe4dc29717205889cccc122d973f"
+      },
+      "SB-CAN-0005": {
+        "prompt": "Answer the question using only the context. Context:  Question: What was the retention figure for ExampleCorp's most recent customer cohort?",
+        "response_text": "I apologize, but there is no information provided in the context about ExampleCorp or any of its customer cohorts, including their retention figures. The context is insufficient to answer the question about ExampleCorp's most recent customer cohort retention.",
+        "response_sha256": "a7ab7469b879b139f63f5b0bf89e1013516caa2826449b1863ae13e4d640e033"
+      }
+    }
+  }
+}

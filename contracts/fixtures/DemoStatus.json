@@ -1,0 +1,63 @@
+{
+  "run_id": "RUN-DEMO-001",
+  "phase": "READY",
+  "mode": "live",
+  "steps": [
+    {
+      "id": 1,
+      "name": "ordinary_bot",
+      "status": "PENDING",
+      "detail": "",
+      "started_at": null,
+      "finished_at": null
+    },
+    {
+      "id": 2,
+      "name": "advanced_scraper",
+      "status": "PENDING",
+      "detail": "",
+      "started_at": null,
+      "finished_at": null
+    },
+    {
+      "id": 3,
+      "name": "sophisticated_scraper",
+      "status": "PENDING",
+      "detail": "",
+      "started_at": null,
+      "finished_at": null
+    },
+    {
+      "id": 4,
+      "name": "ingest_datasets",
+      "status": "PENDING",
+      "detail": "",
+      "started_at": null,
+      "finished_at": null
+    },
+    {
+      "id": 5,
+      "name": "probe",
+      "status": "PENDING",
+      "detail": "",
+      "started_at": null,
+      "finished_at": null
+    },
+    {
+      "id": 6,
+      "name": "case_check",
+      "status": "PENDING",
+      "detail": "",
+      "started_at": null,
+      "finished_at": null
+    },
+    {
+      "id": 7,
+      "name": "verify_evidence",
+      "status": "PENDING",
+      "detail": "",
+      "started_at": null,
+      "finished_at": null
+    }
+  ]
+}

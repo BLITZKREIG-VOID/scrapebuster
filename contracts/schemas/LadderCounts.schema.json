@@ -1,0 +1,38 @@
+{
+  "properties": {
+    "safe": {
+      "title": "Safe",
+      "type": "integer"
+    },
+    "suspicious": {
+      "title": "Suspicious",
+      "type": "integer"
+    },
+    "challenge_restrict": {
+      "title": "Challenge Restrict",
+      "type": "integer"
+    },
+    "block": {
+      "title": "Block",
+      "type": "integer"
+    },
+    "trap": {
+      "title": "Trap",
+      "type": "integer"
+    },
+    "provenance": {
+      "title": "Provenance",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "safe",
+    "suspicious",
+    "challenge_restrict",
+    "block",
+    "trap",
+    "provenance"
+  ],
+  "title": "LadderCounts",
+  "type": "object"
+}

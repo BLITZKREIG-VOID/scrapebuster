@@ -12,8 +12,8 @@
 /attacks/                 @arnav
 /backend/sb/api/demo.py   @arnav
 /backend/sb/demo/         @arnav
+/backend/tests/e2e/       @arnav
 /tests/e2e/               @arnav
 /scripts/preflight.py     @arnav
 /scripts/smoke.sh         @arnav
-
 /dashboard/               @harsh

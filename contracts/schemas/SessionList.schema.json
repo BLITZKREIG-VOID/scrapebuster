@@ -1,0 +1,46 @@
+{
+  "$defs": {
+    "SessionSummary": {
+      "properties": {
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        },
+        "classification": {
+          "title": "Classification",
+          "type": "string"
+        },
+        "request_count": {
+          "title": "Request Count",
+          "type": "integer"
+        },
+        "state": {
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "session_id",
+        "classification",
+        "request_count",
+        "state"
+      ],
+      "title": "SessionSummary",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "sessions": {
+      "items": {
+        "$ref": "#/$defs/SessionSummary"
+      },
+      "title": "Sessions",
+      "type": "array"
+    }
+  },
+  "required": [
+    "sessions"
+  ],
+  "title": "SessionList",
+  "type": "object"
+}

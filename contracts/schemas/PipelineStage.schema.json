@@ -1,0 +1,25 @@
+{
+  "properties": {
+    "stage": {
+      "title": "Stage",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "ok",
+        "down",
+        "disabled",
+        "unknown",
+        "not_checked"
+      ],
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "stage",
+    "status"
+  ],
+  "title": "PipelineStage",
+  "type": "object"
+}

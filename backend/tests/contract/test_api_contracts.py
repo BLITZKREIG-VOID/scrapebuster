@@ -1,101 +1,87 @@
+"""Live FastAPI response validation for all master-plan dashboard GET shapes."""
+import json
+
 import httpx
 import pytest
-from pydantic import ValidationError
-from sb.contracts import Health, SessionDetail, SessionSummary, TrafficEvent
+
+from sb import contracts
+from sb.canary.registry import list_canaries
+from sb.canary.seed import seed_canaries
 from sb.main import app
-from sb.store.db import reset_db
+from sb.provenance import evidence
+from sb.store import db
 
 
 @pytest.mark.asyncio
-async def test_health_contract():
-    transport = httpx.ASGITransport(app=app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
-        response = await client.get("/api/v1/health")
-        assert response.status_code == 200
-        
-        data = response.json()
-        try:
-            health = Health(**data)
-            assert health.status == "ok"
-        except ValidationError as e:
-            pytest.fail(f"Health contract validation failed: {e}")
+async def test_live_dashboard_get_contracts(tmp_path, monkeypatch, origin_server):
+    monkeypatch.setattr(db, "DB_PATH", str(tmp_path / "contracts.sqlite3"))
+    db.reset_db()
+    seed_canaries()
+    canary = list_canaries()[0]
+    now = "2026-09-30T10:00:00Z"
 
-@pytest.mark.asyncio
-async def test_traffic_contract(origin_server):
-    reset_db()
-    
-    transport = httpx.ASGITransport(app=app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
-        # Generate a proxy request to create a traffic event
-        await client.get("/")
-        
-        # Check traffic API
-        response = await client.get("/api/v1/traffic/events?after=0&limit=10")
-        assert response.status_code == 200
-        
-        data = response.json()
-        assert "events" in data
-        assert "last_seq" in data
-        assert len(data["events"]) > 0
-        
-        try:
-            for ev in data["events"]:
-                TrafficEvent(**ev)
-        except ValidationError as e:
-            pytest.fail(f"TrafficEvent contract validation failed: {e}")
+    with db.get_connection() as conn:
+        conn.execute(
+            """INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            ("SESSION-DEMO-001", "CLIENT-DEMO-001", "192.0.2.10", "Synthetic Browser", "fp-demo", now, now, 1,
+             "VERIFIED", "HUMAN_LIKELY", 0, "[]", 0, "[]", json.dumps([{"layer": "ORIGIN", "decision": "ALLOW"}]),
+             '["/"]', "[]", "[]", None),
+        )
+        conn.execute(
+            """INSERT INTO traffic_events
+               (event_id, ts, session_id, client_key, ip, method, path, status_code, user_agent,
+                header_fp, layer, decision, risk_score, reasons)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            ("EVENT-DEMO-001", now, "SESSION-DEMO-001", "CLIENT-DEMO-001", "192.0.2.10", "GET", "/",
+             200, "Synthetic Browser", "fp-demo", "ORIGIN", "ALLOW", 0, "[]"),
+        )
+        conn.execute("INSERT INTO datasets VALUES (?, ?, ?, ?, ?, ?)",
+                     ("DATASET-DEMO-001", "target", "synthetic.jsonl", "c" * 64, 1, now))
+        conn.execute("INSERT INTO probe_runs VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                     ("PROBE-DEMO-001", now, now, "target", "DATASET-DEMO-001", "c" * 64,
+                      json.dumps({"name": "fixture-model"}), "DONE"))
+        conn.execute("INSERT INTO probe_results VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                     ("RESULT-DEMO-001", "PROBE-DEMO-001", canary.canary_id, "Synthetic question", "[]",
+                      "Synthetic answer", "d" * 64, 1, now))
+        conn.execute(
+            """INSERT INTO cases VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            ("CASE-DEMO-001", "RUN-DEMO-001", now, "PROVENANCE_SIGNAL_DETECTED", "HIGH", canary.canary_id,
+             json.dumps(["SESSION-DEMO-001"]), json.dumps(["PROBE-DEMO-001"]), "[]", "{}", "Synthetic case."),
+        )
 
-@pytest.mark.asyncio
-async def test_sessions_contract(origin_server):
-    reset_db()
-    
-    transport = httpx.ASGITransport(app=app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
-        # Make a proxy request to generate a session
-        await client.get("/")
-        
-        # 1. Test List Endpoint
-        response = await client.get("/api/v1/sessions")
-        assert response.status_code == 200
-        data = response.json()
-        assert "sessions" in data
-        assert len(data["sessions"]) > 0
-        
-        try:
-            for s in data["sessions"]:
-                SessionSummary(**s)
-        except ValidationError as e:
-            pytest.fail(f"SessionSummary contract validation failed: {e}")
-            
-        session_id = data["sessions"][0]["session_id"]
-        
-        # 2. Test Detail Endpoint
-        response = await client.get(f"/api/v1/sessions/{session_id}")
-        assert response.status_code == 200
-        detail_data = response.json()
-        
-        try:
-            SessionDetail(**detail_data)
-        except ValidationError as e:
-            pytest.fail(f"SessionDetail contract validation failed: {e}")
+    monkeypatch.setattr(evidence, "EVIDENCE_ROOT", tmp_path / "evidence")
+    evidence.build_bundle({
+        "case_id": "CASE-DEMO-001", "run_id": "RUN-DEMO-001", "created_at": now,
+        "status": "PROVENANCE_SIGNAL_DETECTED", "confidence": "HIGH", "primary_canary_id": canary.canary_id,
+        "bundle": {"canaries": [canary.model_dump()]},
+    })
 
-@pytest.mark.asyncio
-async def test_overview_contract(origin_server):
-    reset_db()
-    
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
-        await client.get("/")
-        
-        response = await client.get("/api/v1/overview")
-        assert response.status_code == 200
-        data = response.json()
-        
-        # While there's an Overview schema conceptually, 
-        # let's validate required top-level keys matching the plan
-        assert "run_id" in data
-        assert "counts" in data
-        assert "ladder" in data
-        assert "sessions_by_class" in data
-        assert "canaries" in data
-        assert "cases" in data
-        assert "pipeline" in data
+        cases = [
+            ("/api/v1/health", contracts.Health),
+            ("/api/v1/overview", contracts.Overview),
+            ("/api/v1/traffic/events", contracts.TrafficEvents),
+            ("/api/v1/sessions", contracts.SessionList),
+            ("/api/v1/sessions/SESSION-DEMO-001", contracts.SessionDetail),
+            ("/api/v1/canaries", contracts.CanariesResponse),
+            (f"/api/v1/canaries/{canary.canary_id}", contracts.CanaryDetail),
+            ("/api/v1/datasets", contracts.DatasetsResponse),
+            ("/api/v1/probes", contracts.ProbeListResponse),
+            ("/api/v1/probes/PROBE-DEMO-001", contracts.ProbeRun),
+            ("/api/v1/cases", contracts.CaseSummaries),
+            ("/api/v1/cases/CASE-DEMO-001", contracts.Case),
+            ("/api/v1/cases/CASE-DEMO-001/evidence", contracts.CaseEvidenceResponse),
+            ("/api/v1/demo/status", contracts.DemoStatus),
+        ]
+        for path, model in cases:
+            response = await client.get(path)
+            assert response.status_code == 200, f"{path}: {response.text}"
+            # RootModel validates the raw cases array without wrapping its JSON shape.
+            model.model_validate(response.json())
+            if path.endswith("/cases"):
+                assert isinstance(response.json(), list)
+
+        verify = await client.post("/api/v1/cases/CASE-DEMO-001/verify")
+        assert verify.status_code == 200, verify.text
+        contracts.EvidenceVerification.model_validate(verify.json())
