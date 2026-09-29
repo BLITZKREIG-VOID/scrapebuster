@@ -100,7 +100,4 @@ def verify(challenge_id: str, solution: str, session: Session) -> bool:
     # Check PoW: SHA256(nonce + solution) starts with DIFFICULTY
     text = c.nonce + solution
     hash_val = hashlib.sha256(text.encode('utf-8')).hexdigest()
-    if not hash_val.startswith(POW_DIFFICULTY):
-        return False
-        
-    return True
+    return hash_val.startswith(POW_DIFFICULTY)
