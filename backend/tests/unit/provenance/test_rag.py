@@ -116,7 +116,7 @@ def test_bm25_hand_check():
 def test_retrieve_sorted_and_k(sample_path: Path):
     """retrieve returns <= k results sorted descending by score."""
     ds = dataset.ingest(sample_path, role="target")
-    results = rag.retrieve(ds.dataset_id, "ExampleCorp Nimbus Platform", k=2)
+    results = rag.retrieve(ds.dataset_id, "CampusCart Marketplace", k=2)
 
     assert len(results) <= 2
     assert len(results) == 2

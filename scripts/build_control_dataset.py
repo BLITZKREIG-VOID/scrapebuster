@@ -23,7 +23,7 @@ import sys
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 BACKEND_DIR = REPO_ROOT / "backend"
@@ -68,12 +68,14 @@ def _check(url: str, html: str, text: str, anchors: list[str]) -> None:
         raise SystemExit(f"{url}: honeypot link present, page was served through the edge")
     if not text.strip():
         raise SystemExit(f"{url}: rendered no text")
-    leaked = [a for a in anchors if a in normalize_for_match(text)]
+    leaked = [a for a in anchors if a in normalize_for_match(html + "\n" + text)]
     if leaked:
         raise SystemExit(f"{url}: canary anchor(s) {leaked} in origin content")
 
 
 def build(base: str, out_path: Path, routes: tuple[str, ...] = ROUTES) -> int:
+    if base.rstrip("/") != DEFAULT_BASE:
+        raise SystemExit("control acquisition must use the public CampusCart origin directly")
     try:
         from playwright.sync_api import Error as PlaywrightError
         from playwright.sync_api import sync_playwright
@@ -93,13 +95,17 @@ def build(base: str, out_path: Path, routes: tuple[str, ...] = ROUTES) -> int:
                 if i:
                     time.sleep(PAUSE_S)
                 url = urljoin(base.rstrip("/") + "/", route.lstrip("/"))
-                page.goto(url, wait_until="domcontentloaded", timeout=NAV_TIMEOUT_MS)
+                response = page.goto(url, wait_until="domcontentloaded", timeout=NAV_TIMEOUT_MS)
+                if response is None or response.status != 200:
+                    raise SystemExit(f"{url}: origin did not return HTTP 200")
+                if urlsplit(page.url).netloc != urlsplit(DEFAULT_BASE).netloc:
+                    raise SystemExit(f"{url}: navigation left the CampusCart origin")
                 try:
                     page.locator("#root a[href]").first.wait_for(state="attached", timeout=HYDRATE_TIMEOUT_MS)
                 except PlaywrightError as exc:
                     raise SystemExit(f"{url}: SPA did not hydrate ({exc.__class__.__name__})") from exc
                 text = page.evaluate(TEXT_JS) or ""
-                _check(url, page.content(), text, anchors)
+                _check(url, page.content(), page.title() + "\n" + text, anchors)
                 records.append({"url": url, "fetched_at": _utc_now(), "title": page.title(), "text": text})
                 print(f"  {url}: {len(text)} chars", file=sys.stderr)
         finally:

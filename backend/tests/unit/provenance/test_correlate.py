@@ -277,7 +277,7 @@ def test_exact_without_context_detected_medium() -> None:
 
 def test_partial_signal_low() -> None:
     canaries = _load_canaries()
-    c = canaries[0]  # has 3 context terms: ["Cryo-Mesh", "Thermal Fabric", "2019"]
+    c = canaries[0]
     pub = {"published_at": t0}
     exp = {
         "exposure_id": "EXP-001",
@@ -292,7 +292,7 @@ def test_partial_signal_low() -> None:
     }
 
     # target_response contains all 3 context terms but NOT the anchor
-    target_text = "Cryo-Mesh Thermal Fabric 2019 without the doctor name"
+    target_text = " ".join(c["context_terms"]) + " without the doctor name"
     f = compute_finding(
         canary=c,
         publication=pub,

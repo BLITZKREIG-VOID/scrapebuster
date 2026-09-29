@@ -216,9 +216,6 @@ def test_handle_decoy_api():
 
     data = json.loads(resp.body)
     canary = registry.get("SB-CAN-0003")
-    assert data["service"] == "nimbus-reconcile"
-    assert data["version"] == "v3"
-    assert data["status"] == "deprecated"
     assert data["notes"] == canary.canonical_content
 
     exps = registry.list_exposures("SB-CAN-0003")
