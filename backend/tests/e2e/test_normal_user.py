@@ -20,11 +20,19 @@ def test_human_control_passes_and_gets_no_canaries(api, reset, attack, wait_for,
     assert any(e["decision"] == "PASS" for e in events), [e["decision"] for e in events]
     assert not [e for e in events if e["decision"] in ("TRAP", "RESTRICT", "BLOCK", "THROTTLE")], events
 
-    classes = wait_for(
-        lambda: (c := {s.get("classification") for s in api.sessions() if s.get("user_agent") == ua})
-        and "HUMAN_LIKELY" in c and c,
-        10, what="human session classified HUMAN_LIKELY",
+    def matching_human_sessions():
+        return [
+            detail for summary in api.sessions()
+            if (detail := api.session(summary["session_id"])).get("user_agent") == ua
+        ]
+
+    human_sessions = wait_for(
+        matching_human_sessions,
+        10,
+        what="human detailed session recorded",
     )
+    classes = {session.get("classification") for session in human_sessions}
+    assert "HUMAN_LIKELY" in classes, human_sessions
     assert not classes & BAD_CLASSES, classes
 
     exposures = api.exposures()

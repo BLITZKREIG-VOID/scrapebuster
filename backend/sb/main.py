@@ -70,7 +70,12 @@ async def sb_namespace(path: str, request: Request):
         ctx = build_context(request)
         session = sessions.get_or_create(ctx)
         
-        body = await request.json()
+        try:
+            body = await request.json()
+        except (TypeError, ValueError):
+            body = {}
+        if not isinstance(body, dict):
+            body = {}
         cid = body.get("challenge_id")
         nonce = body.get("nonce")
         signals = body.get("signals", {})
@@ -81,7 +86,7 @@ async def sb_namespace(path: str, request: Request):
             signals=signals,
             session=session,
             request_ua=ctx.user_agent,
-            elapsed_ms=signals.get("elapsed_ms", 0.0)
+            elapsed_ms=signals.get("elapsed_ms") if isinstance(signals, dict) else None,
         )
         session.l2_score = res.score
         session.l2_signals = list(res.reasons)
@@ -111,7 +116,7 @@ async def sb_namespace(path: str, request: Request):
     if path == "challenge/verify":
         from .edge.context import build_context
         from .edge.intel import record_decision
-        from .edge.layer2 import verify
+        from .edge.layer2 import verify_submission
         from .edge.pipeline import log_event
         from .edge.session import sessions
         from .store.sessions import save_session
@@ -119,23 +124,36 @@ async def sb_namespace(path: str, request: Request):
         ctx = build_context(request)
         session = sessions.get_or_create(ctx)
         
-        body = await request.json()
-        cid = body.get("challenge_id")
-        solution = body.get("solution")
-        
-        if verify(cid, solution, session):
-            session.state = "VERIFIED"
-            session.l2_score = 0
-            session.l2_signals = []
-            log_event(ctx, session, "L2", "PASS", 200, [])
-            record_decision(session, "L2", "PASS")
+        try:
+            body = await request.json()
+        except (TypeError, ValueError):
+            body = {}
+        if not isinstance(body, dict):
+            body = {}
+        signals = body.get("signals", {})
+        res = verify_submission(
+            challenge_id=body.get("challenge_id"),
+            nonce=body.get("nonce", body.get("solution")),
+            signals=signals,
+            session=session,
+            request_ua=ctx.user_agent,
+            elapsed_ms=signals.get("elapsed_ms") if isinstance(signals, dict) else None,
+        )
+        session.l2_score = res.score
+        session.l2_signals = list(res.reasons)
+
+        if res.band in {"PASS", "TRAP"}:
+            session.state = "VERIFIED" if res.band == "PASS" else "TRAPPED"
+            response = JSONResponse({"status": "ok"})
+            if res.clearance_cookie:
+                response.headers["Set-Cookie"] = res.clearance_cookie
+            log_event(ctx, session, "L2", res.band, 200, res.reasons, risk_score=res.score)
+            record_decision(session, "L2", res.band)
             save_session(session)
-            return JSONResponse({"status": "ok"})
+            return response
         else:
             session.state = "RESTRICTED"
-            session.l2_score = 100
-            session.l2_signals = ["L2_POW_INVALID"]
-            log_event(ctx, session, "L2", "RESTRICT", 403, session.l2_signals, risk_score=100)
+            log_event(ctx, session, "L2", "RESTRICT", 403, res.reasons, risk_score=res.score)
             record_decision(session, "L2", "RESTRICT")
             save_session(session)
             return JSONResponse({"status": "failed"}, status_code=403)

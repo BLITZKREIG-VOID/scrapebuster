@@ -105,6 +105,23 @@ def _challenge_response(
     return generate_interstitial(session)
 
 
+def _restricted_response(
+    ctx: RequestContext,
+    session: Session,
+    record_decision: Callable[[Session, str, str], None],
+) -> Response:
+    """Enforce an L2 restriction before request scoring or origin access."""
+    reasons = session.l2_signals
+    log_event(ctx, session, "L2", "RESTRICT", 403, reasons)
+    record_decision(session, "L2", "RESTRICT")
+    body = (
+        b"<!DOCTYPE html><html><head><title>Access Restricted</title></head>"
+        b"<body><h1>403 Restricted</h1>"
+        b"<p>Your access has been restricted by the security system.</p></body></html>"
+    )
+    return Response(content=body, media_type="text/html", status_code=403)
+
+
 async def handle(request: Request) -> Response:
     ctx = build_context(request)
     session = sessions.get_or_create(ctx)
@@ -135,6 +152,11 @@ async def _handle_request(
     # Otherwise, keep it on the challenge response path instead of proxying.
     if session.state == "CHALLENGED" and not clearance_valid(ctx, session):
         return _challenge_response(ctx, session, record_decision, session.l1_reasons)
+
+    # Layer 2 restriction is terminal until an explicit administrative reset.
+    # Do not let Layer 1 overwrite the state or let restricted traffic reach L3/origin.
+    if session.state == "RESTRICTED":
+        return _restricted_response(ctx, session, record_decision)
 
     # ── 2. Layer 1 ───────────────────────────────────────────────────────────
     l1: L1Result = l1_run(ctx, session)
@@ -176,17 +198,6 @@ async def _handle_request(
             log_event(ctx, session, "L3", "TRAP", resp.status_code, l1.reasons)
             return resp
 
-    # ── 4. RESTRICTED session ─────────────────────────────────────────────────
-    if session.state == "RESTRICTED":
-        log_event(ctx, session, "L2", "RESTRICT", 403, [])
-        record_decision(session, "L2", "RESTRICT")
-        body = (
-            b"<!DOCTYPE html><html><head><title>Access Restricted</title></head>"
-            b"<body><h1>403 Restricted</h1>"
-            b"<p>Your access has been restricted.</p></body></html>"
-        )
-        return Response(content=body, media_type="text/html", status_code=403)
-
     # ── 5. Layer 2 interstitial / clearance check ────────────────────────────
     # Applies to ESCALATE decisions on document requests.
     # Trapped sessions bypass the interstitial — they already proved something.
@@ -199,7 +210,7 @@ async def _handle_request(
 
     if needs_interstitial:
         from .layer2 import generate_interstitial
-        session.state = "ESCALATED"
+        session.state = "CHALLENGED"
         log_event(ctx, session, "L1", "ESCALATE", 200, l1.reasons)
         record_decision(session, "L1", "ESCALATE")
         log_event(ctx, session, "L2", "CHALLENGE", 200, [], risk_score=0)

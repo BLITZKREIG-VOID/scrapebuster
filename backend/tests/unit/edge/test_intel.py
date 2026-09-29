@@ -79,6 +79,13 @@ def test_automation():
     
     assert session.classification == "AUTOMATION"
 
+
+def test_l2_restriction_classification_takes_precedence_over_l1_bot_signal():
+    session = Session(session_id="ck-test-key", client_key="test-key", state="RESTRICTED")
+    session.l1_reasons.append("L1_AUTOMATION_UA")
+
+    assert classify_session(session) == "AUTOMATION"
+
 def test_sophisticated_scraper():
     session = Session(session_id="ck-test-key", client_key="test-key")
     ctx = make_ctx()
