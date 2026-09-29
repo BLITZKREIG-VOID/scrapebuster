@@ -12,7 +12,12 @@ def init_request(ctx: RequestContext, session: Session) -> None:
         session.first_seen = now
         session.ip = ctx.ip
         session.user_agent = ctx.user_agent or ""
-        session.header_fp = ctx.header_fp
+
+    # Keep the latest observed request fingerprint and identity fields on the
+    # durable profile. client_key is still the stable session lookup key.
+    session.ip = ctx.ip
+    session.user_agent = ctx.user_agent or ""
+    session.header_fp = ctx.header_fp
         
     session.last_seen = now
     session.request_count += 1
