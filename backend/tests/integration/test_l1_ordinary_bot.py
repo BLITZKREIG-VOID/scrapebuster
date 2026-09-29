@@ -44,7 +44,7 @@ def _demo_router_mounted() -> bool:
     try:
         import sb.main
         return "/api/v1/demo/reset" in sb.main.app.openapi().get("paths", {})
-    except Exception:
+    except (ImportError, AttributeError):
         return False
 
 
@@ -139,7 +139,7 @@ def test_ordinary_bot_is_throttled_then_blocked(edge):
     proc = subprocess.run(
         [sys.executable, str(REPO / "attacks" / "ordinary_bot.py"), "--base", EDGE, "--site", "examplecorp",
          "--requests", "100", "--threads", "10"],
-        cwd=REPO, capture_output=True, text=True, timeout=120,
+        cwd=REPO, capture_output=True, text=True, timeout=120, check=False,
     )
     assert proc.returncode == 0, proc.stderr
     bot = json.loads([line for line in proc.stdout.splitlines() if line.startswith("{")][-1])

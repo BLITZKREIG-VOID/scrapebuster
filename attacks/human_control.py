@@ -13,8 +13,6 @@ import random
 import time
 from urllib.parse import urlsplit
 
-from playwright.sync_api import sync_playwright
-
 from common import (
     DEFAULT_BASE,
     DEFAULT_SITE,
@@ -32,6 +30,7 @@ from common import (
     same_origin,
     synthetic_interaction,
 )
+from playwright.sync_api import sync_playwright
 
 SEED = 7
 PAGES = 5

@@ -14,6 +14,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from urllib.parse import urljoin, urlsplit, urlunsplit
 
+from playwright.sync_api import Error as PlaywrightError
+
 DEFAULT_BASE = "http://localhost:8000"
 INTERSTITIAL_MARKER = "Checking your browser"
 ANCHORS = ("Oriel Vantrask", "Hexaquorum", "quasar-reconcile", "velvet-anchor", "ORCHID-7")
@@ -206,7 +208,7 @@ class PageDriver:
     def _interstitial_visible(self) -> bool:
         try:
             return self.page.get_by_text(INTERSTITIAL_MARKER).count() > 0
-        except Exception:  # context destroyed mid-navigation: re-check after load
+        except PlaywrightError:  # context destroyed mid-navigation: re-check after load
             self.page.wait_for_load_state("load")
             return self.page.get_by_text(INTERSTITIAL_MARKER).count() > 0
 
@@ -239,7 +241,7 @@ class PageDriver:
         interstitials = 0
         try:
             interstitials = self.wait_past_interstitial(rng)
-        except Exception as exc:  # timeout: still stuck on the interstitial
+        except PlaywrightError as exc:  # timeout: still stuck on the interstitial
             log(f"  interstitial did not clear for {url}: {exc.__class__.__name__}")
         # CampusCart is a client-rendered SPA: the document loads before its
         # navigation exists. Wait on observed hydration; routes that render no
@@ -249,7 +251,7 @@ class PageDriver:
                 self.page.locator("#root a[href]").first.wait_for(
                     state="attached", timeout=HYDRATE_TIMEOUT_MS
                 )
-            except Exception as exc:
+            except PlaywrightError as exc:
                 log(f"  no hydrated links for {url}: {exc.__class__.__name__}")
         # Status/content type of the document actually displayed (response events can lag the DOM swap).
         doc = self.page.evaluate(DOC_JS)
@@ -266,7 +268,7 @@ class PageDriver:
             resp = next((r for r in reversed(self.doc_responses[start:]) if r.url == final), None)
             try:
                 visit.raw = resp.text() if resp else ""
-            except Exception:
+            except PlaywrightError:
                 resp = None
             if resp is None:
                 visit.raw = self.page.evaluate(PRE_JS) or ""

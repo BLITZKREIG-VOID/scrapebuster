@@ -1,6 +1,6 @@
-import httpx
-
 from urllib.parse import urlsplit
+
+import httpx
 
 from ..config import SB_ORIGIN_URL
 from .context import RequestContext
