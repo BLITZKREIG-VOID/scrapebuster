@@ -8,8 +8,9 @@ in a background thread, single attempt, 5 s timeouts.
 Outcomes are visible in data, never silent:
 - ``SB_S3_BUCKET`` unset → no upload, :func:`s3_status` ``"disabled"``, case evidence stays
   ``PRESERVED_LOCAL``.
-- boto3 missing or any upload error → :func:`s3_status` ``"down"``, case evidence stays
-  ``PRESERVED_LOCAL`` and gains a ``vault`` entry ``{"status": "down", "error": ...}``.
+- boto3 missing or any error (upload, receipt write, DB update) → :func:`s3_status` ``"down"``,
+  case evidence stays ``PRESERVED_LOCAL``, gains a ``vault`` entry
+  ``{"status": "down", "error": ...}`` and no ``vault_receipt.json`` is left behind.
 - success → ``vault_receipt.json`` next to the manifest (outside it: created after upload),
   ``evidence_objects`` rows get ``s3_key``/``s3_version_id``/``retain_until``, case evidence
   status ``PRESERVED_S3_LOCKED``.
@@ -20,14 +21,17 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import logging
 import os
 import threading
-from contextlib import closing
+from contextlib import closing, suppress
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
 from sb.store import db
+
+logger = logging.getLogger(__name__)
 
 LOCK_MODE = "GOVERNANCE"
 RETENTION = timedelta(hours=24)
@@ -91,7 +95,9 @@ def preserve_async(case_id: str, run_id: str, bundle_dir: str | Path) -> threadi
 def upload_bundle(case_id: str, run_id: str, bundle_dir: Path) -> dict[str, Any] | None:
     """Upload every file listed in the bundle manifest (plus the manifest). Single attempt.
 
-    Returns the receipt on success, ``None`` on failure (failure recorded in the case)."""
+    Returns the receipt on success, ``None`` on failure (failure recorded in the case). Upload,
+    receipt write and the DB state transition form one protected unit: any failure in it goes
+    through :func:`_record_failure`, so the background thread never dies with vault state "ok"."""
     from sb.provenance.evidence import FILE_NAMES
 
     bucket = _bucket()
@@ -99,6 +105,7 @@ def upload_bundle(case_id: str, run_id: str, bundle_dir: Path) -> dict[str, Any]
     if boto3 is None:
         _record_failure(case_id, "boto3 not importable")
         return None
+    receipt_path = bundle_dir / RECEIPT_NAME
     try:
         client = boto3.client(
             "s3",
@@ -130,39 +137,48 @@ def upload_bundle(case_id: str, run_id: str, bundle_dir: Path) -> dict[str, Any]
                 "version_id": resp.get("VersionId"),
                 "sha256": digest.hex(),
             })
-    except Exception as exc:  # noqa: BLE001 — any boto/IO error = vault down, recorded visibly
+
+        receipt = {
+            "bucket": bucket,
+            "mode": LOCK_MODE,
+            "retain_until": retain_until.isoformat().replace("+00:00", "Z"),
+            "uploaded_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+            "keys": [o["key"] for o in objects],
+            "objects": objects,
+        }
+        receipt_path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        with closing(db.get_connection()) as conn, conn:  # one transaction: all rows or none
+            conn.executemany(
+                "UPDATE evidence_objects SET s3_key = ?, s3_version_id = ?, retain_until = ? "
+                "WHERE case_id = ? AND name = ?",
+                [(o["key"], o["version_id"], receipt["retain_until"], case_id, o["name"]) for o in objects],
+            )
+            _update_case_evidence(conn, case_id, {
+                "status": "PRESERVED_S3_LOCKED",
+                "vault": {"status": "ok", "bucket": bucket, "receipt": str(receipt_path)},
+            })
+    except Exception as exc:  # any boto/IO/DB error = vault down, recorded visibly
+        logger.exception("S3 vault preservation failed for case %s", case_id)
+        # A receipt claims S3 lock; the DB transaction rolled back, so drop a half-written one.
+        with suppress(OSError):
+            receipt_path.unlink(missing_ok=True)
         _record_failure(case_id, f"{exc.__class__.__name__}: {exc}")
         return None
-
-    receipt = {
-        "bucket": bucket,
-        "mode": LOCK_MODE,
-        "retain_until": retain_until.isoformat().replace("+00:00", "Z"),
-        "uploaded_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
-        "keys": [o["key"] for o in objects],
-        "objects": objects,
-    }
-    (bundle_dir / RECEIPT_NAME).write_text(
-        json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
-    with closing(db.get_connection()) as conn, conn:
-        conn.executemany(
-            "UPDATE evidence_objects SET s3_key = ?, s3_version_id = ?, retain_until = ? "
-            "WHERE case_id = ? AND name = ?",
-            [(o["key"], o["version_id"], receipt["retain_until"], case_id, o["name"]) for o in objects],
-        )
-        _update_case_evidence(conn, case_id, {
-            "status": "PRESERVED_S3_LOCKED",
-            "vault": {"status": "ok", "bucket": bucket, "receipt": str(bundle_dir / RECEIPT_NAME)},
-        })
     _set_last_error(None)
     return receipt
 
 
 def _record_failure(case_id: str, error: str) -> None:
+    """Mark the vault down in memory first (so ``s3_status`` can never stay "ok"), then in the case.
+
+    Must not raise: it runs in the background thread, and the DB may be the thing that failed."""
     _set_last_error(error)
-    with closing(db.get_connection()) as conn, conn:
-        _update_case_evidence(conn, case_id, {"vault": {"status": "down", "error": error}})
+    try:
+        with closing(db.get_connection()) as conn, conn:
+            _update_case_evidence(conn, case_id, {"vault": {"status": "down", "error": error}})
+    except Exception:  # recording the failure must not kill the worker thread
+        logger.exception("Could not record S3 vault failure for case %s", case_id)
+        _set_last_error(f"{error}; failure not persisted to case")
 
 
 def _update_case_evidence(conn: Any, case_id: str, changes: dict[str, Any]) -> None:

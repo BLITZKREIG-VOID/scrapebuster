@@ -5,7 +5,9 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import sqlite3
 import sys
+import threading
 import types
 from contextlib import closing
 from datetime import UTC, datetime, timedelta
@@ -148,3 +150,98 @@ def test_upload_error_is_down_and_case_stays_local(bundle, monkeypatch, fake_bot
 
     vault_s3.reset()
     assert vault_s3.s3_status() == "ok"
+
+
+class _LockedConnection:
+    """Wraps a real sqlite connection; statements starting with ``fail_prefix`` raise "locked"."""
+
+    def __init__(self, conn, fail_prefix: str):
+        self._conn = conn
+        self._fail_prefix = fail_prefix
+
+    def _check(self, sql: str) -> None:
+        if sql.lstrip().startswith(self._fail_prefix):
+            raise sqlite3.OperationalError("database is locked")
+
+    def execute(self, sql, *args):
+        self._check(sql)
+        return self._conn.execute(sql, *args)
+
+    def executemany(self, sql, *args):
+        self._check(sql)
+        return self._conn.executemany(sql, *args)
+
+    def __enter__(self):
+        self._conn.__enter__()
+        return self
+
+    def __exit__(self, *exc):
+        return self._conn.__exit__(*exc)
+
+    def close(self):
+        self._conn.close()
+
+
+def _run_in_thread(monkeypatch, bundle) -> list:
+    """Run the real background worker; return any exceptions that escaped the thread."""
+    escaped: list = []
+    monkeypatch.setattr(threading, "excepthook", lambda args: escaped.append(args.exc_value))
+    vault_s3.preserve_async(CASE_ID, RUN_ID, bundle).join(timeout=5)
+    return escaped
+
+
+def _assert_down_and_consistent(bundle, error: str) -> None:
+    ev = _case_evidence()
+    assert ev["status"] == "PRESERVED_LOCAL"
+    assert ev["vault"] == {"status": "down", "error": error}
+    assert vault_s3.s3_status() == "down"
+    assert not (bundle / vault_s3.RECEIPT_NAME).exists()
+    with closing(db.get_connection()) as conn:
+        locked = conn.execute(
+            "SELECT COUNT(*) FROM evidence_objects WHERE case_id = ? AND s3_key IS NOT NULL", (CASE_ID,)
+        ).fetchone()[0]
+    assert locked == 0
+
+
+def test_receipt_write_failure_after_upload_is_recorded_down(bundle, monkeypatch, fake_boto3):
+    monkeypatch.setenv("SB_S3_BUCKET", "sb-evidence-test")
+    real_write_text = Path.write_text
+
+    def write_text(self, *args, **kwargs):
+        if self.name == vault_s3.RECEIPT_NAME:
+            raise OSError("No space left on device")
+        return real_write_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "write_text", write_text)
+
+    assert _run_in_thread(monkeypatch, bundle) == []
+    assert len(fake_boto3["client"].calls) == 10  # S3 succeeded; the local step failed
+    _assert_down_and_consistent(bundle, "OSError: No space left on device")
+
+
+def test_db_update_failure_after_upload_is_recorded_down(bundle, monkeypatch, fake_boto3):
+    monkeypatch.setenv("SB_S3_BUCKET", "sb-evidence-test")
+    real_get_connection = db.get_connection
+    calls = {"n": 0}
+
+    def get_connection():
+        calls["n"] += 1
+        conn = real_get_connection()
+        # First connection = success transition (locked); second = _record_failure (works).
+        return _LockedConnection(conn, "UPDATE evidence_objects") if calls["n"] == 1 else conn
+
+    monkeypatch.setattr(db, "get_connection", get_connection)
+
+    assert _run_in_thread(monkeypatch, bundle) == []
+    assert len(fake_boto3["client"].calls) == 10
+    _assert_down_and_consistent(bundle, "OperationalError: database is locked")
+
+
+def test_failure_recording_db_error_does_not_kill_thread_or_report_ok(bundle, monkeypatch, fake_boto3):
+    monkeypatch.setenv("SB_S3_BUCKET", "sb-evidence-test")
+    real_get_connection = db.get_connection
+    monkeypatch.setattr(db, "get_connection", lambda: _LockedConnection(real_get_connection(), "UPDATE"))
+
+    assert _run_in_thread(monkeypatch, bundle) == []
+    assert vault_s3.s3_status() == "down"
+    assert not (bundle / vault_s3.RECEIPT_NAME).exists()
