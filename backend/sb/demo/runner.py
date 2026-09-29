@@ -57,7 +57,6 @@ class StepFailed(Exception):
 
 class SafetyStop(StepFailed):
     """Raised when an attacker step exits with a safety stop (HTTP 429/5xx)."""
-    pass
 
 
 def fresh_status(run_id: str | None, mode: str = "live") -> dict:

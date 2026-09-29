@@ -23,7 +23,7 @@ REPO = Path(__file__).resolve().parents[3]
 BACKEND = REPO / "backend"
 EDGE = os.environ.get("SB_EDGE_URL", "http://127.0.0.1:8000")
 sys.path.insert(0, str(REPO / "attacks"))
-from sites import SITES  # noqa: E402  (stdlib-only profile module)
+from sites import SITES
 
 SITE_NAME = os.environ.get("SB_E2E_SITE", "campuscart")
 LOCAL_FIXTURE_SITE = "examplecorp"  # v1 ExampleCorp stand-in (demo_site/, :8001): local tests only

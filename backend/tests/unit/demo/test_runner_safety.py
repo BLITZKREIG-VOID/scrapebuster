@@ -22,7 +22,7 @@ ATTACKS_DIR = REPO / "attacks"
 if str(ATTACKS_DIR) not in sys.path:
     sys.path.insert(0, str(ATTACKS_DIR))
 
-from common import SAFETY_STOP_EXIT_CODE, is_safety_stop_status  # noqa: E402
+from common import SAFETY_STOP_EXIT_CODE, is_safety_stop_status
 
 
 class DummyStatusHandler(http.server.BaseHTTPRequestHandler):
@@ -88,6 +88,7 @@ def test_ordinary_bot_safety_stop_and_batch_bounding():
             capture_output=True,
             text=True,
             timeout=15,
+            check=False,
         )
 
         assert proc.returncode == SAFETY_STOP_EXIT_CODE, f"expected {SAFETY_STOP_EXIT_CODE}, got {proc.returncode}"
