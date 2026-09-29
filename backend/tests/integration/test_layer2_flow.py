@@ -2,12 +2,12 @@ import hashlib
 
 import httpx
 import pytest
-
-from sb.edge.layer2 import POW_DIFFICULTY
-from sb.main import app
-from sb.edge.session import sessions
 from sb.edge.layer1 import reset_rate_state
+from sb.edge.layer2 import POW_DIFFICULTY
+from sb.edge.session import sessions
+from sb.main import app
 from sb.store.db import reset_db
+
 
 @pytest.mark.asyncio
 async def test_layer2_flow_challenge_solve_and_pass(origin_server):
