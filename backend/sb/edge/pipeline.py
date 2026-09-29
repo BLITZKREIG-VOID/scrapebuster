@@ -69,9 +69,14 @@ async def handle(request: Request) -> Response:
         return Response(content=b"Forbidden", status_code=403)
 
     if l1.decision == "CHALLENGE":
-        # Layer 2 (PoW / JS challenge) is INT-07 — for now log and pass through
-        log_event(ctx, session, "L1", "CHALLENGE", 0, l1.reasons)
-        session.state = "CHALLENGED"
+        if session.state == "VERIFIED":
+            # Pass through
+            log_event(ctx, session, "L1", "CHALLENGE_BYPASSED", 0, l1.reasons)
+        else:
+            log_event(ctx, session, "L1", "CHALLENGE", 403, l1.reasons)
+            session.state = "CHALLENGED"
+            from .layer2 import generate_challenge_response
+            return generate_challenge_response(session)
 
     elif l1.decision == "ESCALATE":
         log_event(ctx, session, "L1", "ESCALATE", 0, l1.reasons)

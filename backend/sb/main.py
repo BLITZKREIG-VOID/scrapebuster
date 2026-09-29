@@ -30,6 +30,32 @@ app.include_router(api_v1_router)
 
 @app.api_route("/_sb/{path:path}", methods=["GET", "POST"])
 async def sb_namespace(path: str, request: Request):
+    if path == "static/challenge.js":
+        import os
+
+        from fastapi.responses import FileResponse
+        js_path = os.path.join(os.path.dirname(__file__), "edge", "static", "challenge.js")
+        return FileResponse(js_path, media_type="application/javascript")
+            
+    if path == "challenge/verify":
+        from .edge.context import build_context
+        from .edge.layer2 import verify
+        from .edge.session import sessions
+        
+        ctx = build_context(request)
+        session = sessions.get_or_create(ctx)
+        
+        body = await request.json()
+        cid = body.get("challenge_id")
+        solution = body.get("solution")
+        
+        if verify(cid, solution, session):
+            session.state = "VERIFIED"
+            return JSONResponse({"status": "ok"})
+        else:
+            session.state = "SUSPICIOUS"
+            return JSONResponse({"status": "failed"}, status_code=403)
+            
     return JSONResponse(content={"msg": f"SB stub for {path}"})
 
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
