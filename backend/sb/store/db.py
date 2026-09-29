@@ -1,5 +1,5 @@
-import sqlite3
 import os
+import sqlite3
 import threading
 
 # Use config for DB path, default for now

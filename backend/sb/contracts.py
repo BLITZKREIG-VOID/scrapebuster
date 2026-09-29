@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional, Literal, Dict, Any
-from datetime import datetime
+from typing import Any, Literal
+
+from pydantic import BaseModel
+
 
 class Health(BaseModel):
     status: str = "ok"
@@ -19,7 +20,7 @@ class TrafficEvent(BaseModel):
     layer: Literal["L1", "L2", "L3", "ORIGIN"]
     decision: Literal["ALLOW", "ESCALATE", "CHALLENGE", "PASS", "RESTRICT", "THROTTLE", "BLOCK", "TRAP"]
     risk_score: int
-    reasons: List[str]
+    reasons: list[str]
 
 class SessionSummary(BaseModel):
     session_id: str
@@ -35,13 +36,13 @@ class SessionDetail(SessionSummary):
     first_seen: str
     last_seen: str
     l1_score: int
-    l1_reasons: List[str]
+    l1_reasons: list[str]
     l2_score: int
-    l2_signals: List[str]
-    layer_path: List[Dict[str, Any]]
-    pages: List[str]
-    traps_triggered: List[str]
-    canaries_exposed: List[str]
+    l2_signals: list[str]
+    layer_path: list[dict[str, Any]]
+    pages: list[str]
+    traps_triggered: list[str]
+    canaries_exposed: list[str]
 
 class ExposureEvent(BaseModel):
     exposure_id: str
@@ -51,22 +52,22 @@ class ExposureEvent(BaseModel):
     resource: str
     content_version: str
     content_sha256: str
-    client: Dict[str, Any]
-    request: Dict[str, Any]
+    client: dict[str, Any]
+    request: dict[str, Any]
 
 class Canary(BaseModel):
     canary_id: str
     type: str
     canonical_content: str
     anchor: str
-    context_terms: List[str]
-    probe_prompts: List[str]
+    context_terms: list[str]
+    probe_prompts: list[str]
     sha256: str
     content_version: str
     created_at: str
-    published_at: Optional[str] = None
+    published_at: str | None = None
     status: Literal["DRAFT", "ACTIVE", "EXPOSED", "OBSERVED"]
-    placements: List[str]
+    placements: list[str]
 
 class Dataset(BaseModel):
     dataset_id: str
@@ -80,9 +81,9 @@ class Finding(BaseModel):
     finding_id: str
     canary_id: str
     exact_match: bool
-    context_match: Dict[str, Any]
+    context_match: dict[str, Any]
     uniqueness: str
-    temporal: Dict[str, Any]
+    temporal: dict[str, Any]
     integrity: str
     control_negative: bool
     status: str
@@ -97,10 +98,10 @@ class CaseSummary(BaseModel):
     primary_canary_id: str
 
 class Case(CaseSummary):
-    session_ids: List[str]
-    probe_ids: List[str]
-    findings: List[Finding]
-    evidence: Dict[str, Any]
+    session_ids: list[str]
+    probe_ids: list[str]
+    findings: list[Finding]
+    evidence: dict[str, Any]
     statement: str
 
 class DemoStatus(BaseModel):
