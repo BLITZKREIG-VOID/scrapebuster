@@ -1,0 +1,47 @@
+{
+  "additionalProperties": true,
+  "properties": {
+    "ALLOW": {
+      "default": 0,
+      "title": "Allow",
+      "type": "integer"
+    },
+    "ESCALATE": {
+      "default": 0,
+      "title": "Escalate",
+      "type": "integer"
+    },
+    "CHALLENGE": {
+      "default": 0,
+      "title": "Challenge",
+      "type": "integer"
+    },
+    "PASS": {
+      "default": 0,
+      "title": "Pass",
+      "type": "integer"
+    },
+    "RESTRICT": {
+      "default": 0,
+      "title": "Restrict",
+      "type": "integer"
+    },
+    "THROTTLE": {
+      "default": 0,
+      "title": "Throttle",
+      "type": "integer"
+    },
+    "BLOCK": {
+      "default": 0,
+      "title": "Block",
+      "type": "integer"
+    },
+    "TRAP": {
+      "default": 0,
+      "title": "Trap",
+      "type": "integer"
+    }
+  },
+  "title": "DecisionCounts",
+  "type": "object"
+}

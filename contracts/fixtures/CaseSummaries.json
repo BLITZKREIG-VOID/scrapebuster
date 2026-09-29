@@ -1,0 +1,10 @@
+[
+  {
+    "case_id": "CASE-DEMO-001",
+    "run_id": "RUN-DEMO-001",
+    "created_at": "2026-09-30T10:00:00Z",
+    "status": "PROVENANCE_SIGNAL_DETECTED",
+    "confidence": "HIGH",
+    "primary_canary_id": "CANARY-DEMO-001"
+  }
+]

@@ -1,10 +1,85 @@
 {
+  "$defs": {
+    "DemoStep": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "PENDING",
+            "RUNNING",
+            "PASS",
+            "FAIL"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Started At"
+        },
+        "finished_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Finished At"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "status",
+        "detail"
+      ],
+      "title": "DemoStep",
+      "type": "object"
+    }
+  },
   "properties": {
     "run_id": {
-      "title": "Run Id",
-      "type": "string"
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Run Id"
     },
     "phase": {
+      "enum": [
+        "READY",
+        "RUNNING",
+        "COMPLETE",
+        "PAUSED",
+        "FAILED"
+      ],
       "title": "Phase",
       "type": "string"
     },
@@ -15,12 +90,19 @@
       ],
       "title": "Mode",
       "type": "string"
+    },
+    "steps": {
+      "items": {
+        "$ref": "#/$defs/DemoStep"
+      },
+      "title": "Steps",
+      "type": "array"
     }
   },
   "required": [
-    "run_id",
     "phase",
-    "mode"
+    "mode",
+    "steps"
   ],
   "title": "DemoStatus",
   "type": "object"

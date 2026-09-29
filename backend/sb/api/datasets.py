@@ -6,8 +6,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-
-from ..contracts import Dataset
+from ..contracts import Dataset, DatasetsResponse
 from ..provenance import dataset
 from ..provenance.dataset import DatasetValidationError
 
@@ -17,10 +16,6 @@ router = APIRouter()
 class DatasetIngestRequest(BaseModel):
     path: str
     role: str
-
-
-class DatasetsResponse(BaseModel):
-    datasets: list[Dataset]
 
 
 @router.post("/datasets/ingest", response_model=Dataset)

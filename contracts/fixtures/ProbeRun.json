@@ -1,0 +1,30 @@
+{
+  "probe_id": "PROBE-DEMO-001",
+  "target": "target",
+  "status": "DONE",
+  "dataset_id": "DATASET-DEMO-001",
+  "dataset_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "started_at": "2026-09-30T10:00:00Z",
+  "finished_at": "2026-09-30T10:00:00Z",
+  "model": {
+    "provider": "synthetic",
+    "name": "fixture-model"
+  },
+  "results": [
+    {
+      "result_id": "RESULT-DEMO-001",
+      "canary_id": "CANARY-DEMO-001",
+      "prompt": "What is the demo term?",
+      "retrieved": [
+        {
+          "text": "Synthetic snippet",
+          "score": 0.8
+        }
+      ],
+      "response_text": "Synthetic response",
+      "response_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "latency_ms": 10,
+      "ts": "2026-09-30T10:00:00Z"
+    }
+  ]
+}

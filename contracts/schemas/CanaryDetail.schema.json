@@ -1,0 +1,208 @@
+{
+  "$defs": {
+    "ExposureEvent": {
+      "properties": {
+        "exposure_id": {
+          "title": "Exposure Id",
+          "type": "string"
+        },
+        "canary_id": {
+          "title": "Canary Id",
+          "type": "string"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        },
+        "resource": {
+          "title": "Resource",
+          "type": "string"
+        },
+        "content_version": {
+          "title": "Content Version",
+          "type": "string"
+        },
+        "content_sha256": {
+          "title": "Content Sha256",
+          "type": "string"
+        },
+        "client": {
+          "additionalProperties": true,
+          "title": "Client",
+          "type": "object"
+        },
+        "request": {
+          "additionalProperties": true,
+          "title": "Request",
+          "type": "object"
+        }
+      },
+      "required": [
+        "exposure_id",
+        "canary_id",
+        "ts",
+        "session_id",
+        "resource",
+        "content_version",
+        "content_sha256",
+        "client",
+        "request"
+      ],
+      "title": "ExposureEvent",
+      "type": "object"
+    },
+    "Publication": {
+      "properties": {
+        "canary_id": {
+          "title": "Canary Id",
+          "type": "string"
+        },
+        "sha256": {
+          "title": "Sha256",
+          "type": "string"
+        },
+        "content_version": {
+          "title": "Content Version",
+          "type": "string"
+        },
+        "published_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Published At"
+        },
+        "placements": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Placements",
+          "type": "array"
+        }
+      },
+      "required": [
+        "canary_id",
+        "sha256",
+        "content_version",
+        "placements"
+      ],
+      "title": "Publication",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "canary_id": {
+      "title": "Canary Id",
+      "type": "string"
+    },
+    "type": {
+      "title": "Type",
+      "type": "string"
+    },
+    "canonical_content": {
+      "title": "Canonical Content",
+      "type": "string"
+    },
+    "anchor": {
+      "title": "Anchor",
+      "type": "string"
+    },
+    "context_terms": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Context Terms",
+      "type": "array"
+    },
+    "probe_prompts": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Probe Prompts",
+      "type": "array"
+    },
+    "sha256": {
+      "title": "Sha256",
+      "type": "string"
+    },
+    "content_version": {
+      "title": "Content Version",
+      "type": "string"
+    },
+    "created_at": {
+      "title": "Created At",
+      "type": "string"
+    },
+    "published_at": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Published At"
+    },
+    "status": {
+      "enum": [
+        "DRAFT",
+        "ACTIVE",
+        "EXPOSED",
+        "OBSERVED"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "placements": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Placements",
+      "type": "array"
+    },
+    "publication": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Publication"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "exposures": {
+      "items": {
+        "$ref": "#/$defs/ExposureEvent"
+      },
+      "title": "Exposures",
+      "type": "array"
+    }
+  },
+  "required": [
+    "canary_id",
+    "type",
+    "canonical_content",
+    "anchor",
+    "context_terms",
+    "probe_prompts",
+    "sha256",
+    "content_version",
+    "created_at",
+    "status",
+    "placements"
+  ],
+  "title": "CanaryDetail",
+  "type": "object"
+}

@@ -1,0 +1,7 @@
+{
+  "probe_ids": {
+    "target": "PROBE-DEMO-001",
+    "control": "PROBE-DEMO-002"
+  },
+  "case_id": "CASE-DEMO-001"
+}

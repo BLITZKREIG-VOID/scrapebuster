@@ -2,24 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
 
 from ..canary import registry
-from ..contracts import Canary, ExposureEvent
+from ..contracts import Canary, CanaryDetail, CanariesResponse
 
 router = APIRouter()
-
-
-class CanaryDetail(Canary):
-    publication: dict[str, Any] | None = None
-    exposures: list[ExposureEvent] = Field(default_factory=list)
-
-
-class CanariesResponse(BaseModel):
-    canaries: list[Canary]
 
 
 @router.get("/canaries", response_model=CanariesResponse)

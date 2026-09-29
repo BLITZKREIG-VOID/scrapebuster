@@ -8,6 +8,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, HTTPException
 from pydantic import BaseModel, Field
+from sb.contracts import DemoResetResponse, DemoStatus
 from sb.demo import DemoBusy, golden, runner
 from sb.demo.reset import reset_demo
 
@@ -18,27 +19,27 @@ class RunRequest(BaseModel):
     step: int | None = Field(default=None, ge=1, le=len(runner.STEPS))
 
 
-@router.post("/reset")
-def post_reset() -> dict:
+@router.post("/reset", response_model=DemoResetResponse)
+def post_reset() -> DemoResetResponse:
     """``{ok, run_id, checks: [{name, ok, detail}]}``; 409 while a run holds the lock."""
     try:
-        return reset_demo()
+        return DemoResetResponse.model_validate(reset_demo())
     except DemoBusy as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
-@router.post("/run")
-def post_run(body: Annotated[RunRequest | None, Body()] = None) -> dict:
+@router.post("/run", response_model=DemoStatus)
+def post_run(body: Annotated[RunRequest | None, Body()] = None) -> DemoStatus:
     """Start all steps (or one) in the background; returns the initial ``DemoStatus``."""
     try:
-        return runner.start(body.step if body else None)
+        return DemoStatus.model_validate(runner.start(body.step if body else None))
     except DemoBusy as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
-@router.get("/status")
-def get_status() -> dict:
-    return runner.get_status()
+@router.get("/status", response_model=DemoStatus)
+def get_status() -> DemoStatus:
+    return DemoStatus.model_validate(runner.get_status())
 
 
 @router.post("/restore-golden")
