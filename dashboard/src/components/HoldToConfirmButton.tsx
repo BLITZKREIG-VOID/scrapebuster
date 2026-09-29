@@ -51,23 +51,27 @@ export function HoldToConfirmButton({
   }, [onConfirm]);
 
   const updateProgress = useCallback(() => {
-    if (!startTimeRef.current) return;
-    const elapsed = performance.now() - startTimeRef.current;
-    const pct = Math.min(100, (elapsed / holdDurationMs) * 100);
-    setProgress(pct);
+    function step() {
+      if (!startTimeRef.current) return;
+      const elapsed = performance.now() - startTimeRef.current;
+      const pct = Math.min(100, (elapsed / holdDurationMs) * 100);
+      setProgress(pct);
 
-    if (pct >= 100) {
-      triggerConfirm();
-    } else {
-      animFrameRef.current = requestAnimationFrame(updateProgress);
+      if (pct >= 100) {
+        triggerConfirm();
+      } else {
+        animFrameRef.current = requestAnimationFrame(step);
+      }
     }
+
+    animFrameRef.current = requestAnimationFrame(step);
   }, [holdDurationMs, triggerConfirm]);
 
   const startHold = () => {
     if (disabled || isCompleted) return;
     setIsHolding(true);
     startTimeRef.current = performance.now();
-    animFrameRef.current = requestAnimationFrame(updateProgress);
+    updateProgress();
   };
 
   useEffect(() => {

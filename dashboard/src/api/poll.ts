@@ -61,13 +61,15 @@ export function usePoll<T>(
 
   // Optimistic updater for active operator actions
   const mutate = useCallback(
-    (optimisticData: T | ((prev: T | null) => T)) => {
+    (optimisticData: T | null | ((prev: T | null) => T | null)) => {
       setData((prev) => {
         const nextVal =
           typeof optimisticData === 'function'
-            ? (optimisticData as (p: T | null) => T)(prev)
+            ? (optimisticData as (p: T | null) => T | null)(prev)
             : optimisticData;
-        memoryCache.set(cacheKey, { data: nextVal, timestamp: new Date() });
+        if (nextVal !== null) {
+          memoryCache.set(cacheKey, { data: nextVal, timestamp: new Date() });
+        }
         return nextVal;
       });
     },
