@@ -32,6 +32,25 @@ from sites import (  # noqa: F401  (re-exported for the attacker scripts)
 
 INTERSTITIAL_MARKER = "Checking your browser"
 
+SAFETY_STOP_EXIT_CODE = 3
+
+
+def is_safety_stop_status(status: int | str | None) -> bool:
+    """Return True if status indicates an upstream or edge HTTP 429 or 5xx.
+
+    Phase 10 tradeoff note: Edge may emit 429 due to Layer 1 throttling, and attack clients
+    cannot distinguish between edge-generated 429 and upstream 429. Attackers conservatively
+    stop on any 429 or 5xx.
+    """
+    if status is None:
+        return False
+    try:
+        code = int(status)
+        return code == 429 or (500 <= code <= 599)
+    except (ValueError, TypeError):
+        return False
+
+
 NAV_TIMEOUT_MS = 20_000
 HYDRATE_TIMEOUT_MS = 10_000
 INTERSTITIAL_TIMEOUT_MS = 15_000
@@ -196,19 +215,33 @@ class PageDriver:
 
     def goto(self, url: str, rng: random.Random | None, wait_until: str = "domcontentloaded") -> Visit:
         start = len(self.doc_responses)
-        self.page.goto(url, wait_until=wait_until, timeout=NAV_TIMEOUT_MS)
-        return self.capture(url, rng, start)
+        resp = self.page.goto(url, wait_until=wait_until, timeout=NAV_TIMEOUT_MS)
+        return self.capture(url, rng, start, nav_resp=resp)
 
-    def capture(self, url: str, rng: random.Random | None, start: int) -> Visit:
+    def capture(self, url: str, rng: random.Random | None, start: int, nav_resp=None) -> Visit:
         """Finish the current navigation (incl. interstitial) and snapshot the page."""
+        if nav_resp is not None and is_safety_stop_status(nav_resp.status):
+            return Visit(url=url, status=nav_resp.status)
         interstitials = 0
         try:
             interstitials = self.wait_past_interstitial(rng)
         except PlaywrightError as exc:  # timeout: still stuck on the interstitial
             log(f"  interstitial did not clear for {url}: {exc.__class__.__name__}")
-        # CampusCart is a client-rendered SPA: the document loads before its
-        # navigation exists. Wait on observed hydration; routes that render no
-        # links (e.g. the SPA fallback for /robots.txt) are logged, not fatal.
+
+        # The interstitial can navigate from an initial 200 to a final 429/5xx.
+        # Prefer the latest main-frame response for the displayed URL.
+        final = self.page.url
+        matched_resp = next((r for r in reversed(self.doc_responses[start:]) if r.url == final), None)
+        resp_status = matched_resp.status if matched_resp is not None else (
+            nav_resp.status if nav_resp is not None else None
+        )
+        if is_safety_stop_status(resp_status):
+            return Visit(url=url, status=resp_status, interstitials=interstitials)
+
+        # Check navigation timing before a potentially long SPA hydration wait.
+        doc = self.page.evaluate(DOC_JS)
+        if is_safety_stop_status(doc["status"]):
+            return Visit(url=url, status=doc["status"], interstitials=interstitials)
         if self.page.locator("#root").count():
             try:
                 self.page.locator("#root a[href]").first.wait_for(
@@ -216,9 +249,9 @@ class PageDriver:
                 )
             except PlaywrightError as exc:
                 log(f"  no hydrated links for {url}: {exc.__class__.__name__}")
-        # Status/content type of the document actually displayed (response events can lag the DOM swap).
-        doc = self.page.evaluate(DOC_JS)
-        status = doc["status"] or None
+            doc = self.page.evaluate(DOC_JS)
+        # Response events can lag a DOM swap; keep the displayed document status.
+        status = doc["status"] or resp_status or None
         ctype = (doc["ctype"] or "").lower()
         visit = Visit(url=url, status=status, content_type=ctype, interstitials=interstitials)
         if "html" in ctype:

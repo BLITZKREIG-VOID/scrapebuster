@@ -77,6 +77,8 @@ def test_reset_fails_named_check_when_hook_missing(monkeypatch, tmp_path):
 
     module("sb.store.db", reset_db=lambda: calls.append("reset_db"), DB_PATH=str(tmp_path / "sb.db"))
     module("sb.edge.session", sessions=types.SimpleNamespace(reset=lambda: calls.append("edge")))
+    module("sb.edge.layer1", reset_rate_state=lambda: calls.append("rate"))
+    module("sb.edge.layer2", store=types.SimpleNamespace(reset=lambda: calls.append("challenge")))
     # Registry holds a hook, but none from sb.provenance -> provenance must fail by name.
     module("sb.hooks", trap_hooks=Trap(), _reset_hooks=[other_hook], run_reset_hooks=other_hook)
     module("sb.canary.seed", seed_canaries=lambda: calls.append("seed"))
@@ -92,7 +94,47 @@ def test_reset_fails_named_check_when_hook_missing(monkeypatch, tmp_path):
     assert result["ok"] is False
     assert checks["reset_hook.provenance"]["ok"] is False
     assert "PRV-01" in checks["reset_hook.provenance"]["detail"]
-    assert checks["reset_hook.edge"]["ok"] and checks["reset_hook.trap"]["ok"]
-    assert calls[:4] == ["reset_db", "edge", "trap", "registry"] and "seed" in calls
+    assert checks["reset_hook.edge"]["ok"]
+    assert checks["reset_hook.rate"]["ok"]
+    assert checks["reset_hook.challenge"]["ok"]
+    assert checks["reset_hook.trap"]["ok"]
+    assert calls[:6] == ["reset_db", "edge", "rate", "challenge", "trap", "registry"] and "seed" in calls
     assert RUN_ID.match(result["run_id"])
     assert snapshot(EVIDENCE) == evidence_before
+
+
+def test_reset_clears_edge_rate_and_challenge_state(monkeypatch, tmp_path):
+    """Consumer-visible reset regression: ensure rate counters and challenge state are cleared."""
+    backend = str(REPO / "backend")
+    if backend not in sys.path:
+        monkeypatch.syspath_prepend(backend)
+
+    from sb.demo import reset as reset_mod
+    from sb.edge import layer1, layer2
+    from sb.edge.session import Session
+
+    # Populate rate state
+    with layer1._RATE_LOCK:
+        layer1._client_timestamps["test_client"] = [100.0, 200.0]
+
+    # Populate challenge store
+    dummy_session = Session(session_id="test-session", client_key="test-client-key")
+    layer2.store.create(dummy_session)
+    assert len(layer2.store._challenges) > 0
+    assert layer2.store.interstitial_count("test-client-key") > 0
+
+    monkeypatch.setattr(reset_mod, "DATASETS_DIR", tmp_path / "datasets")
+    (tmp_path / "datasets").mkdir(parents=True, exist_ok=True)
+
+    result = reset_mod.reset_demo()
+    checks = {c["name"]: c for c in result["checks"]}
+
+    assert checks["reset_hook.rate"]["ok"]
+    assert checks["reset_hook.challenge"]["ok"]
+
+    # Verify state was truly cleared
+    with layer1._RATE_LOCK:
+        assert len(layer1._client_timestamps) == 0
+
+    assert len(layer2.store._challenges) == 0
+    assert layer2.store.interstitial_count("test-client-key") == 0

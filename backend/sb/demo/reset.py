@@ -57,8 +57,10 @@ def _reset() -> dict:
     # 2. drop / recreate all tables
     run("store.reset_db", lambda: require("sb.store.db", "reset_db", "INT-03 Anirudh")())
 
-    # 3. edge in-memory sessions (INT-04)
+    # 3. edge in-memory state: sessions (INT-04), rate limit state (INT-06), challenge state (INT-07)
     run("reset_hook.edge", lambda: require("sb.edge.session", "sessions", "INT-04 Anirudh").reset())
+    run("reset_hook.rate", lambda: require("sb.edge.layer1", "reset_rate_state", "INT-06 Anirudh")())
+    run("reset_hook.challenge", lambda: require("sb.edge.layer2", "store", "INT-07 Anirudh").reset())
 
     # 4. trap hooks + every hook registered via sb.hooks.register_reset_hook (provenance, ...)
     run("reset_hook.trap", _reset_trap)

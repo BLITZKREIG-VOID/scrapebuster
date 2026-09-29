@@ -5,6 +5,8 @@ subsystem surfaces as a named failure (never a silent skip):
 
 * ``sb.store.db.reset_db`` / ``DB_PATH``   — INT-03 (Anirudh)
 * ``sb.edge.session.sessions.reset``       — INT-04 (Anirudh): in-memory edge sessions
+* ``sb.edge.layer1.reset_rate_state``      — INT-06 (Anirudh): in-memory rate limiting state
+* ``sb.edge.layer2.store.reset``           — INT-07 (Anirudh): in-memory challenge store state
 * ``sb.hooks.trap_hooks.reset`` and the ``sb.hooks.register_reset_hook`` registry
   (``run_reset_hooks``) — INT-04 (Anirudh); trap (TRP-01/02) and provenance (PRV-01) by Hardik
 * ``sb.canary.seed.seed_canaries``         — CAN-01 (Hardik)
