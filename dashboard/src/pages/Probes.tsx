@@ -425,23 +425,23 @@ function ResultCard({
 }) {
   return (
     <div
-      className={`bg-slate-900/90 rounded-xl border p-4 flex flex-col gap-3 transition-colors ${isTarget
+      className={`bg-white dark:bg-slate-950 rounded-xl border p-4 flex flex-col gap-3 transition-colors ${isTarget
           ? 'border-red-500/20 hover:border-red-500/40'
-          : 'border-slate-800 hover:border-slate-700'
+          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
         }`}
     >
-      <div className="flex justify-between items-start border-b border-slate-800/80 pb-2.5">
+      <div className="flex justify-between items-start border-b border-slate-200 dark:border-slate-800 pb-2.5">
         <div className="flex-1">
           <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-0.5 font-mono">
             Trigger Prompt for {result.canary_id}
           </div>
-          <div className="text-xs font-medium text-slate-200 font-sans">{result.prompt}</div>
+          <div className="text-xs font-medium text-slate-900 dark:text-slate-100 font-sans">{result.prompt}</div>
         </div>
         <div className="text-right shrink-0 ml-4 font-mono">
           <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-0.5">
             Latency
           </div>
-          <div className="text-xs text-slate-400">{result.latency_ms} ms</div>
+          <div className="text-xs text-slate-600 dark:text-slate-400">{result.latency_ms} ms</div>
         </div>
       </div>
 
@@ -449,16 +449,16 @@ function ResultCard({
         <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5 font-mono flex items-center justify-between">
           <span>Inference Output</span>
           {isTarget ? (
-            <span className="text-red-400 font-bold bg-red-950/40 border border-red-500/30 px-1.5 py-0.2 rounded">
+            <span className="text-red-700 dark:text-red-400 font-bold bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800/50 px-1.5 py-0.2 rounded">
               VERBATIM REPRODUCED (TAINTED)
             </span>
           ) : (
-            <span className="text-emerald-400 font-bold bg-emerald-950/40 border border-emerald-500/30 px-1.5 py-0.2 rounded">
+            <span className="text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800/50 px-1.5 py-0.2 rounded">
               CLEAN BASELINE (NEGATIVE)
             </span>
           )}
         </div>
-        <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 text-xs text-slate-300 min-h-[70px] font-mono leading-relaxed select-text">
+        <div className="bg-slate-100 border border-slate-300 text-slate-800 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 rounded-md p-4 text-xs min-h-[70px] font-mono leading-relaxed select-text">
           {result.response_text}
         </div>
       </div>

@@ -226,11 +226,11 @@ export default function Cases() {
                       <span>Inspect Pipeline</span>
                       <ArrowRight size={13} />
                     </SheetTrigger>
-                    <SheetContent side="right" className="w-[400px] sm:w-[540px] bg-slate-950 border-l border-slate-800">
-                      <SheetHeader className="pb-4 border-b border-slate-800">
+                    <SheetContent side="right" className="w-[400px] sm:w-[540px] bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 border-l border-slate-200 dark:border-slate-800">
+                      <SheetHeader className="pb-4 border-b border-slate-200 dark:border-slate-800">
                         <SheetTitle className="flex items-center gap-3">
-                          <span className="font-mono text-slate-200 text-lg">Case {c.case_id}</span>
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-red-500/10 text-red-400 border border-red-500/30">
+                          <span className="font-mono text-slate-900 dark:text-slate-100 text-lg">Case {c.case_id}</span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-800/50">
                             PROVENANCE SIGNAL DETECTED
                           </span>
                         </SheetTitle>
@@ -238,43 +238,43 @@ export default function Cases() {
                       <div className="py-6 space-y-6">
                         {/* Timeline of Events */}
                         <div className="space-y-4">
-                          <h4 className="text-sm font-semibold text-slate-300">Timeline of Events</h4>
-                          <div className="relative border-l border-slate-700 ml-3 space-y-5 text-left">
+                          <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Timeline of Events</h4>
+                          <div className="relative border-l border-slate-200 dark:border-slate-800 ml-3 space-y-5 text-left">
                             <div className="relative pl-6">
-                              <div className="absolute w-3 h-3 bg-slate-800 rounded-full border border-slate-500 -left-[6.5px] top-1"></div>
-                              <p className="text-xs text-slate-300 font-bold">Bait Ingested</p>
-                              <p className="text-[10px] text-slate-500 mt-1">Canary token embedded in raw scraping endpoint.</p>
+                              <div className="absolute w-3 h-3 bg-white dark:bg-slate-950 rounded-full border border-slate-400 dark:border-slate-600 -left-[6.5px] top-1"></div>
+                              <p className="text-xs text-slate-900 dark:text-slate-100 font-bold">Bait Ingested</p>
+                              <p className="text-[10px] text-slate-600 dark:text-slate-400 mt-1">Canary token embedded in raw scraping endpoint.</p>
                             </div>
                             <div className="relative pl-6">
-                              <div className="absolute w-3 h-3 bg-slate-800 rounded-full border border-slate-500 -left-[6.5px] top-1"></div>
-                              <p className="text-xs text-slate-300 font-bold">Vectorized</p>
-                              <p className="text-[10px] text-slate-500 mt-1">Token embedded into adversary knowledge base.</p>
+                              <div className="absolute w-3 h-3 bg-white dark:bg-slate-950 rounded-full border border-slate-400 dark:border-slate-600 -left-[6.5px] top-1"></div>
+                              <p className="text-xs text-slate-900 dark:text-slate-100 font-bold">Vectorized</p>
+                              <p className="text-[10px] text-slate-600 dark:text-slate-400 mt-1">Token embedded into adversary knowledge base.</p>
                             </div>
                             <div className="relative pl-6">
-                              <div className="absolute w-3 h-3 bg-slate-800 rounded-full border border-slate-500 -left-[6.5px] top-1"></div>
-                              <p className="text-xs text-slate-300 font-bold">RAG Generation</p>
-                              <p className="text-[10px] text-slate-500 mt-1">Adversary LLM retrieved poisoned knowledge.</p>
+                              <div className="absolute w-3 h-3 bg-white dark:bg-slate-950 rounded-full border border-slate-400 dark:border-slate-600 -left-[6.5px] top-1"></div>
+                              <p className="text-xs text-slate-900 dark:text-slate-100 font-bold">RAG Generation</p>
+                              <p className="text-[10px] text-slate-600 dark:text-slate-400 mt-1">Adversary LLM retrieved poisoned knowledge.</p>
                             </div>
                             <div className="relative pl-6">
-                              <div className="absolute w-3 h-3 bg-red-500/20 rounded-full border border-red-500 -left-[6.5px] top-1 flex items-center justify-center">
-                                <div className="w-1.5 h-1.5 bg-red-400 rounded-full"></div>
+                              <div className="absolute w-3 h-3 bg-red-100 dark:bg-red-900/30 rounded-full border border-red-500 -left-[6.5px] top-1 flex items-center justify-center">
+                                <div className="w-1.5 h-1.5 bg-red-500 dark:bg-red-400 rounded-full"></div>
                               </div>
-                              <p className="text-xs text-red-400 font-bold">Verbatim Output Detected</p>
-                              <p className="text-[10px] text-slate-500 mt-1">Provenance match triggered active alert.</p>
+                              <p className="text-xs text-red-600 dark:text-red-400 font-bold">Verbatim Output Detected</p>
+                              <p className="text-[10px] text-slate-600 dark:text-slate-400 mt-1">Provenance match triggered active alert.</p>
                             </div>
                           </div>
                         </div>
 
                         {/* Mock JSON Terminal Block */}
                         <div className="space-y-2 text-left">
-                          <h4 className="text-sm font-semibold text-slate-300">Intercepted Payload</h4>
-                          <div className="p-4 bg-black/60 border border-slate-800 rounded-lg overflow-x-auto text-[11px] font-mono leading-relaxed text-left">
-                            <span className="text-blue-400">{`{`}</span><br />
-                            <span className="text-blue-300 pl-4">"model_id":</span> <span className="text-emerald-400">"qwen2.5:3b"</span>,<br />
-                            <span className="text-blue-300 pl-4">"canary_token":</span> <span className="text-red-400">"SB-CAN-0003"</span>,<br />
-                            <span className="text-blue-300 pl-4">"timestamp":</span> <span className="text-emerald-400">"{c.created_at}"</span>,<br />
-                            <span className="text-blue-300 pl-4">"text":</span> <span className="text-amber-300">"The secret project code is quasar-reconcile..."</span><br />
-                            <span className="text-blue-400">{`}`}</span>
+                          <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Intercepted Payload</h4>
+                          <div className="p-4 bg-slate-100 border border-slate-300 text-slate-800 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 rounded-md overflow-x-auto text-[11px] font-mono leading-relaxed text-left">
+                            <span className="text-blue-700 dark:text-blue-400">{`{`}</span><br />
+                            <span className="text-blue-600 dark:text-blue-300 pl-4">"model_id":</span> <span className="text-emerald-700 dark:text-emerald-400">"qwen2.5:3b"</span>,<br />
+                            <span className="text-blue-600 dark:text-blue-300 pl-4">"canary_token":</span> <span className="text-red-700 dark:text-red-400">"SB-CAN-0003"</span>,<br />
+                            <span className="text-blue-600 dark:text-blue-300 pl-4">"timestamp":</span> <span className="text-emerald-700 dark:text-emerald-400">"{c.created_at}"</span>,<br />
+                            <span className="text-blue-600 dark:text-blue-300 pl-4">"text":</span> <span className="text-amber-700 dark:text-amber-300">"The secret project code is quasar-reconcile..."</span><br />
+                            <span className="text-blue-700 dark:text-blue-400">{`}`}</span>
                           </div>
                         </div>
 

@@ -251,29 +251,29 @@ export default function Layout() {
         )}
 
         {/* Floating Island Header — no edge-to-edge borders */}
-        <header className="bg-transparent h-14 flex items-center justify-between px-5 shrink-0 z-20 transition-colors duration-250">
+        <header className="bg-transparent h-14 flex items-center gap-6 px-5 shrink-0 z-20 transition-colors duration-250">
           {/* Left: Logo */}
-          <div className="flex-1 flex items-center">
+          <div className="shrink-0 flex items-center">
             <div
               onClick={() => navigate('/dashboard/about')}
               className="cursor-pointer group"
               title="About ScrapeBuster"
             >
-              <div className="w-10 h-10 rounded-full bg-slate-900/60 backdrop-blur-md border border-slate-700/50 flex items-center justify-center p-0.5 group-hover:border-slate-500 transition-all duration-300">
-                <Logo size={28} page={currentPage} />
+              <div className="w-10 h-10 rounded-full bg-slate-900/60 backdrop-blur-md border border-slate-700/50 flex items-center justify-center group-hover:border-slate-500 transition-all duration-300 overflow-hidden">
+                <Logo size={40} page={currentPage} />
               </div>
             </div>
           </div>
 
           {/* Center: Global Search Bar */}
-          <div className="flex-1 flex justify-center max-w-xl">
+          <div className="flex-1 flex justify-center max-w-2xl mx-auto">
             <div
               onClick={() => setCmdOpen(true)}
-              className="flex items-center gap-2.5 bg-slate-900/60 backdrop-blur-md border border-slate-700/50 hover:border-slate-500 transition-all px-5 py-2.5 rounded-full w-full max-w-md min-w-[250px] shrink-0 cursor-pointer text-sm text-slate-400 group"
+              className="flex items-center gap-2.5 bg-slate-900/60 backdrop-blur-md border border-slate-700/50 hover:border-slate-500 transition-all px-5 py-2.5 rounded-full w-full max-w-md cursor-pointer text-sm text-slate-400 group"
             >
               <Search size={16} className="text-slate-500 shrink-0 group-hover:text-slate-300 transition-colors" />
               <span className="flex-1 text-left font-mono text-slate-500 group-hover:text-slate-400 transition-colors whitespace-nowrap truncate overflow-hidden">Search IPs, Rules, Provenance cases...</span>
-              <div className="flex items-center gap-1 bg-slate-800/60 px-1.5 py-0.5 rounded text-[10px] font-mono border border-slate-700/40 text-slate-500">
+              <div className="flex items-center gap-1 bg-slate-800/60 px-1.5 py-0.5 rounded text-[10px] font-mono border border-slate-700/40 text-slate-500 shrink-0">
                 <Command size={10} />
                 <span>K</span>
               </div>
@@ -281,7 +281,7 @@ export default function Layout() {
           </div>
 
           {/* Right: Global Status, Notifications, & Actions */}
-          <div className="flex flex-1 items-center justify-end gap-3 text-base">
+          <div className="shrink-0 flex items-center gap-3 text-base">
 
             {/* Export Report Button */}
             <button

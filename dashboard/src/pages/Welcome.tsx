@@ -7,7 +7,12 @@ export default function Welcome() {
   const navigate = useNavigate();
 
   return (
-    <div className="relative min-h-screen bg-slate-950 overflow-hidden flex flex-col items-center justify-center text-slate-200 select-none font-sans">
+    <div className="relative min-h-screen bg-slate-950 flex flex-col items-center justify-center overflow-hidden">
+      <div className="absolute inset-0 z-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,#000_20%,transparent_100%)]"></div>
+
+      <div className="absolute bottom-6 left-6 text-xs font-mono text-slate-600 z-10">SYS.BOOT_SEQ // OK<br/>L3.TRAP_STATUS // STANDBY</div>
+      <div className="absolute bottom-6 right-6 text-xs font-mono text-slate-600 text-right z-10">SECURE ENCLAVE ACTIVE<br/>v0.9.4-hackathon</div>
+
       <div className="absolute inset-0 -z-10">
         <Ferrofluid colors={["#ef4444", "#0f172a", "#1e293b"]} speed={0.4} scale={1.2} glow={3} mouseInteraction={true} />
       </div>
@@ -17,17 +22,18 @@ export default function Welcome() {
           <Logo page="probes" size={72} />
         </div>
         
-        <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-b from-white to-slate-400 font-display text-center animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300 fill-mode-both">
+        <h1 className="text-6xl md:text-8xl font-sans font-black tracking-tighter text-slate-100 drop-shadow-md animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300 fill-mode-both">
           ScrapeBuster
         </h1>
         
-        <p className="font-mono text-sm md:text-base text-red-400/80 tracking-widest uppercase mt-4 mb-10 text-center max-w-lg animate-in fade-in slide-in-from-bottom-4 duration-700 delay-500 fill-mode-both">
+        <div className="mt-6 px-4 py-1.5 rounded-full bg-red-950/30 border border-red-900/50 text-red-400 font-mono text-sm tracking-widest uppercase flex items-center gap-2 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-500 fill-mode-both mb-10">
+          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
           Active Offensive Provenance for AI Data Theft.
-        </p>
+        </div>
         
         <button 
           onClick={() => navigate('/dashboard')}
-          className="group relative px-8 py-4 bg-slate-900/50 backdrop-blur-md border border-slate-700 rounded-lg text-slate-100 font-mono tracking-wide transition-all duration-300 hover:border-red-500 hover:shadow-[0_0_30px_rgba(220,38,38,0.3)] hover:-translate-y-1 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-700 fill-mode-both"
+          className="group relative px-8 py-4 bg-slate-900/50 backdrop-blur-md border border-slate-700 rounded-lg text-slate-100 font-mono tracking-wide hover:border-red-500 hover:shadow-[0_0_30px_rgba(220,38,38,0.3)] transition-all duration-300 hover:-translate-y-1 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-700 fill-mode-both"
         >
           <span className="relative z-10 flex items-center justify-center gap-3">
             <span className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_10px_rgba(220,38,38,0.8)] animate-pulse" />
