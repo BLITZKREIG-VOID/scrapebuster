@@ -1,8 +1,12 @@
 """E2E harness (ATK-05): real processes, real Playwright.
 
-* ``stack`` (session): validates the existing ExampleCorp origin contract, starts the
-  origin (:8001) and backend (:8000) as subprocesses only if they are not already
-  healthy, waits for ``/api/v1/health`` (<= 20 s) and tears down only what it started.
+* Target site: the CampusCart profile in ``attacks/sites.py`` (plan §I.A C1), reached
+  only through the local edge. ``SB_E2E_SITE=examplecorp`` selects the LOCAL TEST
+  FIXTURE (the v1 ExampleCorp stand-in, started on :8001 if it is not already up).
+* ``stack`` (session): read-only upstream self-check (plan §I.F), starts the backend
+  (:8000, ``UPSTREAM_ORIGIN`` = the profile's origin) only if it is not already
+  healthy, waits for ``/api/v1/health`` (<= 20 s) and tears down only what it
+  started. An already-running edge must have been started with that upstream.
 * ``reset`` (function): ``POST /api/v1/demo/reset`` (the ``make reset`` equivalent).
 * ``wait_for(predicate, timeout)``: polls every 0.5 s, never fixed sleeps.
 * ``@pytest.mark.requires(module, ...)``: missing cross-owner modules turn the test into
@@ -27,14 +31,17 @@ import pytest
 REPO = Path(__file__).resolve().parents[3]
 BACKEND = REPO / "backend"
 ATTACKS = REPO / "attacks"
+if str(ATTACKS) not in sys.path:
+    sys.path.insert(0, str(ATTACKS))
+
+from sites import ANCHORS, SITES  # noqa: E402  (stdlib-only profile module)
+
 EDGE = os.environ.get("SB_EDGE_URL", "http://127.0.0.1:8000")
-ORIGIN = os.environ.get("SB_ORIGIN_URL", "http://127.0.0.1:8001")
-BRAND = "ExampleCorp Nimbus Platform"
-ANCHORS = ("Oriel Vantrask", "Hexaquorum", "quasar-reconcile", "velvet-anchor", "ORCHID-7")
-ORIGIN_PAGES = (
-    "/", "/docs/", "/docs/getting-started", "/docs/architecture", "/docs/api",
-    "/docs/team", "/docs/operations", "/docs/metrics", "/pricing",
-)
+SITE_NAME = os.environ.get("SB_E2E_SITE", "campuscart")
+SITE = SITES[SITE_NAME]
+LOCAL_FIXTURE_SITE = "examplecorp"  # v1 ExampleCorp stand-in (demo_site/, :8001): local tests only
+# Not UPSTREAM_ORIGIN: backend/tests/conftest.py pins that to :8001 for the unit suites.
+ORIGIN = os.environ.get("SB_E2E_ORIGIN", SITE.origin)
 STARTUP_TIMEOUT_S = 20
 POLL_S = 0.5
 HEALTH = "/api/v1/health"  # INT-05 Control API (the plan's bare /health is proxied to the origin)
@@ -155,28 +162,45 @@ def _ok(url: str) -> bool:
         return False
 
 
-def check_origin_contract() -> None:
-    """Existing ExampleCorp origin must satisfy §13 before any attack runs (read-only check)."""
+def check_upstream() -> None:
+    """Plan §I.F self-check, read-only: ``GET ORIGIN/`` is 200 with the profile marker.
+
+    One request to the public upstream; 429/5xx or a missing marker stops the run
+    (use the golden run), never retried.
+    """
+    try:
+        resp = httpx.get(ORIGIN + "/", timeout=10)
+    except httpx.HTTPError as exc:
+        pytest.fail(f"upstream {ORIGIN} unreachable ({exc!r}): use the golden run")
     problems = []
-    for path in ORIGIN_PAGES:
+    if resp.status_code != 200:
+        problems.append(f"HTTP {resp.status_code}")
+    if SITE.marker not in resp.text:
+        problems.append(f"missing {SITE.marker!r}")
+    found = [a for a in ANCHORS if a.lower() in resp.text.lower()]
+    if found:
+        problems.append(f"canary anchors present upstream {found}")
+    if SITE_NAME == LOCAL_FIXTURE_SITE:
+        problems += check_local_fixture()
+    assert not problems, f"upstream {ORIGIN} self-check failed (report to site owner): " + "; ".join(problems)
+
+
+def check_local_fixture() -> list[str]:
+    """LOCAL TEST FIXTURE only: the ExampleCorp stand-in's §13 contract."""
+    problems = []
+    for path in SITE.pages:
         resp = httpx.get(ORIGIN + path, timeout=5)
         body = resp.text
         if resp.status_code != 200:
             problems.append(f"{path}: HTTP {resp.status_code}")
             continue
-        if BRAND not in body:
-            problems.append(f"{path}: missing '{BRAND}'")
+        if SITE.marker not in body:
+            problems.append(f"{path}: missing '{SITE.marker}'")
         if len(re.findall(r'<main id="content"', body)) != 1 or len(re.findall(r"<body\b", body)) != 1:
             problems.append(f"{path}: needs exactly one <main id=\"content\"> and one <body>")
-        found = [a for a in ANCHORS if a.lower() in body.lower()]
-        if found:
-            problems.append(f"{path}: canary anchors present in origin {found}")
-    robots = httpx.get(ORIGIN + "/robots.txt", timeout=5).text
-    if "User-agent: *" not in robots or "Disallow: /internal/" not in robots:
-        problems.append("robots.txt lacks 'User-agent: *' / 'Disallow: /internal/'")
     if httpx.get(ORIGIN + "/static/site.css", timeout=5).status_code != 200:
         problems.append("/static/site.css not served")
-    assert not problems, "origin contract violated (report to site owner): " + "; ".join(problems)
+    return problems
 
 
 def run_attacker(script: str, *args: str, timeout: float = 240) -> dict:
@@ -237,15 +261,15 @@ def stack():
     started: list[subprocess.Popen] = []
 
     def spawn(args: list[str], cwd: Path) -> None:
-        env = {**os.environ, "SB_ORIGIN_URL": ORIGIN}
+        env = {**os.environ, "UPSTREAM_ORIGIN": ORIGIN}
         started.append(subprocess.Popen([sys.executable, "-m", "uvicorn", *args], cwd=cwd, env=env,
                                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
 
     try:
-        if not _ok(ORIGIN + "/"):
+        if SITE_NAME == LOCAL_FIXTURE_SITE and not _ok(ORIGIN + "/"):
             spawn(["demo_site.app:app", "--host", "127.0.0.1", "--port", ORIGIN.rsplit(":", 1)[1]], REPO)
-            wait_for(lambda: _ok(ORIGIN + "/"), STARTUP_TIMEOUT_S, what="origin :8001")
-        check_origin_contract()
+            wait_for(lambda: _ok(ORIGIN + "/"), STARTUP_TIMEOUT_S, what="local fixture origin")
+        check_upstream()
         if not _ok(EDGE + HEALTH):
             gone = missing_modules("sb.main")
             if gone:
@@ -260,6 +284,12 @@ def stack():
                 proc.wait(timeout=10)
             except subprocess.TimeoutExpired:
                 proc.kill()
+
+
+@pytest.fixture(scope="session")
+def site() -> str:
+    """Site profile name the attackers run against (``--site``)."""
+    return SITE_NAME
 
 
 @pytest.fixture
