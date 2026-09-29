@@ -146,9 +146,14 @@ def test_ordinary_bot_is_throttled_then_blocked(edge):
          "--requests", "100", "--threads", "10"],
         cwd=REPO, capture_output=True, text=True, timeout=120, check=False,
     )
-    assert proc.returncode == 0, proc.stderr
+    # Phase 8 safe mode stops after the first bounded batch observing HTTP 429;
+    # L1 throttling is intentionally treated the same as upstream rate limiting.
+    assert proc.returncode == 3, proc.stderr
+    assert "SAFETY STOP: observed HTTP 429" in proc.stderr
     bot = json.loads([line for line in proc.stdout.splitlines() if line.startswith("{")][-1])
     assert "SBDemo/scraper1" in bot["user_agent"], bot["user_agent"]
+    assert 1 <= bot["requests"] <= 10, bot["status_histogram"]
+    assert bot["status_histogram"].get("429", 0) > 0, bot["status_histogram"]
 
     events = sorted((e for e in _events(edge) if e.get("user_agent") == bot["user_agent"]), key=lambda e: e["seq"])
     assert events, "no traffic events for the bot"

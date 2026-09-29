@@ -19,6 +19,7 @@ from common import (
     DEFAULT_SITE,
     MAX_REQUESTS,
     MAX_THREADS,
+    SAFETY_STOP_EXIT_CODE,
     SITES,
     add_base_args,
     anchors_in,
@@ -26,6 +27,7 @@ from common import (
     check_budget,
     demo_ua,
     emit,
+    is_safety_stop_status,
     log,
     resolve,
 )
@@ -55,8 +57,26 @@ def main() -> int:
 
     site = SITES[args.site]
     urls = [resolve(args.base, site.pages[i % len(site.pages)]) for i in range(args.requests)]
+    results: list[tuple[str, str]] = []
+    stop_status: str | None = None
+    stop_url: str | None = None
+
+    # At-most-threads in-flight batch scheduling (§Phase 8 Slice A):
+    # submit only one batch of size <= threads at a time. Finish the current bounded batch,
+    # and if any request returns HTTP 429 or 5xx, dispatch no further batches.
+    batch_size = max(1, args.threads)
     with ThreadPoolExecutor(max_workers=args.threads) as pool:
-        results = list(pool.map(fetch, urls))
+        for offset in range(0, len(urls), batch_size):
+            batch = urls[offset : offset + batch_size]
+            batch_results = list(pool.map(fetch, batch))
+            results.extend(batch_results)
+            for (status, _), url in zip(batch_results, batch):
+                if is_safety_stop_status(status):
+                    stop_status = status
+                    stop_url = url
+                    break
+            if stop_status is not None:
+                break
 
     histogram = Counter(status for status, _ in results)
     content_bodies = sum(1 for _, body in results if site.marker in body)
@@ -74,6 +94,15 @@ def main() -> int:
         "content_bodies": content_bodies,
         "anchors_found": anchors,
     })
+
+    if stop_status is not None:
+        log(
+            f"SAFETY STOP: observed HTTP {stop_status} on {stop_url} "
+            f"(Phase 10 tradeoff: conservative stop on 429/5xx - edge may emit 429 due to L1, "
+            f"no reliable provenance in attack response). Dispatched no further batches."
+        )
+        return SAFETY_STOP_EXIT_CODE
+
     return 0
 
 

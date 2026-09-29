@@ -25,11 +25,13 @@ from collections import deque
 from pathlib import Path
 
 from common import (
-    add_base_args,
-    check_base,
     PageDriver,
+    SAFETY_STOP_EXIT_CODE,
+    add_base_args,
     anchors_in,
+    check_base,
     emit,
+    is_safety_stop_status,
     launch_patched,
     log,
     normalize_url,
@@ -85,9 +87,10 @@ def crawl(base: str, out: Path, headless: bool, dump_signals: bool) -> dict:
         driver = PageDriver(page)
         seen: set[str] = set()
         queue: deque[str] = deque()
+        safety_stop: tuple[int | str, str] | None = None
 
         def visit(url: str):
-            nonlocal records
+            nonlocal records, safety_stop
             if visited:
                 time.sleep(DELAY_S + delay_rng.uniform(-JITTER_S, JITTER_S))
             try:
@@ -98,6 +101,9 @@ def crawl(base: str, out: Path, headless: bool, dump_signals: bool) -> dict:
                 return None
             visited.append({"url": url, "status": v.status, "interstitial": bool(v.interstitials)})
             log(f"  [{len(visited):02d}] {v.status} {url}")
+            if is_safety_stop_status(v.status):
+                safety_stop = (v.status, url)
+                return v
             rec = to_record(v)
             if rec is not None:
                 fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
@@ -108,6 +114,8 @@ def crawl(base: str, out: Path, headless: bool, dump_signals: bool) -> dict:
 
         def enqueue(links: list[str]) -> None:
             for link in links:
+                if len(queue) >= MAX_PAGES:
+                    break
                 if not link.startswith("http") or not same_origin(link, base):
                     continue
                 norm = normalize_url(link)
@@ -118,39 +126,54 @@ def crawl(base: str, out: Path, headless: bool, dump_signals: bool) -> dict:
         home = normalize_url(resolve(base, "/"))
         seen.add(home)
         first = visit(home)
-        if first is not None:
+        if first is not None and not safety_stop:
             enqueue(first.links)
 
-        robots_url = normalize_url(resolve(base, "/robots.txt"))
-        seen.add(robots_url)
         disallows: list[str] = []
-        try:
-            robots = driver.goto(robots_url, rng=move_rng)
-            disallows = parse_disallows(robots.raw)
-        except PlaywrightError as exc:
-            log(f"  robots.txt: {exc.__class__.__name__}: {exc}")
-        log(f"  robots Disallow: {disallows}")
+        if not safety_stop:
+            robots_url = normalize_url(resolve(base, "/robots.txt"))
+            seen.add(robots_url)
+            try:
+                robots = driver.goto(robots_url, rng=move_rng)
+                if is_safety_stop_status(robots.status):
+                    safety_stop = (robots.status, robots_url)
+                else:
+                    disallows = parse_disallows(robots.raw)[:MAX_PAGES]
+            except PlaywrightError as exc:
+                log(f"  robots.txt: {exc.__class__.__name__}: {exc}")
+            log(f"  robots Disallow: {disallows}")
 
-        for path in disallows:
-            if len(visited) >= MAX_PAGES:
-                break
-            url = normalize_url(resolve(base, path))
-            if url in seen and url not in queue:
-                continue
-            seen.add(url)
-            if url in queue:
-                queue.remove(url)
-            v = visit(url)
-            if v is not None:
-                enqueue(v.links)
+        if not safety_stop:
+            for path in disallows:
+                # A malformed robots Disallow must never choose a different host.
+                if not path.startswith("/") or path.startswith("//"):
+                    continue
+                if len(visited) >= MAX_PAGES:
+                    break
+                url = normalize_url(resolve(base, path))
+                if not same_origin(url, base):
+                    continue
+                if url in seen and url not in queue:
+                    continue
+                seen.add(url)
+                if url in queue:
+                    queue.remove(url)
+                v = visit(url)
+                if safety_stop:
+                    break
+                if v is not None:
+                    enqueue(v.links)
 
-        while queue and len(visited) < MAX_PAGES:
-            v = visit(queue.popleft())
-            if v is not None:
-                enqueue(v.links)
+        if not safety_stop:
+            while queue and len(visited) < MAX_PAGES:
+                v = visit(queue.popleft())
+                if safety_stop:
+                    break
+                if v is not None:
+                    enqueue(v.links)
         browser.close()
 
-    return {
+    res = {
         "scraper": "sophisticated_scraper",
         "user_agent": ua,
         "out": str(out),
@@ -160,6 +183,9 @@ def crawl(base: str, out: Path, headless: bool, dump_signals: bool) -> dict:
         "disallows": disallows,
         "anchors_found": sorted(anchors),
     }
+    if safety_stop:
+        res["safety_stop"] = {"status": safety_stop[0], "url": safety_stop[1]}
+    return res
 
 
 def main() -> int:
@@ -175,6 +201,14 @@ def main() -> int:
     log(f"sophisticated_scraper: {result['pages']} pages, {result['records']} records -> {result['out']}")
     log(f"  anchors in collected text: {result['anchors_found'] or 'none'}")
     emit(result)
+    if "safety_stop" in result:
+        stop = result["safety_stop"]
+        log(
+            f"SAFETY STOP: observed HTTP {stop['status']} on {stop['url']} "
+            f"(Phase 10 tradeoff: conservative stop on 429/5xx - edge may emit 429 due to L1, "
+            f"no reliable provenance in attack response). Stopped crawl."
+        )
+        return SAFETY_STOP_EXIT_CODE
     return 0
 
 

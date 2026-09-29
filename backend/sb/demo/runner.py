@@ -37,6 +37,7 @@ from sb.demo import (
 )
 
 POLL_S = 0.5
+SAFETY_STOP_EXIT_CODE = 3
 # (id, name, timeout_s, one-line narration)
 STEPS: tuple[tuple[int, str, int, str], ...] = (
     (1, "ordinary_bot", 30, "Scraper 1, a plain HTTP bot, bursts the site: Layer 1 throttles, then blocks it."),
@@ -51,6 +52,11 @@ TERMINAL = ("PASS", "FAIL")
 
 
 class StepFailed(Exception):
+    pass
+
+
+class SafetyStop(StepFailed):
+    """Raised when an attacker step exits with a safety stop (HTTP 429/5xx)."""
     pass
 
 
@@ -149,7 +155,12 @@ class Runner:
         for attempt in (1, 2):  # at most one automatic retry, always logged
             try:
                 detail = self.handlers[sid](time.monotonic() + timeout)
-            except Exception as exc:  # noqa: BLE001 - any step failure is logged and retried once
+            except SafetyStop as exc:
+                notes.append(f"safety stop (no retry): {exc}")
+                step.update(status="FAIL", detail="; ".join(notes), finished_at=utc_now())
+                _save(self.status)
+                return False
+            except Exception as exc:  # noqa: BLE001 - any ordinary step failure is logged and retried once
                 notes.append(f"attempt {attempt} FAIL: {exc}")
                 if attempt == 1:
                     notes.append("retrying once")
@@ -204,6 +215,11 @@ class Runner:
             )
         except subprocess.TimeoutExpired as exc:
             raise StepFailed(f"{script} timed out") from exc
+        if proc.returncode == SAFETY_STOP_EXIT_CODE:
+            stderr_diag = proc.stderr.strip()[-400:]
+            lines = [line for line in proc.stdout.splitlines() if line.startswith("{")]
+            partial = f" | partial: {lines[-1]}" if lines else ""
+            raise SafetyStop(f"{script} safety stop (exit {proc.returncode}): {stderr_diag}{partial}")
         if proc.returncode != 0:
             raise StepFailed(f"{script} exit {proc.returncode}: {proc.stderr.strip()[-400:]}")
         lines = [line for line in proc.stdout.splitlines() if line.startswith("{")]

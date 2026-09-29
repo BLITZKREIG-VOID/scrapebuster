@@ -15,6 +15,7 @@ import time
 
 from common import (
     DEFAULT_SITE,
+    SAFETY_STOP_EXIT_CODE,
     SITES,
     PageDriver,
     add_base_args,
@@ -24,6 +25,7 @@ from common import (
     demo_ua,
     emit,
     has_content,
+    is_safety_stop_status,
     log,
     pace,
     resolve,
@@ -53,6 +55,10 @@ def main() -> int:
 
     results = []
     anchors: set[str] = set()
+    safety_stop_triggered = False
+    stop_status = None
+    stop_url = None
+
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         ua = demo_ua(default_user_agent(browser), "scraper2")
@@ -72,6 +78,11 @@ def main() -> int:
                 results.append({"url": url, "status": None, "has_content": False})
             log(f"  {results[-1]}")
             pace(started, 1.0)
+            if results and is_safety_stop_status(results[-1]["status"]):
+                safety_stop_triggered = True
+                stop_status = results[-1]["status"]
+                stop_url = url
+                break
         browser.close()
 
     emit({
@@ -81,6 +92,15 @@ def main() -> int:
         "content_pages": sum(r["has_content"] for r in results),
         "anchors_found": sorted(anchors),
     })
+
+    if safety_stop_triggered:
+        log(
+            f"SAFETY STOP: observed HTTP {stop_status} on {stop_url} "
+            f"(Phase 10 tradeoff: conservative stop on 429/5xx - edge may emit 429 due to L1, "
+            f"no reliable provenance in attack response). Stopped crawl."
+        )
+        return SAFETY_STOP_EXIT_CODE
+
     return 0
 
 
