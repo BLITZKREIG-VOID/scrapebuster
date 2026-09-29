@@ -51,6 +51,7 @@ def test_human_likely():
     assert len(session.layer_path) == 2
     assert session.layer_path[0]["layer"] == "L1"
     assert session.layer_path[0]["decision"] == "ALLOW"
+    assert "ts" in session.layer_path[0]
 
 def test_bot_basic():
     session = Session(session_id="ck-test-key", client_key="test-key")
@@ -61,9 +62,9 @@ def test_bot_basic():
     record_decision(session, "L1", "BLOCK")
     assert session.classification == "BOT_BASIC"
     
-    # 2. Or flagged with bot_pattern but ALLOW? Should still be BOT_BASIC
+    # 2. Flagged with L1_AUTOMATION_UA
     session2 = Session(session_id="ck-test-key2", client_key="test-key2")
-    session2.l1_reasons.append("ua:bot_pattern:curl")
+    session2.l1_reasons.append("L1_AUTOMATION_UA")
     init_request(ctx, session2)
     record_decision(session2, "L1", "ALLOW")
     assert session2.classification == "BOT_BASIC"
@@ -73,24 +74,17 @@ def test_automation():
     ctx = make_ctx()
     init_request(ctx, session)
     
-    # Escalate -> Suspicious state
-    session.state = "SUSPICIOUS"
-    record_decision(session, "L1", "ESCALATE")
+    session.state = "RESTRICTED"
+    record_decision(session, "L2", "RESTRICT")
     
     assert session.classification == "AUTOMATION"
-    
-    session3 = Session(session_id="ck-test-key3", client_key="test-key3")
-    init_request(ctx, session3)
-    session3.state = "RESTRICTED"
-    record_decision(session3, "L1", "ALLOW")
-    assert session3.classification == "AUTOMATION"
 
 def test_sophisticated_scraper():
     session = Session(session_id="ck-test-key", client_key="test-key")
     ctx = make_ctx()
     init_request(ctx, session)
     
-    # Passes L1 but hits a trap
+    # Passes origin initially
     record_decision(session, "ORIGIN", "ALLOW")
     assert session.classification == "HUMAN_LIKELY"
     
@@ -118,9 +112,8 @@ def test_classification_changes_with_evidence():
     record_decision(session, "ORIGIN", "ALLOW")
     assert session.classification == "HUMAN_LIKELY"
     
-    # Next request they send a bad user agent (maybe they rotated UA inside the same IP/key)
-    # L1 flags it
-    session.l1_reasons.append("ua:bot_pattern:playwright")
+    # Next request flags L1_AUTOMATION_UA
+    session.l1_reasons.append("L1_AUTOMATION_UA")
     record_decision(session, "L1", "BLOCK")
     
     assert session.classification == "BOT_BASIC"

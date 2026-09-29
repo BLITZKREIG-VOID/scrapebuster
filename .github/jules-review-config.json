@@ -1,0 +1,25 @@
+{
+  "sizes": {
+    "small_files": 3,
+    "small_lines": 150,
+    "medium_files": 8,
+    "medium_lines": 400,
+    "very_large_files": 20
+  },
+  "high_risk_paths": [
+    "**/auth/**",
+    "**/*auth*",
+    "**/*security*",
+    "**/*.env*",
+    "**/migrations/**",
+    "migrations/**",
+    "**/migration/**",
+    "backend/sb/store/**",
+    "backend/sb/provenance/**",
+    "backend/sb/main.py",
+    "backend/sb/hooks.py",
+    "backend/sb/contracts.py",
+    "**/*migration*",
+    ".github/workflows/**"
+  ]
+}

@@ -31,26 +31,25 @@ async def get_session_detail(session_id: str):
         
     session_obj = sessions._sessions[session_id]
     
-    # Normally we'd get some of this from DB or full session state
-    # For INT-05, we return the data available in memory/stubbed
+    # Return the full profile
     detail = SessionDetail(
         session_id=session_obj.session_id,
         classification=session_obj.classification,
-        request_count=len(session_obj.layer_path),
+        request_count=getattr(session_obj, "request_count", len(session_obj.layer_path)),
         state=session_obj.state,
         client_key=session_obj.client_key,
-        ip="127.0.0.1", # Normally stored in session profile
-        user_agent="", # Normally stored
-        header_fp="", # Normally stored
-        first_seen="", # Normally tracked
-        last_seen="",
+        ip=getattr(session_obj, "ip", "127.0.0.1"),
+        user_agent=getattr(session_obj, "user_agent", ""),
+        header_fp=getattr(session_obj, "header_fp", ""),
+        first_seen=getattr(session_obj, "first_seen", ""),
+        last_seen=getattr(session_obj, "last_seen", ""),
         l1_score=session_obj.l1_score,
-        l1_reasons=[],
+        l1_reasons=session_obj.l1_reasons,
         l2_score=session_obj.l2_score,
         l2_signals=[],
         layer_path=session_obj.layer_path,
-        pages=[],
-        traps_triggered=[],
+        pages=getattr(session_obj, "pages", []),
+        traps_triggered=session_obj.traps_triggered,
         canaries_exposed=[]
     )
     return detail

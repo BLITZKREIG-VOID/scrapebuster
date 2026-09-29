@@ -1,0 +1,33 @@
+## 5. Layer 2 — Behavioral / automation verification
+
+**Where:** `backend/sb/edge/layer2.py`, `backend/sb/edge/static/challenge.js`, `backend/sb/edge/templates/challenge.html`, `restricted.html`. **Owner:** Anirudh. **Validator:** Arnav.
+
+**Flow**
+1. ESCALATE → 200 interstitial "Checking your browser…" containing `challenge_id` (random 128-bit, stored in memory with `client_key`, `issued_at`, `difficulty`, `return_to`), loads `/_sb/challenge.js`.
+2. `challenge.js` observes for **1500 ms**, collects signals, solves PoW: find `nonce` where `sha256(challenge_id + ":" + nonce)` has **14 leading zero bits** (pure-JS SHA-256 bundled in the file; ~<0.5 s on a laptop; no SubtleCrypto async overhead).
+3. `POST /_sb/verify` `{challenge_id, nonce, signals}` → server verifies challenge exists, not older than 60 s, same client_key, PoW valid; computes L2 score.
+4. Response `{result: "pass"|"restrict", redirect}`; JS navigates to `redirect`.
+
+**Signals and weights**
+
+| Signal (JS) | Reason code | Score |
+|---|---|---|
+| `navigator.webdriver === true` | `L2_WEBDRIVER` | +50 |
+| UA contains `HeadlessChrome` | `L2_HEADLESS_UA` | +40 |
+| `navigator.userAgent` ≠ request UA header | `L2_UA_MISMATCH` | +25 |
+| `outerWidth == 0 || outerHeight == 0` | `L2_ZERO_VIEWPORT` | +15 |
+| WebGL renderer matches `/SwiftShader|llvmpipe/i` | `L2_SOFTWARE_GL` | +15 |
+| `navigator.languages` empty | `L2_NO_LANGUAGES` | +10 |
+| zero mousemove + scroll + keydown events in window | `L2_NO_INTERACTION` | +20 |
+| verify POST < 300 ms after load with zero events | `L2_FAST_SUBMIT` | +10 |
+| PoW missing/invalid/expired | `L2_POW_INVALID` | reject, no clearance, +30 |
+| 3 interstitials served in 60 s with no verify | `L2_NO_JS` | → RESTRICT |
+
+**Bands:** `< 40` → PASS: set `sb_clear` cookie (HttpOnly, SameSite=Lax, 15 min) = `base64(client_key|exp|score)` + `HMAC-SHA256(SB_SECRET)`; bound to client_key so it cannot be replayed from another UA. `40–69` → **TRAP** (silent: responds `pass` so the client continues, session TRAPPED, reason `L3_L2_SUSPICIOUS_BAND`). `≥ 70` → RESTRICT (403 restricted page on all subsequent requests).
+
+**Expected:** Scraper 2 (default headless Playwright): webdriver + HeadlessChrome + no interaction = 110 → RESTRICT. Human in real Chrome: 0 → PASS. Scraper 3 (patched, headed, synthetic interaction): < 40 → PASS — by design; Layer 3 exists for exactly this case.
+
+Passive beacon on every served page (lower friction, but leaks first page) is the P1 alternative to the interstitial; not built unless time remains.
+
+---
+
