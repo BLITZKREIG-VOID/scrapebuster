@@ -112,30 +112,15 @@ def test_investigate_pipeline(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, s
 
     findings_by_canary = {f.canary_id: f for f in case.findings}
 
-    # Per-canary statuses for 0001, 0002, 0003, 0005
-    for cid in ["SB-CAN-0001", "SB-CAN-0002", "SB-CAN-0003", "SB-CAN-0005"]:
-        assert cid in findings_by_canary
+    # Every canary's prompt retrieves its own chunk, so all five are detected and become OBSERVED.
+    all_ids = [c.canary_id for c in registry.list_canaries()]
+    assert sorted(findings_by_canary) == all_ids
+    for cid in all_ids:
         assert findings_by_canary[cid].status == "PROVENANCE_SIGNAL_DETECTED"
         assert findings_by_canary[cid].exact_match is True
-
-    # 0004 may miss retrieval: assert not DETECTED unless response contains anchor
-    if "SB-CAN-0004" in findings_by_canary:
-        f4 = findings_by_canary["SB-CAN-0004"]
-        if f4.status == "PROVENANCE_SIGNAL_DETECTED":
-            assert f4.exact_match is True
-        else:
-            assert f4.exact_match is False
-
-    # DETECTED canaries are OBSERVED
-    for cid in ["SB-CAN-0001", "SB-CAN-0002", "SB-CAN-0003", "SB-CAN-0005"]:
         c = registry.get(cid)
         assert c is not None
         assert c.status == "OBSERVED"
-
-    if "SB-CAN-0004" in findings_by_canary and findings_by_canary["SB-CAN-0004"].status == "PROVENANCE_SIGNAL_DETECTED":
-        c4 = registry.get("SB-CAN-0004")
-        assert c4 is not None
-        assert c4.status == "OBSERVED"
 
     # Evidence dir has 10 files
     bundle_dir = evidence_root / case.run_id / "SB-001"
@@ -150,9 +135,8 @@ def test_investigate_pipeline(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, s
     # Statement verification
     assert case.statement.startswith("The target model's output reproduced")
 
-    # Second investigate in the same run -> "SB-002". Detected canaries are now OBSERVED, so the default
-    # EXPOSED-first selection would only probe SB-CAN-0004; name the canaries explicitly.
-    all_ids = [c.canary_id for c in registry.list_canaries()]
+    # Second investigate in the same run -> "SB-002". All canaries are now OBSERVED, so the default
+    # EXPOSED-first selection finds none; name the canaries explicitly.
     res2 = investigate.investigate(canary_ids=all_ids, generate=stub_generate)
     assert res2["case_id"] == "SB-002"
     case2 = investigate.get_case("SB-002")
@@ -164,6 +148,7 @@ def test_investigate_pipeline(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, s
     res_neg = investigate.investigate(
         target_dataset_id=control_ds.dataset_id,
         control_dataset_id=control_ds.dataset_id,
+        canary_ids=all_ids,
         generate=stub_generate,
     )
     assert res_neg["case_id"] is None
