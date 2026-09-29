@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import secrets
 from contextlib import closing
 from dataclasses import dataclass
-import secrets
 from typing import Any
 
 from sb.canary import registry

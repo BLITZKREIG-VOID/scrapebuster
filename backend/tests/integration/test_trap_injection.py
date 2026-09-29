@@ -1,18 +1,18 @@
 """Integration tests for Layer 3 trap detection, decoy serving, and canary injection."""
 
-from contextlib import closing
 import socket
 import threading
 import time
+from contextlib import closing
 
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
 import httpx
 import pytest
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
 
-from sb.canary.seed import seed_canaries
 import sb.edge.pipeline as pipeline_module
 import sb.edge.proxy as proxy_module
+from sb.canary.seed import seed_canaries
 from sb.edge.session import sessions
 from sb.main import app
 from sb.store import db

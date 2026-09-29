@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import json
+from collections.abc import Callable
 from contextlib import closing
 from datetime import datetime, timezone
-import json
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from sb.canary import registry
 from sb.contracts import Case, CaseSummary, Finding

@@ -24,7 +24,7 @@ class LLMResult:
     latency_ms: int
 
 
-def _client(timeout: float | int = TIMEOUT_S) -> httpx.Client:
+def _client(timeout: float = TIMEOUT_S) -> httpx.Client:
     return httpx.Client(timeout=timeout)
 
 

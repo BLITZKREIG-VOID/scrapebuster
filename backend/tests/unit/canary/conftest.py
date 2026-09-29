@@ -11,6 +11,7 @@ os.environ.setdefault("SB_DB_PATH", os.path.join(_BOOTSTRAP_DIR, "sb.db"))
 atexit.register(lambda: shutil.rmtree(_BOOTSTRAP_DIR, ignore_errors=True))
 
 import pytest
+
 from sb.store import db
 
 

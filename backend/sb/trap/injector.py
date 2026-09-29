@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from contextlib import closing
 import html as html_lib
 import json
 import logging
 import re
+from collections.abc import Mapping
+from contextlib import closing
 from typing import Any
 
 from fastapi import Response
@@ -200,4 +200,3 @@ class ScapeBustersTrapHooks:
 
     def reset(self) -> None:
         """No-op: trap_hits and exposures reside in SQLite, reset by db.reset_db()."""
-        pass

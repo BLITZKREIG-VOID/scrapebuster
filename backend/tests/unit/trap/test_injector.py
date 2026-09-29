@@ -1,9 +1,8 @@
 """Unit tests for response transformation, canary injection, and decoy handling."""
 
-from contextlib import closing
 import html
 import json
-import re
+from contextlib import closing
 from types import SimpleNamespace
 
 from sb.canary import hashing, registry
@@ -111,7 +110,7 @@ def test_trapped_session_all_five_placements():
         )
         upstream = SimpleNamespace(
             headers={"content-type": "text/html"},
-            content=f"<html><head><title>{canary_id}</title></head><body><main id=\"content\"><p>Doc for {path}</p></main></body></html>".encode("utf-8"),
+            content=f"<html><head><title>{canary_id}</title></head><body><main id=\"content\"><p>Doc for {path}</p></main></body></html>".encode(),
         )
 
         body = transform_response(ctx, session, upstream)

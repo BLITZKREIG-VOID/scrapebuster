@@ -7,8 +7,6 @@ import pytest
 
 from sb.provenance.llm import (
     OPTIONS,
-    LLMResult,
-    _client,
     build_prompt,
     generate,
     llm_status,

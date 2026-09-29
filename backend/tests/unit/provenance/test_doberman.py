@@ -1,10 +1,11 @@
 """Unit tests for Doberman probe runner (master plan §10)."""
 
+import hashlib
+import re
 from contextlib import closing
 from datetime import datetime
-import hashlib
 from pathlib import Path
-import re
+
 import pytest
 
 from sb.canary import registry

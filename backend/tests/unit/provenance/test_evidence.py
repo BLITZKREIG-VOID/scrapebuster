@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from contextlib import closing
 import hashlib
 import json
-from pathlib import Path
 import shutil
 import stat
+from contextlib import closing
+from pathlib import Path
 from typing import Any
 
 import pytest

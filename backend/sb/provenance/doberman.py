@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-from contextlib import closing
-from datetime import datetime, timezone
 import hashlib
 import json
 import os
 import secrets
 import sqlite3
-from typing import Any, Callable
+from collections.abc import Callable
+from contextlib import closing
+from datetime import datetime
+from typing import Any
 
 from sb.canary import registry
 from sb.contracts import Canary

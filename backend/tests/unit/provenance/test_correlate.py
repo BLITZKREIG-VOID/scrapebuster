@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 import yaml
 
 from sb.canary import hashing
-from sb.contracts import Finding
 from sb.provenance.correlate import (
-    STATEMENT_TEMPLATE,
     build_statement,
     case_status,
     compute_finding,

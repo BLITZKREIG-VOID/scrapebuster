@@ -1,8 +1,8 @@
 """Unit tests for canary registry and seed (T-CA-1 remainder)."""
 
-from datetime import datetime
 import re
 import types
+from datetime import datetime
 
 import pytest
 

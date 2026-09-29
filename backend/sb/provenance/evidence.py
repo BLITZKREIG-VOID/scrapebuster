@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from contextlib import closing
 import hashlib
 import json
 import os
-from pathlib import Path
 import tempfile
+from collections.abc import Mapping
+from contextlib import closing
+from pathlib import Path
 from typing import Any
 
 from sb.canary import hashing

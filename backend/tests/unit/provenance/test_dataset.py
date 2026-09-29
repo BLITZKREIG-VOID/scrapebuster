@@ -2,9 +2,11 @@
 
 import hashlib
 from pathlib import Path
+
 import pytest
 
-from sb.provenance import dataset, reset as provenance_reset
+from sb.provenance import dataset
+from sb.provenance import reset as provenance_reset
 from sb.provenance.dataset import DatasetValidationError
 
 

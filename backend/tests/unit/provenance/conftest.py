@@ -2,9 +2,9 @@
 
 import atexit
 import os
-from pathlib import Path
 import shutil
 import tempfile
+from pathlib import Path
 
 # Env SB_DB_PATH set at import time to a temp dir before anything imports sb.store.db
 _BOOTSTRAP_DIR = tempfile.mkdtemp(prefix="sb_provenance_test_")
@@ -12,8 +12,10 @@ os.environ.setdefault("SB_DB_PATH", os.path.join(_BOOTSTRAP_DIR, "sb.db"))
 atexit.register(lambda: shutil.rmtree(_BOOTSTRAP_DIR, ignore_errors=True))
 
 import pytest
+
+from sb.provenance import dataset
+from sb.provenance import reset as provenance_reset
 from sb.store import db
-from sb.provenance import dataset, reset as provenance_reset
 
 
 @pytest.fixture(autouse=True)

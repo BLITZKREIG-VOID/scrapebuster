@@ -2,11 +2,13 @@
 
 import math
 from pathlib import Path
+
 import pytest
 import yaml
 
-from sb.provenance import dataset, rag, reset as provenance_reset
-from sb.provenance.rag import BM25Index, STOPWORDS, chunk_records, tokenize
+from sb.provenance import dataset, rag
+from sb.provenance import reset as provenance_reset
+from sb.provenance.rag import STOPWORDS, BM25Index, chunk_records, tokenize
 
 CANARIES_PATH = Path(__file__).resolve().parents[4] / "backend" / "sb" / "canary" / "canaries.yaml"
 CANARIES = yaml.safe_load(CANARIES_PATH.read_text(encoding="utf-8"))["canaries"]

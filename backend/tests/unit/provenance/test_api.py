@@ -6,14 +6,16 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-import pytest
 
-from sb.api.canaries import CanaryDetail, router as canaries_router
+from sb.api.canaries import CanaryDetail
+from sb.api.canaries import router as canaries_router
 from sb.api.cases import router as cases_router
 from sb.api.datasets import router as datasets_router
-from sb.api.probes import ProbeRun, router as probes_router
+from sb.api.probes import ProbeRun
+from sb.api.probes import router as probes_router
 from sb.canary import registry
 from sb.canary.seed import seed_canaries
 from sb.contracts import Canary, Case, CaseSummary, Dataset
