@@ -6,9 +6,9 @@ Fails or warns if a user modifies paths they do not own.
 (Simulated simplified implementation for the hackathon)
 """
 
-import sys
-import subprocess
 import os
+import sys
+
 
 def check_ownership():
     # In a full CI, we'd use `git diff --name-only origin/main...HEAD`
