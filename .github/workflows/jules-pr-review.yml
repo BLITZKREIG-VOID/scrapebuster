@@ -3,41 +3,43 @@ name: Jules PR Review
 on:
   pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review]
+    branches: ['**']
 
 concurrency:
   group: jules-review-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  # Serialize events per PR, then let the script skip stale or already-reviewed SHAs.
+  cancel-in-progress: false
 
 permissions:
   contents: read
-  checks: write
   issues: write
   pull-requests: write
+  statuses: write
 
 jobs:
   review:
     name: Jules review
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
     steps:
       - name: Check out trusted workflow revision
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.workflow_sha }}
           fetch-depth: 1
           persist-credentials: false
           sparse-checkout: |
+            .github/jules-review-config.json
             .github/jules-review-rules.md
-            .github/scripts/jules-pr-review.mjs
+            scripts/jules_review.py
           sparse-checkout-cone-mode: false
 
-      - name: Run Jules review
-        run: node .github/scripts/jules-pr-review.mjs
+      - name: Run scoped Jules reviews
+        run: python3 scripts/jules_review.py
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          EXPECTED_WORKFLOW_SHA: ${{ github.workflow_sha }}
-          REPOSITORY: ${{ github.repository }}
-          API_URL: ${{ github.api_url }}
-          EVENT_PATH: ${{ github.event_path }}
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
