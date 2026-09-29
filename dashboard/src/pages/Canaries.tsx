@@ -12,7 +12,7 @@ export default function Canaries() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
         <h1 className="text-5xl font-extrabold text-foreground tracking-tight font-display">Canaries <span className="font-sans not-italic font-semibold">&</span> Honeytokens</h1>
 
-        <div className="text-xs font-mono text-muted-foreground bg-muted px-3 py-1.5 rounded-lg border border-border flex items-center gap-2">
+        <div className="text-xs font-mono text-indigo-800 bg-indigo-100 dark:bg-indigo-900 dark:text-indigo-200 px-3 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-800 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.8)]" />
           <span>Tracking {data?.canaries.length || 0} synthetic tokens</span>
         </div>
@@ -82,7 +82,7 @@ function CanaryCard({ canaryId, basicData }: { canaryId: string, basicData: any 
   };
 
   return (
-    <div className={`bg-slate-900/50 border border-slate-800 rounded-lg mb-3 overflow-hidden transition-all ${expanded ? 'shadow-md' : 'shadow-sm hover:border-slate-500/50'}`}>
+    <div className={`bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 rounded-lg mb-3 overflow-hidden transition-all ${expanded ? 'shadow-md' : 'shadow-sm hover:border-gray-400/50 dark:hover:border-gray-700/50'}`}>
       {/* Header / Summary */}
       <div
         className="grid grid-cols-[130px_1fr_100px] md:grid-cols-[180px_1fr_120px] gap-4 items-center w-full p-4 cursor-pointer select-none"
@@ -96,12 +96,12 @@ function CanaryCard({ canaryId, basicData }: { canaryId: string, basicData: any 
         <div className="flex flex-col gap-2 min-w-0">
           <div className="flex items-center gap-2 min-w-0">
             <Crosshair size={13} className="text-muted-foreground shrink-0" />
-            <span className="font-mono text-xs text-blue-600 dark:text-blue-300 bg-blue-100 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900/50 px-2 py-0.5 rounded font-bold truncate">{displayData.anchor}</span>
+            <span className="font-mono text-xs text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-900/60 border border-indigo-200 dark:border-indigo-800/50 px-2 py-0.5 rounded font-bold truncate">{displayData.anchor}</span>
           </div>
           
           {/* Bait Payload Styling */}
-          <div className="relative bg-muted p-3 rounded-md font-mono text-sm border border-border group overflow-hidden min-w-0">
-            <span className="truncate block w-full pr-8 text-muted-foreground">{displayData.canonical_content}</span>
+          <div className="relative bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200 p-3 rounded-md font-mono text-sm border border-gray-200 dark:border-gray-800 group overflow-hidden min-w-0">
+            <span className="truncate block w-full pr-8 text-gray-800 dark:text-gray-300">{displayData.canonical_content}</span>
             <button
               onClick={(e) => { e.stopPropagation(); handleCopyPayload(displayData.canonical_content); }}
               className="absolute top-1/2 -translate-y-1/2 right-2 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-background/80 rounded"
@@ -127,7 +127,7 @@ function CanaryCard({ canaryId, basicData }: { canaryId: string, basicData: any 
 
       {/* Expanded Detail */}
       {expanded && (
-        <div className="border-t border-border p-5 bg-muted/30 rounded-b-xl">
+        <div className="border-t border-gray-200 dark:border-gray-800 p-5 bg-gray-50 dark:bg-gray-900/30 rounded-b-xl text-gray-800 dark:text-gray-200">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
             {/* Meta */}
@@ -139,7 +139,7 @@ function CanaryCard({ canaryId, basicData }: { canaryId: string, basicData: any 
               <div className="flex flex-col gap-1.5">
                 <span className="text-xs text-muted-foreground flex items-center gap-1"><FileText size={12} /> Cryptographic Fingerprint</span>
                 <div className="flex items-center gap-2">
-                  <span className="text-cyan-600 dark:text-cyan-400 font-mono break-all text-xs bg-muted px-2.5 py-1.5 rounded border border-border flex-1" title={displayData.sha256}>
+                  <span className="text-cyan-700 dark:text-cyan-400 font-mono break-all text-xs bg-gray-100 dark:bg-gray-800 px-2.5 py-1.5 rounded border border-gray-200 dark:border-gray-700 flex-1" title={displayData.sha256}>
                     {displayData.sha256}
                   </span>
                   <button
@@ -154,7 +154,7 @@ function CanaryCard({ canaryId, basicData }: { canaryId: string, basicData: any 
 
               <div className="flex flex-col gap-1.5">
                 <span className="text-xs text-muted-foreground flex items-center gap-1"><Calendar size={12} /> Published Timestamp</span>
-                <span className="font-mono text-xs text-foreground bg-muted px-2.5 py-1.5 rounded border border-border inline-block w-fit">
+                <span className="font-mono text-xs text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 px-2.5 py-1.5 rounded border border-gray-200 dark:border-gray-700 inline-block w-fit">
                   {displayData.published_at ? new Date(displayData.published_at).toLocaleString() : 'Not published'}
                 </span>
               </div>
@@ -163,7 +163,7 @@ function CanaryCard({ canaryId, basicData }: { canaryId: string, basicData: any 
                 <span className="text-xs text-muted-foreground flex items-center gap-1"><MapPin size={12} /> Guarded Placements</span>
                 <div className="flex flex-wrap gap-1.5 mt-1">
                   {displayData.placements.map(p => (
-                    <span key={p} className="text-[10px] font-mono text-foreground bg-muted px-2 py-0.5 rounded border border-border shadow-sm">
+                    <span key={p} className="text-[10px] font-mono text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded border border-gray-200 dark:border-gray-700 shadow-sm">
                       {p}
                     </span>
                   ))}
@@ -184,10 +184,10 @@ function CanaryCard({ canaryId, basicData }: { canaryId: string, basicData: any 
                       {/* Radar node */}
                       <div className="absolute -left-[21px] top-1.5 w-2 h-2 rounded-full bg-red-500 ring-4 ring-red-500/20"></div>
                       
-                      <div className="bg-card p-4 rounded-lg border border-border shadow-sm">
-                        <div className="flex flex-wrap items-center justify-between mb-3 border-b border-border pb-2 gap-2">
+                      <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm">
+                        <div className="flex flex-wrap items-center justify-between mb-3 border-b border-gray-200 dark:border-gray-800 pb-2 gap-2">
                           <span className="font-mono text-muted-foreground text-xs">{new Date(exp.ts).toLocaleTimeString()}</span>
-                          <span className="font-mono text-blue-600 dark:text-blue-400 font-bold text-xs bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">
+                          <span className="font-mono text-indigo-600 dark:text-indigo-400 font-bold text-xs bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
                             {exp.session_id}
                           </span>
                         </div>
@@ -198,7 +198,7 @@ function CanaryCard({ canaryId, basicData }: { canaryId: string, basicData: any 
                           </div>
                           <div className="md:text-right shrink-0">
                             <span className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider block mb-1">Injected Hash</span>
-                            <span className="font-mono text-xs text-muted-foreground bg-muted px-2 py-1 rounded border border-border inline-block" title={exp.content_sha256}>
+                            <span className="font-mono text-xs text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded border border-gray-200 dark:border-gray-700 inline-block" title={exp.content_sha256}>
                               {exp.content_sha256.substring(0, 16)}...
                             </span>
                           </div>

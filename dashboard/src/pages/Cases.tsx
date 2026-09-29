@@ -52,8 +52,8 @@ export default function Cases() {
               End-to-End Provenance Pipeline Architecture
             </h3>
           </div>
-          <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+          <span className="text-[10px] font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 px-2 py-0.5 rounded flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-ping" />
             REAL-TIME TRACKING ACTIVE
           </span>
         </div>
@@ -102,12 +102,12 @@ export default function Cases() {
           {/* Stage 4 */}
           <div className="p-4 rounded-xl bg-slate-950/80 border border-red-500/40 relative z-10 shadow-[0_0_15px_rgba(239,68,68,0.1)]">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-mono text-red-400 font-bold uppercase">Stage 04</span>
+              <span className="text-[10px] font-mono text-red-600 dark:text-red-400 font-bold uppercase">Stage 04</span>
               <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
             </div>
-            <div className="text-xs font-bold text-red-300 mb-1">LLM Output Matched</div>
+            <div className="text-xs font-bold text-red-700 dark:text-red-300 mb-1">LLM Output Matched</div>
             <div className="text-[11px] text-slate-400">Verbatim canary anchor emitted during probe</div>
-            <div className="mt-3 text-[10px] font-mono text-red-400/90 bg-red-950/30 px-2 py-1 rounded border border-red-900/50">
+            <div className="mt-3 text-[10px] font-mono text-red-700 dark:text-red-400/90 bg-red-50 dark:bg-red-950/30 px-2 py-1 rounded border border-red-200 dark:border-red-900/50">
               Anchor: <span className="font-bold">quasar-reconcile</span>
             </div>
           </div>
@@ -186,8 +186,8 @@ export default function Cases() {
                   <span className="text-[10px] text-slate-500 font-sans block mt-0.5">{new Date(c.created_at).toLocaleTimeString()}</span>
                 </td>
                 <td className="p-3.5">
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${c.status === 'PROVENANCE_SIGNAL_DETECTED' ? 'bg-red-500/10 text-red-400 border-red-500/30' :
-                      c.status === 'PARTIAL_SIGNAL' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' :
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${c.status === 'PROVENANCE_SIGNAL_DETECTED' ? 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/30' :
+                      c.status === 'PARTIAL_SIGNAL' ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/30' :
                         'bg-slate-800 text-slate-400 border-slate-700'
                     }`}>
                     {c.status.replace(/_/g, ' ')}
@@ -205,7 +205,7 @@ export default function Cases() {
                   <span className="text-[10px] text-emerald-400">mode: live</span>
                 </td>
                 <td className="p-3.5">
-                  <span className="font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30 text-[10px]">
+                  <span className="font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-500/30 text-[10px]">
                     {c.confidence} (100%)
                   </span>
                 </td>
@@ -268,7 +268,7 @@ export default function Cases() {
                         {/* Mock JSON Terminal Block */}
                         <div className="space-y-2 text-left">
                           <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Intercepted Payload</h4>
-                          <div className="p-4 bg-slate-100 border border-slate-300 text-slate-800 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 rounded-md overflow-x-auto text-[11px] font-mono leading-relaxed text-left">
+                          <div className="p-4 bg-gray-100 border border-gray-300 text-gray-800 dark:bg-gray-900 dark:border-gray-800 dark:text-gray-300 rounded-md overflow-x-auto text-[11px] font-mono leading-relaxed text-left">
                             <span className="text-blue-700 dark:text-blue-400">{`{`}</span><br />
                             <span className="text-blue-600 dark:text-blue-300 pl-4">"model_id":</span> <span className="text-emerald-700 dark:text-emerald-400">"qwen2.5:3b"</span>,<br />
                             <span className="text-blue-600 dark:text-blue-300 pl-4">"canary_token":</span> <span className="text-red-700 dark:text-red-400">"SB-CAN-0003"</span>,<br />

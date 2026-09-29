@@ -74,11 +74,11 @@ export default function InterrogatorCard({
             className={cn(
               'w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-300',
               isThreat
-                ? 'bg-red-500/10 text-red-400 border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.15)]'
+                ? 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.15)]'
                 : isProbing
-                ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/20'
                 : isActive
-                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20'
                 : 'bg-slate-800/60 text-slate-400 border-slate-700/50 group-hover:text-slate-200 group-hover:border-slate-600'
             )}
           >
@@ -111,10 +111,10 @@ export default function InterrogatorCard({
           className={cn(
             'inline-flex items-center gap-2 text-[11px] font-mono font-bold uppercase tracking-widest px-3.5 py-2 rounded-lg border w-fit',
             isThreat
-              ? 'bg-red-950/40 text-red-400 border-red-500/20'
+              ? 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/20'
               : isProbing
-              ? 'bg-amber-950/40 text-amber-400 border-amber-500/20'
-              : 'bg-emerald-950/40 text-emerald-400 border-emerald-500/20'
+              ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/20'
+              : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20'
           )}
         >
           {isThreat ? (
@@ -137,10 +137,10 @@ export default function InterrogatorCard({
               className={cn(
                 'text-4xl lg:text-5xl font-light tracking-tight font-mono',
                 model.canaryMatchPct > 70
-                  ? 'text-red-400'
+                  ? 'text-red-600 dark:text-red-400'
                   : model.canaryMatchPct > 0
-                  ? 'text-amber-400'
-                  : 'text-emerald-400'
+                  ? 'text-amber-600 dark:text-amber-400'
+                  : 'text-emerald-600 dark:text-emerald-400'
               )}
             >
               {model.canaryMatchPct}<span className="text-lg text-slate-500 ml-0.5">%</span>
@@ -170,14 +170,14 @@ export default function InterrogatorCard({
 
         {/* ── Canary Leak Terminal (only for leak-detected) ── */}
         {model.verbatimSnippet && (
-          <div className="p-4 bg-black/50 rounded-lg border border-red-900/30">
+          <div className="p-4 bg-red-50 dark:bg-black/50 rounded-lg border border-red-200 dark:border-red-900/30">
             <div className="flex items-center gap-2 mb-2.5">
-              <Terminal size={13} className="text-red-400" />
-              <span className="text-[10px] text-red-400 font-mono font-bold uppercase tracking-widest">
+              <Terminal size={13} className="text-red-700 dark:text-red-400" />
+              <span className="text-[10px] text-red-700 dark:text-red-400 font-mono font-bold uppercase tracking-widest">
                 Intercepted Canary Payload
               </span>
             </div>
-            <p className="text-[13px] text-slate-300 font-mono leading-relaxed line-clamp-3">
+            <p className="text-[13px] text-gray-800 dark:text-slate-300 font-mono leading-relaxed line-clamp-3">
               &quot;{model.verbatimSnippet}&quot;
             </p>
           </div>
@@ -193,7 +193,7 @@ export default function InterrogatorCard({
           className={cn(
             'text-xs font-mono font-semibold tracking-wide transition-colors',
             isActive
-              ? isThreat ? 'text-red-400' : isProbing ? 'text-amber-400' : 'text-emerald-400'
+              ? isThreat ? 'text-red-600 dark:text-red-400' : isProbing ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
               : 'text-slate-500 group-hover:text-slate-300'
           )}
         >

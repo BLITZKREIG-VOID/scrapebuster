@@ -175,14 +175,14 @@ export default function Probes() {
     <div className="space-y-6 max-w-7xl mx-auto pb-12 select-none">
       {/* Error Toast Notification if Optimistic API call fails */}
       {errorMessage && (
-        <div className="p-3.5 rounded-xl bg-red-950/80 border border-red-500/60 text-red-200 text-xs font-mono flex items-center justify-between shadow-lg animate-in slide-in-from-top-2">
+        <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/80 border border-red-200 dark:border-red-500/60 text-red-800 dark:text-red-200 text-xs font-mono flex items-center justify-between shadow-lg animate-in slide-in-from-top-2">
           <div className="flex items-center gap-2">
-            <AlertCircle size={16} className="text-red-400 shrink-0" />
+            <AlertCircle size={16} className="text-red-600 dark:text-red-400 shrink-0" />
             <span>Operational Failure: {errorMessage}</span>
           </div>
           <button
             onClick={() => setErrorMessage(null)}
-            className="text-red-400 hover:text-red-100 uppercase tracking-widest text-[10px] px-2 py-0.5 rounded border border-red-500/40"
+            className="text-red-700 dark:text-red-400 hover:text-red-900 dark:hover:text-red-100 uppercase tracking-widest text-[10px] px-2 py-0.5 rounded border border-red-300 dark:border-red-500/40"
           >
             Dismiss
           </button>
@@ -200,7 +200,7 @@ export default function Probes() {
             </div>
             <div className="font-mono text-base text-slate-200">
               {completed} / {total}{' '}
-              <span className="text-xs text-emerald-400">probed</span>
+              <span className="text-xs text-emerald-600 dark:text-emerald-400">probed</span>
             </div>
           </div>
 
@@ -254,7 +254,7 @@ export default function Probes() {
       <section className="space-y-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <Sparkles size={16} className="text-red-400 animate-pulse" />
+            <Sparkles size={16} className="text-red-600 dark:text-red-400 animate-pulse" />
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200 font-mono">
               Interrogator Target Fleet
             </h3>
@@ -280,7 +280,7 @@ export default function Probes() {
       <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 font-mono text-xs shadow-inner">
         <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 text-[11px] text-slate-400">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
             <span className="font-semibold text-slate-300">Live Interrogation Console</span>
           </div>
           <span className="text-[10px] text-slate-600">STREAM: ACTIVE</span>
@@ -288,7 +288,7 @@ export default function Probes() {
         <div className="space-y-1 max-h-28 overflow-y-auto custom-scrollbar text-[11px] text-slate-400">
           {probeLogs.map((log, index) => (
             <div key={index} className="leading-tight">
-              <span className="text-cyan-400">{'>'}</span> {log}
+              <span className="text-cyan-600 dark:text-cyan-400">{'>'}</span> {log}
             </div>
           ))}
         </div>
@@ -300,7 +300,7 @@ export default function Probes() {
         <div className="space-y-4">
           <div className="flex items-center justify-between p-3.5 bg-slate-900 border-b-2 border-red-500/80 rounded-t-xl border-x border-t border-slate-800">
             <div className="flex items-center gap-2 text-slate-200 font-semibold text-xs font-mono">
-              <Database size={15} className="text-red-400" /> Target Dataset Infiltration
+              <Database size={15} className="text-red-600 dark:text-red-400" /> Target Dataset Infiltration
             </div>
 
             {/* SHA-256 Tooltip with Click to Copy */}
@@ -321,7 +321,7 @@ export default function Probes() {
               <TooltipContent className="space-y-1">
                 <div className="font-bold text-slate-100">Dataset SHA-256 Digest</div>
                 <div className="text-[10px] text-slate-300 break-all">{targetDigest}</div>
-                <div className="text-[9px] text-cyan-400 pt-0.5">Click to copy full hash</div>
+                <div className="text-[9px] text-cyan-600 dark:text-cyan-400 pt-0.5">Click to copy full hash</div>
               </TooltipContent>
             </Tooltip>
           </div>
@@ -341,7 +341,7 @@ export default function Probes() {
         <div className="space-y-4">
           <div className="flex items-center justify-between p-3.5 bg-slate-900 border-b-2 border-cyan-500/80 rounded-t-xl border-x border-t border-slate-800">
             <div className="flex items-center gap-2 text-slate-200 font-semibold text-xs font-mono">
-              <Database size={15} className="text-cyan-400" /> Control Dataset (Negative Baseline)
+              <Database size={15} className="text-cyan-600 dark:text-cyan-400" /> Control Dataset (Negative Baseline)
             </div>
 
             {/* Control SHA-256 Tooltip */}
@@ -362,7 +362,7 @@ export default function Probes() {
               <TooltipContent className="space-y-1">
                 <div className="font-bold text-slate-100">Control Dataset SHA-256</div>
                 <div className="text-[10px] text-slate-300 break-all">{controlDigest}</div>
-                <div className="text-[9px] text-cyan-400 pt-0.5">Click to copy full hash</div>
+                <div className="text-[9px] text-cyan-600 dark:text-cyan-400 pt-0.5">Click to copy full hash</div>
               </TooltipContent>
             </Tooltip>
           </div>
@@ -380,15 +380,15 @@ export default function Probes() {
       </div>
 
       {/* 5. Danger Zone & Hold-to-Confirm Button */}
-      <section className="rounded-2xl border border-red-500/30 bg-red-950/10 p-5 space-y-4">
-        <div className="flex items-center justify-between border-b border-red-500/20 pb-3">
+      <section className="rounded-2xl border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-950/10 p-5 space-y-4">
+        <div className="flex items-center justify-between border-b border-red-200 dark:border-red-500/20 pb-3">
           <div className="flex items-center gap-2">
             <span className="text-base leading-none">💀</span>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-red-300 font-mono">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-red-700 dark:text-red-300 font-mono">
               Danger Zone • Forensic Store Controls
             </h4>
           </div>
-          <span className="text-[10px] font-mono text-red-400/70 uppercase">
+          <span className="text-[10px] font-mono text-red-600/70 dark:text-red-400/70 uppercase">
             Irreversible Operation
           </span>
         </div>
@@ -458,7 +458,7 @@ function ResultCard({
             </span>
           )}
         </div>
-        <div className="bg-slate-100 border border-slate-300 text-slate-800 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 rounded-md p-4 text-xs min-h-[70px] font-mono leading-relaxed select-text">
+        <div className="bg-gray-100 border border-gray-300 text-gray-800 dark:bg-gray-900 dark:border-gray-800 dark:text-gray-300 rounded-md p-4 text-xs min-h-[70px] font-mono leading-relaxed select-text">
           {result.response_text}
         </div>
       </div>

@@ -212,8 +212,8 @@ export default function Traffic() {
                       <span className="text-xs text-amber-400 font-mono ml-1.5">{ep.trend}</span>
                     </td>
                     <td className="px-5 py-4 text-center">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${ep.risk === 'CRITICAL' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-                          ep.risk === 'HIGH' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${ep.risk === 'CRITICAL' ? 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/20' :
+                          ep.risk === 'HIGH' ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/20' :
                             'bg-blue-500/10 text-blue-400 border-blue-500/20'
                         }`}>
                         {ep.risk}
@@ -230,8 +230,8 @@ export default function Traffic() {
         <section className="bg-slate-900/40 backdrop-blur-xl rounded-2xl border border-slate-800 border-t-2 border-t-red-500/60 shadow-lg flex flex-col min-h-[320px] overflow-hidden">
           <div className="px-7 pt-7 pb-4">
             <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
-                <Target size={18} className="text-red-400" />
+              <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 flex items-center justify-center">
+                <Target size={18} className="text-red-600 dark:text-red-400" />
               </div>
               <div>
                 <h3 className="text-xl font-semibold text-slate-100 tracking-tight">High-Risk Adversary Actors</h3>
@@ -254,7 +254,7 @@ export default function Traffic() {
                     <td className="px-7 py-4">
                       <div className="font-mono text-sm text-blue-400 font-bold flex items-center gap-2 group-hover/row:text-blue-300 transition-colors">
                         {actor.ip}
-                        {actor.blocked && <Shield size={12} className="text-red-400" />}
+                        {actor.blocked && <Shield size={12} className="text-red-600 dark:text-red-400" />}
                       </div>
                       <div className="text-xs text-slate-500 mt-1">{actor.asn}</div>
                     </td>
@@ -271,7 +271,7 @@ export default function Traffic() {
                             style={{ width: `${actor.risk}%` }}
                           />
                         </div>
-                        <span className={`text-sm font-bold font-mono min-w-[28px] text-right ${actor.risk > 80 ? 'text-red-400' : 'text-amber-400'}`}>
+                        <span className={`text-sm font-bold font-mono min-w-[28px] text-right ${actor.risk > 80 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}`}>
                           {actor.risk}
                         </span>
                       </div>
@@ -287,8 +287,8 @@ export default function Traffic() {
         <section className="bg-slate-900/40 backdrop-blur-xl rounded-2xl border border-slate-800 border-t-2 border-t-emerald-500/60 shadow-lg flex flex-col min-h-[320px] overflow-hidden lg:col-span-2">
           <div className="px-7 pt-7 pb-4">
             <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                <Globe size={18} className="text-emerald-400" />
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 flex items-center justify-center">
+                <Globe size={18} className="text-emerald-600 dark:text-emerald-400" />
               </div>
               <div>
                 <h3 className="text-xl font-semibold text-slate-100 tracking-tight">Geographic Threat Origins</h3>
@@ -317,8 +317,8 @@ export default function Traffic() {
                 </div>
               </div>
             ))}
-            <div className="mt-2 p-4 rounded-lg bg-black/30 border border-slate-800/50 text-xs text-slate-400 font-mono leading-relaxed">
-              <span className="text-emerald-400 font-bold">ASN Profiler:</span> 64% of high-volume probes originate from commercial hosting datacenters (AWS, DigitalOcean, Hetzner).
+            <div className="mt-2 p-4 rounded-lg bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-slate-800/50 text-xs text-gray-700 dark:text-slate-400 font-mono leading-relaxed">
+              <span className="text-emerald-700 dark:text-emerald-400 font-bold">ASN Profiler:</span> 64% of high-volume probes originate from commercial hosting datacenters (AWS, DigitalOcean, Hetzner).
             </div>
           </div>
         </section>
