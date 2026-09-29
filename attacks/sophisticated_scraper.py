@@ -25,8 +25,8 @@ from collections import deque
 from pathlib import Path
 
 from common import (
-    PageDriver,
     SAFETY_STOP_EXIT_CODE,
+    PageDriver,
     add_base_args,
     anchors_in,
     check_base,

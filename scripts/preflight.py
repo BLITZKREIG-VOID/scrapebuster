@@ -23,7 +23,7 @@ from urllib.parse import urlsplit
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "attacks"))
-from sites import DEFAULT_SITE, SITES  # noqa: E402  (stdlib-only profile module)
+from sites import DEFAULT_SITE, SITES
 
 MIN_PY = (3, 11)
 MIN_NODE = 20
@@ -229,7 +229,7 @@ def check_control_data() -> None:
             add("FAIL", "control dataset", "data/control/control_clean.jsonl is empty")
             return
         add("PASS", "control dataset", f"data/control/control_clean.jsonl ({len(lines)} records)")
-    except Exception as exc:
+    except (OSError, UnicodeError, ValueError) as exc:
         add("FAIL", "control dataset", f"data/control/control_clean.jsonl invalid JSONL: {exc}")
 
 
@@ -250,7 +250,7 @@ def check_canary_config() -> None:
             add("FAIL", "canary manifest", "data/canary_manifest.json has no canaries")
             return
         add("PASS", "canary manifest", f"data/canary_manifest.json ({len(canaries)} frozen canaries)")
-    except Exception as exc:
+    except (OSError, UnicodeError, ValueError, AttributeError) as exc:
         add("FAIL", "canary manifest", f"data/canary_manifest.json invalid JSON: {exc}")
 
 
@@ -263,7 +263,7 @@ def check_datasets_dir() -> None:
         probe.write_bytes(b"")
         probe.unlink()
         add("PASS", "datasets dir", "data/datasets writable")
-    except Exception as exc:
+    except OSError as exc:
         add("FAIL", "datasets dir", f"data/datasets not writable: {exc}")
 
 
