@@ -1,111 +1,152 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-serif: "Playfair Display", Georgia, Cambria, "Times New Roman", serif;
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+
+  /* Theme Scale Variables mapped to dynamic CSS variables */
+  --color-slate-950: var(--slate-950);
+  --color-slate-900: var(--slate-900);
+  --color-slate-850: var(--slate-850);
+  --color-slate-800: var(--slate-800);
+  --color-slate-700: var(--slate-700);
+  --color-slate-600: var(--slate-600);
+  --color-slate-500: var(--slate-500);
+  --color-slate-400: var(--slate-400);
+  --color-slate-300: var(--slate-300);
+  --color-slate-200: var(--slate-200);
+  --color-slate-100: var(--slate-100);
+
+  /* Role Tokens */
+  --color-primary: var(--color-primary);
+  --color-secondary: var(--color-secondary);
+  --color-accent: var(--color-accent);
+
+  /* Accent overrides for blue tints */
+  --color-blue-300: var(--blue-300);
+  --color-blue-400: var(--blue-400);
+  --color-blue-500: var(--blue-500);
+  --color-blue-600: var(--blue-600);
+  --color-blue-700: var(--blue-700);
+  --color-blue-900: var(--blue-900);
+  --color-blue-950: var(--blue-950);
+
+  --color-danger: #ef4444;
+  --color-warning: #f59e0b;
+  --color-success: var(--color-accent);
+}
+
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  /* Dark Mode Palette (Default - Bespoke ScrapeBuster Theme) */
+  --slate-950: #090c0c;
+  --slate-900: #0f1414;
+  --slate-850: #141b1b;
+  --slate-800: #1d2726;
+  --slate-700: #293736;
+  --slate-600: #3c4f4d;
+  --slate-500: #587170;
+  --slate-400: #7e9998;
+  --slate-300: #aec7c6;
+  --slate-200: #cadad9;
+  --slate-100: #ebefee;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  --color-primary: #aec7c6;
+  --color-secondary: #416866;
+  --color-accent: #79b4b2;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  --blue-300: #aec7c6;
+  --blue-400: #79b4b2;
+  --blue-500: #79b4b2;
+  --blue-600: #416866;
+  --blue-700: #32504e;
+  --blue-900: #162020;
+  --blue-950: #0c1111;
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  --dock-bg: #0f1414;
+  --dock-border: #1d2726;
+  --dock-item-active: #1d2726;
+  --dock-item-active-border: rgba(121, 180, 178, 0.4);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
+html.light {
+  /* Light Mode Palette */
+  --slate-950: #f8fafc;
+  --slate-900: #ffffff;
+  --slate-850: #f1f5f9;
+  --slate-800: #e2e8f0;
+  --slate-700: #cbd5e1;
+  --slate-600: #94a3b8;
+  --slate-500: #64748b;
+  --slate-400: #475569;
+  --slate-300: #334155;
+  --slate-200: #1e293b;
+  --slate-100: #0f172a;
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
+  --color-primary: #334155;
+  --color-secondary: #416866;
+  --color-accent: #0d9488;
 
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
+  --blue-300: #5eead4;
+  --blue-400: #0d9488;
+  --blue-500: #0f766e;
+  --blue-600: #115e59;
+  --blue-700: #134e4a;
+  --blue-900: #ccfbf1;
+  --blue-950: #f0fdfa;
+
+  --dock-bg: #ffffff;
+  --dock-border: #e2e8f0;
+  --dock-item-active: #f1f5f9;
+  --dock-item-active-border: rgba(13, 148, 136, 0.4);
 }
 
 body {
-  margin: 0;
+  background-color: var(--slate-950);
+  color: var(--slate-100);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+h1, h2, .font-display {
+  font-family: var(--font-serif);
+  letter-spacing: -0.015em;
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
+/* Animations */
+@keyframes highlight-ring {
+  0% { box-shadow: 0 0 0 4px rgba(121, 180, 178, 0.6); }
+  100% { box-shadow: 0 0 0 0 rgba(121, 180, 178, 0); }
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+@keyframes pulse-ring {
+  0% { transform: scale(0.8); opacity: 0.5; }
+  100% { transform: scale(1.3); opacity: 0; }
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+.animate-highlight {
+  animation: highlight-ring 2s ease-out;
 }
+
+.animate-pulse-ring {
+  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Custom Scrollbar styled for the #090c0c theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background-color: #090c0c;
+}
+::-webkit-scrollbar-thumb {
+  background-color: #1d2726;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: #416866;
+}
+

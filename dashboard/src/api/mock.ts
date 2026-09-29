@@ -241,7 +241,7 @@ export const mockDatasets: Dataset[] = [
 
 // ─── Probes ───────────────────────────────────────────────────────────
 
-const mkProbeResult = (probeId: string, canaryId: string, anchor: string, found: boolean, mode: 'live' | 'extractive_fallback' | 'replay' = 'live') => ({
+const mkProbeResult = (probeId: string, canaryId: string, found: boolean, mode: 'live' | 'extractive_fallback' | 'replay' = 'live') => ({
   result_id: `RES-${probeId}-${canaryId}`,
   probe_id: probeId,
   canary_id: canaryId,
@@ -261,11 +261,11 @@ export const mockProbes: ProbeRun[] = [
     model: { name: 'qwen2.5:3b', digest: 'sha256:abc123', mode: 'live' },
     dataset_sha256: 'tgt-sha-abcdef1234567890',
     results: [
-      mkProbeResult('PRB-TARGET-01', 'SB-CAN-0001', 'Oriel Vantrask', true),
-      mkProbeResult('PRB-TARGET-01', 'SB-CAN-0002', 'Hexaquorum', true),
-      mkProbeResult('PRB-TARGET-01', 'SB-CAN-0003', 'quasar-reconcile', true),
-      mkProbeResult('PRB-TARGET-01', 'SB-CAN-0004', 'velvet-anchor', true),
-      mkProbeResult('PRB-TARGET-01', 'SB-CAN-0005', 'ORCHID-7', true),
+      mkProbeResult('PRB-TARGET-01', 'SB-CAN-0001', true),
+      mkProbeResult('PRB-TARGET-01', 'SB-CAN-0002', true),
+      mkProbeResult('PRB-TARGET-01', 'SB-CAN-0003', true),
+      mkProbeResult('PRB-TARGET-01', 'SB-CAN-0004', true),
+      mkProbeResult('PRB-TARGET-01', 'SB-CAN-0005', true),
     ],
   },
   {
@@ -273,11 +273,11 @@ export const mockProbes: ProbeRun[] = [
     model: { name: 'qwen2.5:3b', digest: 'sha256:abc123', mode: 'live' },
     dataset_sha256: 'ctl-sha-1234567890abcdef',
     results: [
-      mkProbeResult('PRB-CONTROL-01', 'SB-CAN-0001', 'Oriel Vantrask', false),
-      mkProbeResult('PRB-CONTROL-01', 'SB-CAN-0002', 'Hexaquorum', false),
-      mkProbeResult('PRB-CONTROL-01', 'SB-CAN-0003', 'quasar-reconcile', false),
-      mkProbeResult('PRB-CONTROL-01', 'SB-CAN-0004', 'velvet-anchor', false),
-      mkProbeResult('PRB-CONTROL-01', 'SB-CAN-0005', 'ORCHID-7', false),
+      mkProbeResult('PRB-CONTROL-01', 'SB-CAN-0001', false),
+      mkProbeResult('PRB-CONTROL-01', 'SB-CAN-0002', false),
+      mkProbeResult('PRB-CONTROL-01', 'SB-CAN-0003', false),
+      mkProbeResult('PRB-CONTROL-01', 'SB-CAN-0004', false),
+      mkProbeResult('PRB-CONTROL-01', 'SB-CAN-0005', false),
     ],
   },
 ];
