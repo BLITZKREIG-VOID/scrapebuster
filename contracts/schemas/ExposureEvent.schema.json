@@ -1,0 +1,55 @@
+{
+  "properties": {
+    "exposure_id": {
+      "title": "Exposure Id",
+      "type": "string"
+    },
+    "canary_id": {
+      "title": "Canary Id",
+      "type": "string"
+    },
+    "ts": {
+      "title": "Ts",
+      "type": "string"
+    },
+    "session_id": {
+      "title": "Session Id",
+      "type": "string"
+    },
+    "resource": {
+      "title": "Resource",
+      "type": "string"
+    },
+    "content_version": {
+      "title": "Content Version",
+      "type": "string"
+    },
+    "content_sha256": {
+      "title": "Content Sha256",
+      "type": "string"
+    },
+    "client": {
+      "additionalProperties": true,
+      "title": "Client",
+      "type": "object"
+    },
+    "request": {
+      "additionalProperties": true,
+      "title": "Request",
+      "type": "object"
+    }
+  },
+  "required": [
+    "exposure_id",
+    "canary_id",
+    "ts",
+    "session_id",
+    "resource",
+    "content_version",
+    "content_sha256",
+    "client",
+    "request"
+  ],
+  "title": "ExposureEvent",
+  "type": "object"
+}

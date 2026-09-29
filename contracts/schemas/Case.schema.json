@@ -1,0 +1,135 @@
+{
+  "$defs": {
+    "Finding": {
+      "properties": {
+        "finding_id": {
+          "title": "Finding Id",
+          "type": "string"
+        },
+        "canary_id": {
+          "title": "Canary Id",
+          "type": "string"
+        },
+        "exact_match": {
+          "title": "Exact Match",
+          "type": "boolean"
+        },
+        "context_match": {
+          "additionalProperties": true,
+          "title": "Context Match",
+          "type": "object"
+        },
+        "uniqueness": {
+          "title": "Uniqueness",
+          "type": "string"
+        },
+        "temporal": {
+          "additionalProperties": true,
+          "title": "Temporal",
+          "type": "object"
+        },
+        "integrity": {
+          "title": "Integrity",
+          "type": "string"
+        },
+        "control_negative": {
+          "title": "Control Negative",
+          "type": "boolean"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "confidence": {
+          "title": "Confidence",
+          "type": "string"
+        }
+      },
+      "required": [
+        "finding_id",
+        "canary_id",
+        "exact_match",
+        "context_match",
+        "uniqueness",
+        "temporal",
+        "integrity",
+        "control_negative",
+        "status",
+        "confidence"
+      ],
+      "title": "Finding",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "case_id": {
+      "title": "Case Id",
+      "type": "string"
+    },
+    "run_id": {
+      "title": "Run Id",
+      "type": "string"
+    },
+    "created_at": {
+      "title": "Created At",
+      "type": "string"
+    },
+    "status": {
+      "title": "Status",
+      "type": "string"
+    },
+    "confidence": {
+      "title": "Confidence",
+      "type": "string"
+    },
+    "primary_canary_id": {
+      "title": "Primary Canary Id",
+      "type": "string"
+    },
+    "session_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Session Ids",
+      "type": "array"
+    },
+    "probe_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Probe Ids",
+      "type": "array"
+    },
+    "findings": {
+      "items": {
+        "$ref": "#/$defs/Finding"
+      },
+      "title": "Findings",
+      "type": "array"
+    },
+    "evidence": {
+      "additionalProperties": true,
+      "title": "Evidence",
+      "type": "object"
+    },
+    "statement": {
+      "title": "Statement",
+      "type": "string"
+    }
+  },
+  "required": [
+    "case_id",
+    "run_id",
+    "created_at",
+    "status",
+    "confidence",
+    "primary_canary_id",
+    "session_ids",
+    "probe_ids",
+    "findings",
+    "evidence",
+    "statement"
+  ],
+  "title": "Case",
+  "type": "object"
+}
