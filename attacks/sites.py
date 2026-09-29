@@ -100,6 +100,12 @@ def check_base(ap: argparse.ArgumentParser, args: argparse.Namespace) -> None:
     parts = urlsplit(args.base)
     if parts.scheme not in ("http", "https") or not parts.hostname:
         ap.error(f"--base must be an http(s) URL, got {args.base!r}")
+    canonical_upstream = (urlsplit(SITES["campuscart"].origin).hostname or "").lower()
+    if (parts.hostname or "").lower() == canonical_upstream:
+        ap.error(
+            f"refusing direct upstream --base {args.base!r}: attack scripts must target "
+            "the ScrapeBuster edge, never CampusCart directly"
+        )
     if not is_loopback(args.base) and not args.allow_remote_base:
         ap.error(
             f"refusing non-loopback --base {args.base!r}: attacks go only to the local edge "
