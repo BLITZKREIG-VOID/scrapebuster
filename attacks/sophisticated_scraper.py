@@ -8,10 +8,11 @@ On an L2 interstitial it performs ~12 seeded mouse moves + 2 scrolls within
 
 Crawl order (fixed): ``/`` -> ``/robots.txt`` (parse Disallow) -> every disallowed
 path -> BFS over *all* ``<a href>`` (hidden ones included), same-origin, deduped,
-max 20 pages, 2 s ± 0.5 s (seeded) between pages. Ignores robots.txt.
+max 20 pages (SD-2 cap), 2 s ± 0.5 s (seeded) between pages. Ignores robots.txt.
+UA carries the SD-4 ``SBDemo/scraper3`` marker; ``--base`` must be loopback (SD-1).
 Writes one dataset JSONL record per page: {"url","fetched_at","title","text"}.
 
-    python attacks/sophisticated_scraper.py --base http://127.0.0.1:8000 \
+    python attacks/sophisticated_scraper.py --base http://localhost:8000 \
         --out data/datasets/<run_id>_scraper3.jsonl [--headless] [--dump-signals]
 """
 from __future__ import annotations
@@ -24,7 +25,8 @@ from collections import deque
 from pathlib import Path
 
 from common import (
-    DEFAULT_BASE,
+    add_base_args,
+    check_base,
     PageDriver,
     anchors_in,
     emit,
@@ -76,7 +78,7 @@ def crawl(base: str, out: Path, headless: bool, dump_signals: bool) -> dict:
     anchors: set[str] = set()
 
     with sync_playwright() as p, out.open("w", encoding="utf-8") as fh:
-        browser, context, ua = launch_patched(p, headless=headless)
+        browser, context, ua = launch_patched(p, headless=headless, role="scraper3")
         page = context.new_page()
         if dump_signals:
             attach_signal_dump(page)
@@ -162,11 +164,12 @@ def crawl(base: str, out: Path, headless: bool, dump_signals: bool) -> dict:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--base", default=DEFAULT_BASE)
+    add_base_args(ap)
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--headless", action="store_true", help="fallback when no display is available")
     ap.add_argument("--dump-signals", action="store_true", help="log /_sb/verify payloads (H9 tuning)")
     args = ap.parse_args()
+    check_base(ap, args)
 
     result = crawl(args.base, args.out, args.headless, args.dump_signals)
     log(f"sophisticated_scraper: {result['pages']} pages, {result['records']} records -> {result['out']}")

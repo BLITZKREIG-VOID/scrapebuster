@@ -34,5 +34,31 @@ test-contract:
 test-integration:
 	PYTHONPATH=backend pytest backend/tests/integration/ -v
 
+# ── Demo targets (Arnav, plan §20/§21, R-08). Every target talks to the local edge only.
+EDGE ?= http://127.0.0.1:8000
+
+# §21 demo reset via the running backend (409 while a run holds the lock; non-zero on any failed check).
 reset:
-	python -c "from sb.store.db import reset_db; reset_db(); print('DB reset.')"
+	python scripts/demo_api.py $(EDGE) reset
+
+preflight:
+	python scripts/preflight.py
+
+smoke:
+	bash scripts/smoke.sh
+
+e2e:
+	SB_EDGE_URL=$(EDGE) PYTHONPATH=backend pytest backend/tests/e2e/ -v
+
+demo:
+	cd backend && python -m sb.demo.runner --base $(EDGE)
+
+demo-step:
+	cd backend && python -m sb.demo.runner --base $(EDGE) --step-mode
+
+# Only from a live run where all 7 steps passed (golden.py refuses otherwise).
+capture-golden:
+	cd backend && python -m sb.demo.golden capture
+
+restore-golden:
+	python scripts/demo_api.py $(EDGE) restore-golden
