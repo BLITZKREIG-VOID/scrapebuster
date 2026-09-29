@@ -7,15 +7,45 @@ from sb import contracts
 
 
 def export():
-    names = (
-        "Health TrafficEvent TrafficEvents SessionSummary SessionDetail SessionList "
-        "PipelineStage DecisionCounts LadderCounts CanaryCounts CaseCounts Overview "
-        "ExposureEvent Canary Publication CanaryDetail "
-        "CanariesResponse Dataset DatasetsResponse ProbeResult ProbeRun ProbeListResponse "
-        "ProbeRunResponse Finding CaseSummary Case CaseSummaries EvidenceFile EvidenceManifest "
-        "EvidenceObject CaseEvidenceResponse EvidenceCheck EvidenceVerification DemoStep "
-        "DemoStatus DemoResetCheck DemoResetResponse"
-    ).split()
+    names = [
+        "Health",
+        "TrafficEvent",
+        "TrafficEvents",
+        "SessionSummary",
+        "SessionDetail",
+        "SessionList",
+        "PipelineStage",
+        "DecisionCounts",
+        "LadderCounts",
+        "CanaryCounts",
+        "CaseCounts",
+        "Overview",
+        "ExposureEvent",
+        "Canary",
+        "Publication",
+        "CanaryDetail",
+        "CanariesResponse",
+        "Dataset",
+        "DatasetsResponse",
+        "ProbeResult",
+        "ProbeRun",
+        "ProbeListResponse",
+        "ProbeRunResponse",
+        "Finding",
+        "CaseSummary",
+        "Case",
+        "CaseSummaries",
+        "EvidenceFile",
+        "EvidenceManifest",
+        "EvidenceObject",
+        "CaseEvidenceResponse",
+        "EvidenceCheck",
+        "EvidenceVerification",
+        "DemoStep",
+        "DemoStatus",
+        "DemoResetCheck",
+        "DemoResetResponse",
+    ]
     out_dir = os.path.join(os.path.dirname(__file__), "..", "contracts", "schemas")
     os.makedirs(out_dir, exist_ok=True)
     for name in names:

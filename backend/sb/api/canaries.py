@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 
 from ..canary import registry
-from ..contracts import Canary, CanaryDetail, CanariesResponse
+from ..contracts import CanariesResponse, CanaryDetail
 
 router = APIRouter()
 

@@ -7,7 +7,7 @@ import sys
 from pydantic import ValidationError
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "backend"))
-import sb.contracts as contracts  # noqa: E402
+from sb import contracts
 
 # File stem -> canonical response model. Required entries correspond to the
 # dashboard-facing GET map in the master implementation plan; additional

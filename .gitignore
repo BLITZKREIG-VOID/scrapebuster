@@ -16,3 +16,9 @@ data/datasets/
 data/golden/
 backend/sb.db-shm
 backend/sb.db-wal
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+*.local

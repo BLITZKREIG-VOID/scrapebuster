@@ -5,8 +5,8 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from ..contracts import ProbeListResponse, ProbeRun, ProbeRunResponse
 from ..provenance import doberman, investigate
-from ..contracts import ProbeListResponse, ProbeResult, ProbeRun, ProbeRunResponse
 
 router = APIRouter()
 
