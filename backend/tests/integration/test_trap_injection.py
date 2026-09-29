@@ -115,15 +115,17 @@ async def test_case_a_trapped_flow():
         assert "Hexaquorum" in body_text
         assert HIDDEN_LINK_HTML in body_text
 
-        # Exactly one exposure row for SB-CAN-0002 with that session_id
+        # /internal/ (TRAP-ROBOTS-01) exposes all 5 canaries; the placement page adds SB-CAN-0002 again.
         with closing(db.get_connection()) as conn, conn:
             rows = conn.execute(
-                "SELECT * FROM exposures WHERE session_id = ?",
+                "SELECT canary_id, resource FROM exposures WHERE session_id = ? ORDER BY rowid",
                 (trapped_session.session_id,),
             ).fetchall()
-            assert len(rows) == 1
-            assert rows[0]["canary_id"] == "SB-CAN-0002"
-            assert rows[0]["resource"] == "/docs/architecture"
+            assert {r["canary_id"] for r in rows if r["resource"] == "/internal/"} == {
+                "SB-CAN-0001", "SB-CAN-0002", "SB-CAN-0003", "SB-CAN-0004", "SB-CAN-0005",
+            }
+            placement = [r["canary_id"] for r in rows if r["resource"] == "/docs/architecture"]
+            assert placement == ["SB-CAN-0002"]
 
 
 @pytest.mark.asyncio

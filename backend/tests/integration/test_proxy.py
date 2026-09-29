@@ -30,3 +30,17 @@ async def test_proxy_flow(origin_server):
             assert event["decision"] in ("ALLOW", "ESCALATE", "CHALLENGE")
         finally:
             conn.close()
+
+
+@pytest.mark.asyncio
+async def test_robots_txt_is_served_by_the_edge_not_the_origin():
+    """No origin fixture: /robots.txt must never be forwarded upstream."""
+    reset_db()
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get("/robots.txt")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/plain")
+    assert response.text == "User-agent: *\nDisallow: /internal/\n"
