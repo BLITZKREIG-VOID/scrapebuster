@@ -217,9 +217,13 @@ def get_publication(canary_id: str) -> dict | None:
 def _extract(obj: Any, key: str) -> Any:
     if obj is None:
         return None
-    if isinstance(obj, Mapping):
-        return obj.get(key)
-    return getattr(obj, key, None)
+    val = obj.get(key) if isinstance(obj, Mapping) else getattr(obj, key, None)
+    if val is None and hasattr(obj, "request"):
+        req = getattr(obj, "request", None)
+        if req is not None:
+            val = req.get(key) if isinstance(req, Mapping) else getattr(req, key, None)
+    return val
+
 
 
 def record_exposure(

@@ -27,64 +27,17 @@ from sb.trap.honeypots import DECOY_API_PATH, HIDDEN_LINK_HTML
 logger = logging.getLogger(__name__)
 
 
-class _DynamicPlacements(dict):
-    """Dynamic mapping from placement paths/keys to Canary models built at call time."""
-
-    def _build(self) -> dict[str, Canary]:
-        mapping: dict[str, Canary] = {}
-        for canary in registry.list_canaries():
-            for p in canary.placements or []:
-                if isinstance(p, str) and p.startswith("/"):
-                    norm = p.rstrip("/") if p != "/" else "/"
-                    mapping[norm] = canary
-                elif p == "TRAP-DECOY-01":
-                    mapping["TRAP-DECOY-01"] = canary
-        return mapping
-
-    def __getitem__(self, key: str) -> Canary:
-        return self._build()[key]
-
-    def __contains__(self, key: object) -> bool:
-        return key in self._build()
-
-    def get(self, key: str, default: Any = None) -> Any:
-        return self._build().get(key, default)
-
-    def items(self):
-        return self._build().items()
-
-    def values(self):
-        return self._build().values()
-
-    def keys(self):
-        return self._build().keys()
-
-    def __iter__(self):
-        return iter(self._build())
-
-    def __len__(self) -> int:
-        return len(self._build())
-
-    def __repr__(self) -> str:
-        return repr(self._build())
-
-
-PLACEMENTS = _DynamicPlacements()
-
-
-def _ensure_ctx_attrs(ctx: Any) -> None:
-    """Ensure ctx has method and headers accessible if present on ctx.request."""
-    if ctx is not None and hasattr(ctx, "request"):
-        if getattr(ctx, "method", None) is None:
-            try:
-                setattr(ctx, "method", getattr(ctx.request, "method", None))
-            except Exception:
-                pass
-        if getattr(ctx, "headers", None) is None:
-            try:
-                setattr(ctx, "headers", getattr(ctx.request, "headers", None))
-            except Exception:
-                pass
+def placements() -> dict[str, Canary]:
+    """Map placement paths and keys to Canary models."""
+    mapping: dict[str, Canary] = {}
+    for canary in registry.list_canaries():
+        for p in canary.placements or []:
+            if isinstance(p, str) and p.startswith("/"):
+                norm = p.rstrip("/") if p != "/" else "/"
+                mapping[norm] = canary
+            elif p == "TRAP-DECOY-01":
+                mapping["TRAP-DECOY-01"] = canary
+    return mapping
 
 
 def insert_hidden_link(html: str) -> str:
@@ -130,12 +83,7 @@ def _note_exposure(session: Any, canary_id: str) -> None:
             ).fetchone()
             if row is not None:
                 raw = row["canaries_exposed"]
-                try:
-                    exposed_list = json.loads(raw) if raw else []
-                    if not isinstance(exposed_list, list):
-                        exposed_list = []
-                except Exception:
-                    exposed_list = []
+                exposed_list = json.loads(raw) if raw else []
                 if canary_id not in exposed_list:
                     exposed_list.append(canary_id)
                     conn.execute(
@@ -171,9 +119,9 @@ def transform_response(ctx: Any, session: Any, upstream: Any) -> bytes:
     if state == "TRAPPED":
         raw_path = getattr(ctx, "path", "") or ""
         norm_path = raw_path.rstrip("/") if raw_path != "/" else "/"
-        placements = PLACEMENTS._build()
-        if norm_path in placements:
-            canary = placements[norm_path]
+        placements_map = placements()
+        if norm_path in placements_map:
+            canary = placements_map[norm_path]
             db_canary = registry.get(canary.canary_id)
             if db_canary is None:
                 logger.warning(
@@ -184,7 +132,6 @@ def transform_response(ctx: Any, session: Any, upstream: Any) -> bytes:
             else:
                 block_text = registry.injected_block_text(db_canary)
                 html_text = insert_canary(html_text, block_text)
-                _ensure_ctx_attrs(ctx)
                 registry.record_exposure(
                     canary_id=db_canary.canary_id,
                     session=session,
@@ -207,32 +154,28 @@ def handle_decoy(ctx: Any, session: Any) -> Response | None:
     if norm_path == decoy_api_norm:
         canary = registry.get("SB-CAN-0003")
         if canary is None:
-            for c in registry.list_canaries():
-                if c.canary_id == "SB-CAN-0003" or "TRAP-DECOY-01" in (c.placements or []):
-                    canary = c
-                    break
-        if canary is not None:
-            payload = decoy_api_payload(canary)
-            if getattr(session, "state", None) == "TRAPPED":
-                block_text = registry.injected_block_text(canary)
-                _ensure_ctx_attrs(ctx)
-                registry.record_exposure(
-                    canary_id=canary.canary_id,
-                    session=session,
-                    ctx=ctx,
-                    resource=raw_path,
-                    block_text=block_text,
-                )
-                _note_exposure(session, canary.canary_id)
-            return JSONResponse(content=payload)
-        return JSONResponse(
-            content={
-                "service": "nimbus-reconcile",
-                "version": "v3",
-                "status": "deprecated",
-                "notes": "",
-            }
-        )
+            logger.warning("Canary SB-CAN-0003 not found for decoy API path %s", raw_path)
+            return JSONResponse(
+                content={
+                    "service": "nimbus-reconcile",
+                    "version": "v3",
+                    "status": "deprecated",
+                },
+                status_code=503,
+            )
+
+        payload = decoy_api_payload(canary)
+        if getattr(session, "state", None) == "TRAPPED":
+            block_text = registry.injected_block_text(canary)
+            registry.record_exposure(
+                canary_id=canary.canary_id,
+                session=session,
+                ctx=ctx,
+                resource=raw_path,
+                block_text=block_text,
+            )
+            _note_exposure(session, canary.canary_id)
+        return JSONResponse(content=payload)
 
     # 2. INTERNAL_INDEX_PATHS or under /internal/
     internal_index_norms = {p.rstrip("/") for p in INTERNAL_INDEX_PATHS}
