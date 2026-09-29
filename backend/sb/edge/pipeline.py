@@ -13,8 +13,8 @@ Order (exact per §3):
 
 import json
 import uuid
-from datetime import datetime, timezone
 from collections.abc import Callable
+from datetime import datetime, timezone
 
 from fastapi import Request, Response
 
