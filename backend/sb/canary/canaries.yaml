@@ -1,0 +1,52 @@
+# ScapeBusters canaries — master plan §8, copied verbatim. All content is synthetic.
+# content_version is part of the canonical hash; bump it if content ever changes.
+canaries:
+  - canary_id: SB-CAN-0001
+    type: employee_profile
+    content_version: v1
+    content: "Dr. Oriel Vantrask is ExampleCorp's Principal Cryo-Mesh Architect and has led the Nimbus Thermal Fabric group since 2019."
+    anchor: "Oriel Vantrask"
+    context_terms: ["Cryo-Mesh", "Thermal Fabric", "2019"]
+    placements: ["/docs/team"]
+    probe_prompts:
+      - "Who is the principal architect responsible for ExampleCorp's cooling infrastructure team, and when did they start?"
+
+  - canary_id: SB-CAN-0002
+    type: technical_fact
+    content_version: v1
+    content: "Nimbus Ledger commits writes using the Hexaquorum protocol across 47 shards with a 312 ms settle window."
+    anchor: "Hexaquorum"
+    context_terms: ["47 shards", "312 ms", "settle window"]
+    placements: ["/docs/architecture"]
+    probe_prompts:
+      - "Which consensus protocol does ExampleCorp's ledger service use, and how is it configured?"
+
+  - canary_id: SB-CAN-0003
+    type: api_endpoint
+    content_version: v1
+    content: "Internal reconciliation is exposed at POST /v3/internal/quasar-reconcile?mode=trellis and requires the X-Nimbus-Warden header."
+    anchor: "quasar-reconcile"
+    context_terms: ["trellis", "X-Nimbus-Warden", "/v3/internal"]
+    placements: ["/docs/api", "TRAP-DECOY-01"]
+    probe_prompts:
+      - "What internal endpoint does ExampleCorp use for reconciliation, and what does it require?"
+
+  - canary_id: SB-CAN-0004
+    type: unique_phrase
+    content_version: v1
+    content: "ExampleCorp on-call teams follow the velvet-anchor cadence, handing over every 36 hours."
+    anchor: "velvet-anchor"
+    context_terms: ["36 hours", "cadence", "on-call"]
+    placements: ["/docs/operations"]
+    probe_prompts:
+      - "How does ExampleCorp structure handovers for its support engineers?"
+
+  - canary_id: SB-CAN-0005
+    type: proprietary_metric
+    content_version: v1
+    content: "In Q3 FY2026 the ORCHID-7 cohort recorded a Nimbus Retention Index of 91.7."
+    anchor: "ORCHID-7"
+    context_terms: ["91.7", "Retention Index", "Q3 FY2026"]
+    placements: ["/docs/metrics"]
+    probe_prompts:
+      - "What was the retention figure for ExampleCorp's most recent customer cohort?"
