@@ -2,52 +2,19 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from ..provenance import doberman, investigate
+from ..contracts import ProbeListResponse, ProbeResult, ProbeRun, ProbeRunResponse
 
 router = APIRouter()
-
-
-class ProbeResult(BaseModel):
-    result_id: str
-    canary_id: str
-    prompt: str
-    retrieved: list[dict[str, Any]]
-    response_text: str
-    response_sha256: str
-    latency_ms: int
-    ts: str
-
-
-class ProbeRun(BaseModel):
-    probe_id: str
-    target: str
-    status: str
-    dataset_id: str
-    dataset_sha256: str
-    started_at: str
-    finished_at: str | None = None
-    model: dict[str, Any]
-    results: list[ProbeResult] = []
 
 
 class ProbeRunRequest(BaseModel):
     target_dataset_id: str | None = None
     control_dataset_id: str | None = None
     canary_ids: list[str] | None = None
-
-
-class ProbeRunResponse(BaseModel):
-    probe_ids: dict[str, str]
-    case_id: str | None = None
-
-
-class ProbeListResponse(BaseModel):
-    probes: list[ProbeRun]
 
 
 @router.post("/probes/run", response_model=ProbeRunResponse)

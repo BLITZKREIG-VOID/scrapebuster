@@ -1,3 +1,4 @@
+"""Validate all representative API fixtures and enforce endpoint coverage."""
 import glob
 import json
 import os
@@ -5,73 +6,67 @@ import sys
 
 from pydantic import ValidationError
 
-# Add backend to path to import sb.contracts
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'backend'))
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", "backend"))
+import sb.contracts as contracts  # noqa: E402
 
-try:
-    import sb.contracts
-except ImportError as e:
-    print(f"Error importing contracts: {e}")
-    sys.exit(1)
-
+# File stem -> canonical response model. Required entries correspond to the
+# dashboard-facing GET map in the master implementation plan; additional
+# action responses (verification/reset/ingest/run) are also checked.
 REQUIRED_FIXTURES = {
-    "Health",
-    "TrafficEvent",
-    "TrafficEvents",
-    "SessionSummary",
-    "SessionList",
-    "SessionDetail",
-    "Overview",
+    "Health": "Health",
+    "Overview": "Overview",
+    "TrafficEvents": "TrafficEvents",
+    "SessionList": "SessionList",
+    "SessionDetail": "SessionDetail",
+    "CanariesResponse": "CanariesResponse",
+    "CanaryDetail": "CanaryDetail",
+    "DatasetsResponse": "DatasetsResponse",
+    "ProbeListResponse": "ProbeListResponse",
+    "ProbeRun": "ProbeRun",
+    "CaseSummaries": "CaseSummaries",
+    "Case": "Case",
+    "CaseEvidenceResponse": "CaseEvidenceResponse",
+    "DemoStatus": "DemoStatus",
+    "EvidenceVerification": "EvidenceVerification",
+    "ProbeRunResponse": "ProbeRunResponse",
+    "DemoResetResponse": "DemoResetResponse",
 }
 
 
 def check_contracts():
-    fixtures_dir = os.path.join(os.path.dirname(__file__), '..', 'contracts', 'fixtures')
-    json_files = glob.glob(os.path.join(fixtures_dir, '*.json'))
-
+    fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "contracts", "fixtures")
+    json_files = sorted(glob.glob(os.path.join(fixtures_dir, "*.json")))
     if not json_files:
         print("FAIL: No JSON fixtures found to validate.")
         return 1
 
     present = {os.path.splitext(os.path.basename(path))[0] for path in json_files}
-    missing = sorted(REQUIRED_FIXTURES - present)
+    missing = sorted(set(REQUIRED_FIXTURES) - present)
     if missing:
         print("FAIL: Missing required response fixtures: " + ", ".join(missing))
         return 1
 
-    has_errors = False
-
+    failed = False
     for file_path in json_files:
         basename = os.path.basename(file_path)
-        model_name = basename.replace('.json', '')
-
-        # Check if the model exists in sb.contracts
-        model_class = getattr(sb.contracts, model_name, None)
-        if not model_class:
-            print(f"FAIL: Fixture {basename} has no matching model '{model_name}' in sb.contracts.")
-            has_errors = True
+        model_name = REQUIRED_FIXTURES.get(os.path.splitext(basename)[0], os.path.splitext(basename)[0])
+        model = getattr(contracts, model_name, None)
+        if model is None:
+            print(f"FAIL: Fixture {basename} has no canonical model '{model_name}'.")
+            failed = True
             continue
-
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-        except json.JSONDecodeError as e:
-            print(f"FAIL: Fixture {basename} is not valid JSON: {e}")
-            has_errors = True
-            continue
-
-        try:
-            if isinstance(data, list):
-                for item in data:
-                    model_class(**item)
-            else:
-                model_class(**data)
-            print(f"PASS: {basename}")
-        except ValidationError as e:
-            print(f"FAIL: Fixture {basename} failed validation against {model_name}:\n{e}")
-            has_errors = True
-
-    return 1 if has_errors else 0
+            with open(file_path, encoding="utf-8") as fixture_file:
+                data = json.load(fixture_file)
+            model.model_validate(data)
+            print(f"PASS: {basename} -> {model_name}")
+        except (json.JSONDecodeError, OSError) as exc:
+            print(f"FAIL: Fixture {basename} is not valid JSON: {exc}")
+            failed = True
+        except ValidationError as exc:
+            print(f"FAIL: Fixture {basename} failed validation against {model_name}:\n{exc}")
+            failed = True
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

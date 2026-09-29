@@ -1,0 +1,18 @@
+{
+  "properties": {
+    "total": {
+      "title": "Total",
+      "type": "integer"
+    },
+    "detected": {
+      "title": "Detected",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "total",
+    "detected"
+  ],
+  "title": "CaseCounts",
+  "type": "object"
+}

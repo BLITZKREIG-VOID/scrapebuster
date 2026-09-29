@@ -1,0 +1,117 @@
+{
+  "$defs": {
+    "ProbeResult": {
+      "properties": {
+        "result_id": {
+          "title": "Result Id",
+          "type": "string"
+        },
+        "canary_id": {
+          "title": "Canary Id",
+          "type": "string"
+        },
+        "prompt": {
+          "title": "Prompt",
+          "type": "string"
+        },
+        "retrieved": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Retrieved",
+          "type": "array"
+        },
+        "response_text": {
+          "title": "Response Text",
+          "type": "string"
+        },
+        "response_sha256": {
+          "title": "Response Sha256",
+          "type": "string"
+        },
+        "latency_ms": {
+          "title": "Latency Ms",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result_id",
+        "canary_id",
+        "prompt",
+        "retrieved",
+        "response_text",
+        "response_sha256",
+        "latency_ms",
+        "ts"
+      ],
+      "title": "ProbeResult",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "probe_id": {
+      "title": "Probe Id",
+      "type": "string"
+    },
+    "target": {
+      "title": "Target",
+      "type": "string"
+    },
+    "status": {
+      "title": "Status",
+      "type": "string"
+    },
+    "dataset_id": {
+      "title": "Dataset Id",
+      "type": "string"
+    },
+    "dataset_sha256": {
+      "title": "Dataset Sha256",
+      "type": "string"
+    },
+    "started_at": {
+      "title": "Started At",
+      "type": "string"
+    },
+    "finished_at": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Finished At"
+    },
+    "model": {
+      "additionalProperties": true,
+      "title": "Model",
+      "type": "object"
+    },
+    "results": {
+      "items": {
+        "$ref": "#/$defs/ProbeResult"
+      },
+      "title": "Results",
+      "type": "array"
+    }
+  },
+  "required": [
+    "probe_id",
+    "target",
+    "status",
+    "dataset_id",
+    "dataset_sha256",
+    "started_at",
+    "model"
+  ],
+  "title": "ProbeRun",
+  "type": "object"
+}

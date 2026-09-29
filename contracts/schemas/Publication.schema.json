@@ -1,0 +1,43 @@
+{
+  "properties": {
+    "canary_id": {
+      "title": "Canary Id",
+      "type": "string"
+    },
+    "sha256": {
+      "title": "Sha256",
+      "type": "string"
+    },
+    "content_version": {
+      "title": "Content Version",
+      "type": "string"
+    },
+    "published_at": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Published At"
+    },
+    "placements": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Placements",
+      "type": "array"
+    }
+  },
+  "required": [
+    "canary_id",
+    "sha256",
+    "content_version",
+    "placements"
+  ],
+  "title": "Publication",
+  "type": "object"
+}

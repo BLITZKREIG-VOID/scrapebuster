@@ -1,0 +1,168 @@
+{
+  "$defs": {
+    "EvidenceFile": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "sha256": {
+          "title": "Sha256",
+          "type": "string"
+        },
+        "bytes": {
+          "title": "Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "sha256",
+        "bytes"
+      ],
+      "title": "EvidenceFile",
+      "type": "object"
+    },
+    "EvidenceManifest": {
+      "properties": {
+        "case_id": {
+          "title": "Case Id",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "files": {
+          "items": {
+            "$ref": "#/$defs/EvidenceFile"
+          },
+          "title": "Files",
+          "type": "array"
+        },
+        "prev_manifest_sha256": {
+          "title": "Prev Manifest Sha256",
+          "type": "string"
+        },
+        "tool_version": {
+          "title": "Tool Version",
+          "type": "string"
+        },
+        "manifest_sha256": {
+          "title": "Manifest Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "case_id",
+        "run_id",
+        "created_at",
+        "files",
+        "prev_manifest_sha256",
+        "tool_version",
+        "manifest_sha256"
+      ],
+      "title": "EvidenceManifest",
+      "type": "object"
+    },
+    "EvidenceObject": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "sha256": {
+          "title": "Sha256",
+          "type": "string"
+        },
+        "bytes": {
+          "title": "Bytes",
+          "type": "integer"
+        },
+        "local_path": {
+          "title": "Local Path",
+          "type": "string"
+        },
+        "s3_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "S3 Key"
+        },
+        "s3_version_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "S3 Version Id"
+        },
+        "retain_until": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retain Until"
+        }
+      },
+      "required": [
+        "name",
+        "sha256",
+        "bytes",
+        "local_path"
+      ],
+      "title": "EvidenceObject",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "manifest": {
+      "$ref": "#/$defs/EvidenceManifest"
+    },
+    "objects": {
+      "items": {
+        "$ref": "#/$defs/EvidenceObject"
+      },
+      "title": "Objects",
+      "type": "array"
+    },
+    "receipt": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Receipt"
+    }
+  },
+  "required": [
+    "manifest",
+    "objects"
+  ],
+  "title": "CaseEvidenceResponse",
+  "type": "object"
+}

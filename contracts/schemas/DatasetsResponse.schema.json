@@ -1,0 +1,60 @@
+{
+  "$defs": {
+    "Dataset": {
+      "properties": {
+        "dataset_id": {
+          "title": "Dataset Id",
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "target",
+            "control"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "sha256": {
+          "title": "Sha256",
+          "type": "string"
+        },
+        "records": {
+          "title": "Records",
+          "type": "integer"
+        },
+        "ingested_at": {
+          "title": "Ingested At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dataset_id",
+        "role",
+        "path",
+        "sha256",
+        "records",
+        "ingested_at"
+      ],
+      "title": "Dataset",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "datasets": {
+      "items": {
+        "$ref": "#/$defs/Dataset"
+      },
+      "title": "Datasets",
+      "type": "array"
+    }
+  },
+  "required": [
+    "datasets"
+  ],
+  "title": "DatasetsResponse",
+  "type": "object"
+}

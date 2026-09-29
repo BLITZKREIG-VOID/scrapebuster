@@ -5,37 +5,19 @@ from __future__ import annotations
 import json
 from contextlib import closing
 from pathlib import Path
-from typing import Any
-
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 
-from ..contracts import Case, CaseSummary
+from ..contracts import (Case, CaseEvidenceResponse, CaseSummaries, EvidenceObject,
+                         EvidenceVerification)
 from ..provenance import evidence, investigate
 from ..store import db
 
 router = APIRouter()
 
 
-class EvidenceObject(BaseModel):
-    name: str
-    sha256: str
-    bytes: int
-    local_path: str
-    s3_key: str | None = None
-    s3_version_id: str | None = None
-    retain_until: str | None = None
-
-
-class CaseEvidenceResponse(BaseModel):
-    manifest: dict[str, Any]
-    objects: list[EvidenceObject]
-    receipt: dict[str, Any] | None = None
-
-
-@router.get("/cases", response_model=list[CaseSummary])
-def list_cases() -> list[CaseSummary]:
-    return investigate.list_cases()
+@router.get("/cases", response_model=CaseSummaries)
+def list_cases() -> CaseSummaries:
+    return CaseSummaries(root=investigate.list_cases())
 
 
 @router.get("/cases/{case_id}", response_model=Case)
@@ -104,9 +86,9 @@ def get_case_evidence(case_id: str) -> CaseEvidenceResponse:
     )
 
 
-@router.post("/cases/{case_id}/verify")
-def verify_case(case_id: str) -> dict[str, Any]:
+@router.post("/cases/{case_id}/verify", response_model=EvidenceVerification)
+def verify_case(case_id: str) -> EvidenceVerification:
     try:
-        return evidence.verify_case(case_id)
+        return EvidenceVerification.model_validate(evidence.verify_case(case_id))
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

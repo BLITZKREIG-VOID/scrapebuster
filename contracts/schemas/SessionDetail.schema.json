@@ -1,4 +1,37 @@
 {
+  "$defs": {
+    "LayerPathEntry": {
+      "additionalProperties": true,
+      "properties": {
+        "layer": {
+          "title": "Layer",
+          "type": "string"
+        },
+        "decision": {
+          "title": "Decision",
+          "type": "string"
+        },
+        "ts": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ts"
+        }
+      },
+      "required": [
+        "layer",
+        "decision"
+      ],
+      "title": "LayerPathEntry",
+      "type": "object"
+    }
+  },
   "properties": {
     "session_id": {
       "title": "Session Id",
@@ -64,8 +97,7 @@
     },
     "layer_path": {
       "items": {
-        "additionalProperties": true,
-        "type": "object"
+        "$ref": "#/$defs/LayerPathEntry"
       },
       "title": "Layer Path",
       "type": "array"

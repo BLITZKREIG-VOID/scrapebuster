@@ -1,0 +1,10 @@
+{
+  "result": "VALID",
+  "checks": [
+    {
+      "name": "manifest_self_hash",
+      "ok": true,
+      "detail": "Hash matches."
+    }
+  ]
+}

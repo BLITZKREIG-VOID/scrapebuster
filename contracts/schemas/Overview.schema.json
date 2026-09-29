@@ -1,5 +1,169 @@
 {
   "$defs": {
+    "CanaryCounts": {
+      "properties": {
+        "active": {
+          "title": "Active",
+          "type": "integer"
+        },
+        "exposed": {
+          "title": "Exposed",
+          "type": "integer"
+        },
+        "observed": {
+          "title": "Observed",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "active",
+        "exposed",
+        "observed"
+      ],
+      "title": "CanaryCounts",
+      "type": "object"
+    },
+    "CaseCounts": {
+      "properties": {
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        },
+        "detected": {
+          "title": "Detected",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "total",
+        "detected"
+      ],
+      "title": "CaseCounts",
+      "type": "object"
+    },
+    "CaseSummary": {
+      "properties": {
+        "case_id": {
+          "title": "Case Id",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "confidence": {
+          "title": "Confidence",
+          "type": "string"
+        },
+        "primary_canary_id": {
+          "title": "Primary Canary Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "case_id",
+        "run_id",
+        "created_at",
+        "status",
+        "confidence",
+        "primary_canary_id"
+      ],
+      "title": "CaseSummary",
+      "type": "object"
+    },
+    "DecisionCounts": {
+      "additionalProperties": true,
+      "properties": {
+        "ALLOW": {
+          "default": 0,
+          "title": "Allow",
+          "type": "integer"
+        },
+        "ESCALATE": {
+          "default": 0,
+          "title": "Escalate",
+          "type": "integer"
+        },
+        "CHALLENGE": {
+          "default": 0,
+          "title": "Challenge",
+          "type": "integer"
+        },
+        "PASS": {
+          "default": 0,
+          "title": "Pass",
+          "type": "integer"
+        },
+        "RESTRICT": {
+          "default": 0,
+          "title": "Restrict",
+          "type": "integer"
+        },
+        "THROTTLE": {
+          "default": 0,
+          "title": "Throttle",
+          "type": "integer"
+        },
+        "BLOCK": {
+          "default": 0,
+          "title": "Block",
+          "type": "integer"
+        },
+        "TRAP": {
+          "default": 0,
+          "title": "Trap",
+          "type": "integer"
+        }
+      },
+      "title": "DecisionCounts",
+      "type": "object"
+    },
+    "LadderCounts": {
+      "properties": {
+        "safe": {
+          "title": "Safe",
+          "type": "integer"
+        },
+        "suspicious": {
+          "title": "Suspicious",
+          "type": "integer"
+        },
+        "challenge_restrict": {
+          "title": "Challenge Restrict",
+          "type": "integer"
+        },
+        "block": {
+          "title": "Block",
+          "type": "integer"
+        },
+        "trap": {
+          "title": "Trap",
+          "type": "integer"
+        },
+        "provenance": {
+          "title": "Provenance",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "safe",
+        "suspicious",
+        "challenge_restrict",
+        "block",
+        "trap",
+        "provenance"
+      ],
+      "title": "LadderCounts",
+      "type": "object"
+    },
     "PipelineStage": {
       "properties": {
         "stage": {
@@ -32,25 +196,10 @@
       "type": "string"
     },
     "counts": {
-      "additionalProperties": {
-        "type": "integer"
-      },
-      "title": "Counts",
-      "type": "object"
+      "$ref": "#/$defs/DecisionCounts"
     },
     "ladder": {
-      "additionalProperties": {
-        "anyOf": [
-          {
-            "type": "integer"
-          },
-          {
-            "type": "null"
-          }
-        ]
-      },
-      "title": "Ladder",
-      "type": "object"
+      "$ref": "#/$defs/LadderCounts"
     },
     "sessions_by_class": {
       "additionalProperties": {
@@ -60,32 +209,10 @@
       "type": "object"
     },
     "canaries": {
-      "additionalProperties": {
-        "anyOf": [
-          {
-            "type": "integer"
-          },
-          {
-            "type": "null"
-          }
-        ]
-      },
-      "title": "Canaries",
-      "type": "object"
+      "$ref": "#/$defs/CanaryCounts"
     },
     "cases": {
-      "additionalProperties": {
-        "anyOf": [
-          {
-            "type": "integer"
-          },
-          {
-            "type": "null"
-          }
-        ]
-      },
-      "title": "Cases",
-      "type": "object"
+      "$ref": "#/$defs/CaseCounts"
     },
     "pipeline": {
       "items": {
@@ -97,15 +224,13 @@
     "latest_case": {
       "anyOf": [
         {
-          "additionalProperties": true,
-          "type": "object"
+          "$ref": "#/$defs/CaseSummary"
         },
         {
           "type": "null"
         }
       ],
-      "default": null,
-      "title": "Latest Case"
+      "default": null
     }
   },
   "required": [

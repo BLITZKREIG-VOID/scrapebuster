@@ -1,5 +1,5 @@
 {
-  "run_id": "RUN-20260930-100000",
+  "run_id": "RUN-DEMO-001",
   "counts": {
     "ALLOW": 1,
     "ESCALATE": 0,
@@ -16,15 +16,33 @@
     "challenge_restrict": 0,
     "block": 0,
     "trap": 0,
-    "provenance": null
+    "provenance": 0
   },
-  "sessions_by_class": {"HUMAN_LIKELY": 1},
-  "canaries": {"active": null, "exposed": null, "observed": null},
-  "cases": {"total": null, "detected": null},
+  "sessions_by_class": {
+    "HUMAN_LIKELY": 1
+  },
+  "canaries": {
+    "active": 1,
+    "exposed": 0,
+    "observed": 0
+  },
+  "cases": {
+    "total": 0,
+    "detected": 0
+  },
   "pipeline": [
-    {"stage": "edge", "status": "ok"},
-    {"stage": "trap", "status": "unknown"},
-    {"stage": "provenance", "status": "unknown"}
+    {
+      "stage": "edge",
+      "status": "ok"
+    },
+    {
+      "stage": "trap",
+      "status": "unknown"
+    },
+    {
+      "stage": "provenance",
+      "status": "unknown"
+    }
   ],
   "latest_case": null
 }

@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "run_id": "RUN-DEMO-001",
+  "checks": [
+    {
+      "name": "database",
+      "ok": true,
+      "detail": "Reset complete."
+    }
+  ]
+}

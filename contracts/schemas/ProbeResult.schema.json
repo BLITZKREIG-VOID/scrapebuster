@@ -1,0 +1,52 @@
+{
+  "properties": {
+    "result_id": {
+      "title": "Result Id",
+      "type": "string"
+    },
+    "canary_id": {
+      "title": "Canary Id",
+      "type": "string"
+    },
+    "prompt": {
+      "title": "Prompt",
+      "type": "string"
+    },
+    "retrieved": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Retrieved",
+      "type": "array"
+    },
+    "response_text": {
+      "title": "Response Text",
+      "type": "string"
+    },
+    "response_sha256": {
+      "title": "Response Sha256",
+      "type": "string"
+    },
+    "latency_ms": {
+      "title": "Latency Ms",
+      "type": "integer"
+    },
+    "ts": {
+      "title": "Ts",
+      "type": "string"
+    }
+  },
+  "required": [
+    "result_id",
+    "canary_id",
+    "prompt",
+    "retrieved",
+    "response_text",
+    "response_sha256",
+    "latency_ms",
+    "ts"
+  ],
+  "title": "ProbeResult",
+  "type": "object"
+}
