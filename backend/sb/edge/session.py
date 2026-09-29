@@ -37,7 +37,7 @@ class Session:
             if until.tzinfo is None:
                 until = until.replace(tzinfo=timezone.utc)
             return datetime.now(timezone.utc) >= until
-        except ValueError:
+        except (TypeError, ValueError):
             return True
         
     def mark_trapped(self, trap: Any):

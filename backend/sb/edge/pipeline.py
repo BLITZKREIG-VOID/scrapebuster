@@ -4,7 +4,7 @@ Edge pipeline — §3 request decision flow.
 Order (exact per §3):
   1. blocked-session check
   2. Layer 1
-  3. THROTTLE / BLOCK short-circuit
+  3. THROTTLE / BLOCK / CHALLENGE short-circuit
   4. TrapHooks classify (L3)
   5. RESTRICTED session check
   6. clearance validation → L2 interstitial if not cleared
@@ -88,6 +88,23 @@ def clearance_valid(ctx: RequestContext, session: Session) -> bool:
     return False
 
 
+def _challenge_response(
+    ctx: RequestContext,
+    session: Session,
+    record_decision: Callable[[Session, str, str], None],
+    reasons: list[str],
+) -> Response:
+    """Serve an L2 challenge and keep challenged traffic off the origin path."""
+    from .layer2 import generate_interstitial
+
+    session.state = "CHALLENGED"
+    log_event(ctx, session, "L1", "CHALLENGE", 200, reasons)
+    record_decision(session, "L1", "CHALLENGE")
+    log_event(ctx, session, "L2", "CHALLENGE", 200, [], risk_score=0)
+    record_decision(session, "L2", "CHALLENGE")
+    return generate_interstitial(session)
+
+
 async def handle(request: Request) -> Response:
     ctx = build_context(request)
     session = sessions.get_or_create(ctx)
@@ -114,6 +131,11 @@ async def _handle_request(
         session.state = "NEW"
         session.block_until = ""
 
+    # A challenged session can proceed only after presenting valid clearance.
+    # Otherwise, keep it on the challenge response path instead of proxying.
+    if session.state == "CHALLENGED" and not clearance_valid(ctx, session):
+        return _challenge_response(ctx, session, record_decision, session.l1_reasons)
+
     # ── 2. Layer 1 ───────────────────────────────────────────────────────────
     l1: L1Result = l1_run(ctx, session)
     session.l1_score = l1.score
@@ -138,6 +160,9 @@ async def _handle_request(
             status_code=429,
             headers={"Retry-After": "10"},
         )
+
+    if l1.decision == "CHALLENGE":
+        return _challenge_response(ctx, session, record_decision, l1.reasons)
 
     # ── 3. TrapHooks classify (L3) — must come before RESTRICTED check ───────
     trap = trap_hooks.classify_request(ctx, session)
