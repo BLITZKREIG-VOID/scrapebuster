@@ -15,7 +15,7 @@ EXEMPT = ["/health", "/favicon.ico"]
 def is_exempt(ctx: RequestContext) -> bool:
     return ctx.path in EXEMPT or ctx.path.startswith("/api/") or ctx.path.startswith("/_sb/") or ctx.path.startswith("/static/")
 
-def log_event(ctx: RequestContext, session: Session, layer: str, decision: str, status_code: int, reasons: list = None):
+def log_event(ctx: RequestContext, session: Session, layer: str, decision: str, status_code: int, reasons: list | None = None):
     if reasons is None:
         reasons = []
         
