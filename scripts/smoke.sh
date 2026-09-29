@@ -17,9 +17,9 @@ report() {  # report <name> <ok:0|1> <detail>
   if [ "$2" -eq 0 ]; then echo "PASS  $1"; else echo "FAIL  $1 — $3"; fails=$((fails + 1)); fi
 }
 
-# 1. backend /health
-code=$(curl -s -o "$LOG" -w "%{http_code}" --max-time 10 "$EDGE/health")
-[ "$code" = "200" ]; report "backend $EDGE/health -> 200" $? "HTTP ${code:-000} $(head -c 200 "$LOG")"
+# 1. backend health (INT-05 Control API)
+code=$(curl -s -o "$LOG" -w "%{http_code}" --max-time 10 "$EDGE/api/v1/health")
+[ "$code" = "200" ]; report "backend $EDGE/api/v1/health -> 200" $? "HTTP ${code:-000} $(head -c 200 "$LOG")"
 
 # 2. one page through the edge -> 200 with interstitial or origin content
 code=$(curl -s -o "$LOG" -w "%{http_code}" --max-time 10 \

@@ -43,6 +43,7 @@ def load_env() -> dict[str, str]:
 
 ENV = load_env()
 EDGE = ENV.get("SB_EDGE_URL", "http://127.0.0.1:8000")
+HEALTH = "/api/v1/health"  # INT-05 Control API
 ORIGIN = ENV.get("SB_ORIGIN_URL", "http://127.0.0.1:8001")
 OLLAMA = ENV.get("SB_OLLAMA_URL", "http://127.0.0.1:11434")
 MODEL = ENV.get("SB_LLM_MODEL", "qwen2.5:3b")
@@ -98,18 +99,23 @@ def check_ports() -> None:
 
 
 def check_backend_health() -> None:
+    url = EDGE + HEALTH
     try:
-        code, body = http("GET", EDGE + "/health")
+        code, body = http("GET", url)
     except OSError as exc:
-        add("FAIL", "backend /health", f"{EDGE}/health unreachable: {exc}")
+        add("FAIL", "backend health", f"{url} unreachable: {exc}")
         return
     if code != 200:
-        add("FAIL", "backend /health", f"HTTP {code}")
+        add("FAIL", "backend health", f"{url} HTTP {code}")
         return
     health = json.loads(body)
-    comps = health.get("components", {})
-    add("PASS" if health.get("status") == "ok" else "WARN", "backend /health",
-        f"status={health.get('status')} run_id={health.get('run_id')}")
+    add("PASS" if health.get("status") == "ok" else "WARN", "backend health",
+        f"{url} status={health.get('status')}")
+    comps = health.get("components")
+    if not isinstance(comps, dict):
+        # INT-05 Health is {status} only; origin/db/ollama are checked directly below.
+        add("WARN", "health components", "not reported by backend (plan §16 db/origin/llm/s3)")
+        return
     for comp, good, warn in (("db", {"ok"}, set()), ("origin", {"ok"}, set()),
                              ("llm", {"ok"}, {"fallback"}), ("s3", {"ok"}, {"disabled"})):
         value = comps.get(comp)
