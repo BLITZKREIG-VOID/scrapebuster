@@ -15,7 +15,7 @@ class RequestContext:
         self.client_key = hashlib.sha256(raw_key).hexdigest()[:16]
         
         # header_fp = hash of lowercased header-name order
-        headers_order = ",".join(k.lower() for k in request.headers.keys())
+        headers_order = ",".join(k.lower() for k in request.headers)
         self.header_fp = hashlib.sha256(headers_order.encode('utf-8')).hexdigest()[:16]
         
         self.is_document = not (

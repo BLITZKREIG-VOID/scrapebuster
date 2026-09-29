@@ -23,3 +23,15 @@ check:
 	pytest backend/tests/contract/
 	python scripts/check_ownership.py
 	cd dashboard && npm run typecheck && npm run build
+
+test-unit:
+	PYTHONPATH=backend pytest backend/tests/unit/ -v
+
+test-contract:
+	PYTHONPATH=backend pytest backend/tests/contract/ -v
+
+test-integration:
+	PYTHONPATH=backend pytest backend/tests/integration/ -v
+
+reset:
+	python -c "from sb.store.db import reset_db; reset_db(); print('DB reset.')"

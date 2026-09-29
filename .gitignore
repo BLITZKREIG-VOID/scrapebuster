@@ -3,3 +3,11 @@ node_modules/
 output/
 *.log
 dist/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.db
+.pytest_cache/
+.ruff_cache/
