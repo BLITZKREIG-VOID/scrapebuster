@@ -3,13 +3,15 @@
 Cross-owner dependencies are resolved lazily through :func:`require` so a missing
 subsystem surfaces as a named failure (never a silent skip):
 
-* ``sb.store.db.reset_db``      — INT-03 (Anirudh)
-* ``sb.hooks.RESET_HOOKS``      — INT-04 (Anirudh): ``dict[str, Callable[[], None]]``
-  with the entries ``edge`` (INT-06), ``trap`` (TRP-02) and ``provenance`` (PRV-01)
-* ``sb.canary.seed.seed_canaries`` — CAN-01 (Hardik)
+* ``sb.store.db.reset_db`` / ``DB_PATH``   — INT-03 (Anirudh)
+* ``sb.edge.session.sessions.reset``       — INT-04 (Anirudh): in-memory edge sessions
+* ``sb.hooks.trap_hooks.reset`` and the ``sb.hooks.register_reset_hook`` registry
+  (``run_reset_hooks``) — INT-04 (Anirudh); trap (TRP-01/02) and provenance (PRV-01) by Hardik
+* ``sb.canary.seed.seed_canaries``         — CAN-01 (Hardik)
 
-``demo_state`` (§15) is read/written through a separate stdlib sqlite3 connection
-(the store runs SQLite in WAL mode, so a second connection is safe).
+``demo_state`` (§15) is read/written through a separate stdlib sqlite3 connection on the
+store's own ``DB_PATH`` (WAL mode, so a second connection is safe). String values are
+stored raw (``/api/v1/overview`` reads ``run_id`` directly); structured values as JSON.
 """
 import importlib
 import json
@@ -56,9 +58,13 @@ def require(module: str, attr: str, owner: str):
 
 
 def db_path() -> Path:
-    raw = os.environ.get("SB_DB_PATH", "backend/sb.db")
-    path = Path(raw)
-    return path if path.is_absolute() else REPO / path
+    """The store's own DB path (INT-03); ``SB_DB_PATH`` only when the store is absent."""
+    try:
+        from sb.store.db import DB_PATH
+    except ImportError:
+        DB_PATH = os.environ.get("SB_DB_PATH", "backend/sb.db")
+    path = Path(DB_PATH)
+    return (path if path.is_absolute() else REPO / path).resolve()
 
 
 @contextmanager
@@ -76,7 +82,10 @@ def connect() -> Iterator[sqlite3.Connection]:
 def get_state(key: str, default=None):
     with connect() as conn:
         row = conn.execute("SELECT value FROM demo_state WHERE key=?", (key,)).fetchone()
-    return default if row is None else json.loads(row["value"])
+    if row is None:
+        return default
+    value = row["value"]
+    return json.loads(value) if value[:1] in ("{", "[") else value
 
 
 def set_state(key: str, value) -> None:
@@ -84,7 +93,7 @@ def set_state(key: str, value) -> None:
         conn.execute(
             "INSERT INTO demo_state(key, value) VALUES(?, ?) "
             "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-            (key, json.dumps(value)),
+            (key, value if isinstance(value, str) else json.dumps(value)),
         )
 
 

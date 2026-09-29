@@ -22,12 +22,8 @@ from sb.demo import (
 )
 from sb.demo.runner import fresh_status
 
-# §21 step 3–4: reset hooks that must be registered in sb.hooks.RESET_HOOKS.
-REQUIRED_HOOKS = {
-    "edge": "INT-06 Anirudh: EdgeState.reset",
-    "trap": "TRP-02 Hardik: trap_hooks.reset",
-    "provenance": "PRV-01 Hardik: provenance.reset",
-}
+# §21 step 4: provenance must register its reset through sb.hooks.register_reset_hook.
+PROVENANCE_OWNER = "PRV-01 Hardik"
 # §21 step 8: tables that must be empty after reset (§15 schema).
 ZERO_TABLES = (
     "traffic_events", "sessions", "trap_hits", "exposures", "datasets",
@@ -56,29 +52,18 @@ def _reset() -> dict:
         except Exception as exc:  # every failure is reported by name, never skipped
             checks.append({"name": name, "ok": False, "detail": f"{exc.__class__.__name__}: {exc}"})
 
-    def fail(name: str, detail: str) -> None:
-        checks.append({"name": name, "ok": False, "detail": detail})
-
     previous_run = get_state("run_id")
 
     # 2. drop / recreate all tables
     run("store.reset_db", lambda: require("sb.store.db", "reset_db", "INT-03 Anirudh")())
 
-    # 3–4. edge, trap and provenance in-memory state via the reset-hook registry
-    try:
-        hooks = require("sb.hooks", "RESET_HOOKS", "INT-04 Anirudh")
-    except MissingDependency as exc:
-        for name in REQUIRED_HOOKS:
-            fail(f"reset_hook.{name}", str(exc))
-    else:
-        for name, owner in REQUIRED_HOOKS.items():
-            hook = hooks.get(name)
-            if hook is None:
-                fail(f"reset_hook.{name}", f"not registered in sb.hooks.RESET_HOOKS ({owner})")
-            else:
-                run(f"reset_hook.{name}", hook)
-        for name in sorted(set(hooks) - set(REQUIRED_HOOKS)):
-            run(f"reset_hook.{name}", hooks[name])
+    # 3. edge in-memory sessions (INT-04)
+    run("reset_hook.edge", lambda: require("sb.edge.session", "sessions", "INT-04 Anirudh").reset())
+
+    # 4. trap hooks + every hook registered via sb.hooks.register_reset_hook (provenance, ...)
+    run("reset_hook.trap", _reset_trap)
+    run("reset_hook.registry", lambda: require("sb.hooks", "run_reset_hooks", "INT-04 Anirudh")())
+    run("reset_hook.provenance", _check_provenance_registered)
 
     # 5. runtime datasets only; evidence/ is never touched
     run("datasets.cleared", _clear_datasets)
@@ -110,6 +95,25 @@ def _clear_datasets() -> str:
             shutil.rmtree(path) if path.is_dir() else path.unlink()
             removed += 1
     return f"{removed} removed"
+
+
+def _reset_trap() -> str:
+    trap_hooks = require("sb.hooks", "trap_hooks", "INT-04 Anirudh")
+    if type(trap_hooks).__name__ == "NoOpTrapHooks":
+        raise MissingDependency("sb.hooks.trap_hooks is still NoOpTrapHooks (TRP-01/TRP-02 Hardik)")
+    trap_hooks.reset()
+    return type(trap_hooks).__name__
+
+
+def _check_provenance_registered() -> str:
+    registry = require("sb.hooks", "_reset_hooks", "INT-04 Anirudh")
+    owners = sorted({getattr(hook, "__module__", "") or "" for hook in registry})
+    if not any(owner.startswith("sb.provenance") for owner in owners):
+        raise MissingDependency(
+            f"no sb.provenance reset hook registered via sb.hooks.register_reset_hook "
+            f"({PROVENANCE_OWNER}); registered: {owners or 'none'}"
+        )
+    return ", ".join(owners)
 
 
 def _new_run_id(previous: str | None) -> str:
