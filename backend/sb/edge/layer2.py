@@ -18,6 +18,7 @@ Challenge formula: sha256(challenge_id + ":" + nonce)
 import base64
 import hashlib
 import hmac
+import math
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -55,6 +56,18 @@ _BAND_RESTRICT = 70     # >= 70 → RESTRICT  (40–69 → TRAP)
 
 # Cookie name
 _COOKIE_NAME = "sb_clear"
+_REQUIRED_SIGNALS = frozenset({
+    "webdriver",
+    "headlessChrome",
+    "navigatorUA",
+    "outerWidth",
+    "outerHeight",
+    "softwareGL",
+    "languages",
+    "mousemove",
+    "scroll",
+    "keydown",
+})
 
 
 # ---------------------------------------------------------------------------
@@ -69,6 +82,7 @@ SIGNAL_WEIGHTS: dict[str, int] = {
     "L2_NO_LANGUAGES":   10,
     "L2_NO_INTERACTION": 20,
     "L2_FAST_SUBMIT":    10,
+    "L2_SIGNAL_INVALID": 15,
 }
 
 
@@ -81,46 +95,78 @@ def score_signals(signals: dict, request_ua: str, elapsed_ms: float) -> tuple[in
         webdriver, headlessChrome, uaMismatch, outerWidth, outerHeight,
         softwareGL, languages, mousemove, scroll, keydown, elapsed_ms
     """
+    if not isinstance(signals, dict):
+        return 100, ["L2_SIGNAL_INVALID"]
+
     score = 0
     reasons: list[str] = []
+    invalid_signal = False
 
-    if signals.get("webdriver"):
+    if isinstance(elapsed_ms, bool) or not isinstance(elapsed_ms, (int, float)) or not math.isfinite(elapsed_ms):
+        elapsed_ms = 0
+        invalid_signal = True
+
+    def boolean_signal(name: str) -> bool:
+        nonlocal invalid_signal
+        value = signals.get(name, False)
+        if isinstance(value, bool):
+            return value
+        invalid_signal = True
+        return False
+
+    def numeric_signal(name: str, default: float) -> float:
+        nonlocal invalid_signal
+        value = signals.get(name, default)
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            invalid_signal = True
+            return default
+        value = float(value)
+        if not math.isfinite(value):
+            invalid_signal = True
+            return default
+        return value
+
+    if boolean_signal("webdriver"):
         score += SIGNAL_WEIGHTS["L2_WEBDRIVER"]
         reasons.append("L2_WEBDRIVER")
 
-    if signals.get("headlessChrome"):
+    if boolean_signal("headlessChrome"):
         score += SIGNAL_WEIGHTS["L2_HEADLESS_UA"]
         reasons.append("L2_HEADLESS_UA")
 
     # UA mismatch: JS navigator.userAgent ≠ request UA header
-    js_ua = signals.get("navigatorUA", "")
-    if js_ua and request_ua and js_ua.strip() != request_ua.strip():
+    js_ua = signals.get("navigatorUA")
+    if js_ua is not None and not isinstance(js_ua, str):
+        invalid_signal = True
+        js_ua = ""
+    if isinstance(js_ua, str) and request_ua and js_ua.strip() != request_ua.strip():
         score += SIGNAL_WEIGHTS["L2_UA_MISMATCH"]
         reasons.append("L2_UA_MISMATCH")
 
     # Zero outer viewport
-    outer_w = signals.get("outerWidth", 1)
-    outer_h = signals.get("outerHeight", 1)
-    if outer_w == 0 or outer_h == 0:
+    outer_w = numeric_signal("outerWidth", 1)
+    outer_h = numeric_signal("outerHeight", 1)
+    if outer_w <= 0 or outer_h <= 0:
         score += SIGNAL_WEIGHTS["L2_ZERO_VIEWPORT"]
         reasons.append("L2_ZERO_VIEWPORT")
 
-    if signals.get("softwareGL"):
+    if boolean_signal("softwareGL"):
         score += SIGNAL_WEIGHTS["L2_SOFTWARE_GL"]
         reasons.append("L2_SOFTWARE_GL")
 
     # navigator.languages empty
-    langs = signals.get("languages", None)
-    if langs is not None and (not langs or langs == [] or langs == ""):
-        score += SIGNAL_WEIGHTS["L2_NO_LANGUAGES"]
-        reasons.append("L2_NO_LANGUAGES")
+    langs = signals.get("languages")
+    if langs is not None:
+        if not isinstance(langs, list) or any(not isinstance(lang, str) for lang in langs):
+            invalid_signal = True
+            langs = []
+        if not any(lang.strip() for lang in langs):
+            score += SIGNAL_WEIGHTS["L2_NO_LANGUAGES"]
+            reasons.append("L2_NO_LANGUAGES")
 
     # Zero interaction events in observation window
-    no_interaction = (
-        signals.get("mousemove", 0) == 0
-        and signals.get("scroll", 0) == 0
-        and signals.get("keydown", 0) == 0
-    )
+    interactions = [numeric_signal(name, 0) for name in ("mousemove", "scroll", "keydown")]
+    no_interaction = all(count <= 0 for count in interactions)
     if no_interaction:
         score += SIGNAL_WEIGHTS["L2_NO_INTERACTION"]
         reasons.append("L2_NO_INTERACTION")
@@ -130,7 +176,11 @@ def score_signals(signals: dict, request_ua: str, elapsed_ms: float) -> tuple[in
         score += SIGNAL_WEIGHTS["L2_FAST_SUBMIT"]
         reasons.append("L2_FAST_SUBMIT")
 
-    return score, reasons
+    if invalid_signal:
+        score += SIGNAL_WEIGHTS["L2_SIGNAL_INVALID"]
+        reasons.append("L2_SIGNAL_INVALID")
+
+    return min(score, 100), reasons
 
 
 # ---------------------------------------------------------------------------
@@ -173,7 +223,7 @@ def validate_clearance(cookie_value: str, client_key: str) -> bool:
     - Not expired
     - Bound to this client_key
     """
-    if not cookie_value:
+    if not isinstance(cookie_value, str) or not cookie_value:
         return False
     try:
         encoded, sig = cookie_value.rsplit(".", 1)
@@ -189,13 +239,16 @@ def validate_clearance(cookie_value: str, client_key: str) -> bool:
     try:
         raw = base64.urlsafe_b64decode(encoded.encode()).decode()
         ck, exp_str, _ = raw.split("|", 2)
-    except (ValueError, TypeError, binascii.Error):
+    except (ValueError, TypeError, UnicodeDecodeError, binascii.Error):
         return False
 
     if ck != client_key:
         return False
 
-    return int(time.time()) <= int(exp_str)
+    try:
+        return time.time() < int(exp_str)
+    except (TypeError, ValueError):
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -228,7 +281,7 @@ class Challenge:
         return self.issued_at + L2_CHALLENGE_TTL_SECS
 
     def is_expired(self) -> bool:
-        return time.time() > self.expiry
+        return time.time() >= self.expiry
 
     def is_valid_for(self, session: Session) -> bool:
         return (
@@ -247,15 +300,16 @@ class ChallengeStore:
 
     def create(self, session: Session) -> Challenge:
         cid = f"ch-{uuid.uuid4().hex}"
+        now = time.time()
         c = Challenge(
             challenge_id=cid,
             session_id=session.session_id,
             client_key=session.client_key,
+            issued_at=now,
         )
         self._challenges[cid] = c
 
         # Track interstitial count for L2_NO_JS
-        now = time.time()
         cutoff = now - L2_NO_JS_WINDOW_SECS
         times = self._interstitial_times.setdefault(session.client_key, [])
         times[:] = [t for t in times if t > cutoff]
@@ -384,33 +438,42 @@ def verify_submission(
     signals: dict,
     session: Session,
     request_ua: str,
-    elapsed_ms: float,
+    elapsed_ms: float | None = None,
 ) -> L2Result:
     """
     Full L2 verification flow.  Returns L2Result with band decision.
     Marks the challenge used to prevent replay.
     """
+    def restricted(reason: str) -> L2Result:
+        return L2Result(band="RESTRICT", score=100, reasons=[reason])
+
+    if not isinstance(challenge_id, str):
+        return restricted("L2_CHALLENGE_UNKNOWN")
     challenge = store.get(challenge_id)
 
     # Validate challenge existence, ownership, TTL, replay
     if not challenge:
-        return L2Result(band="RESTRICT", score=100, reasons=["L2_POW_INVALID"],
-                        clearance_cookie="")
-    if not challenge.is_valid_for(session):
-        # Already used or wrong session/client_key or expired
-        return L2Result(band="RESTRICT", score=100, reasons=["L2_POW_INVALID"],
-                        clearance_cookie="")
+        return restricted("L2_CHALLENGE_UNKNOWN")
+    if challenge.session_id != session.session_id or challenge.client_key != session.client_key:
+        return restricted("L2_CHALLENGE_SESSION_MISMATCH")
+    if challenge.is_expired():
+        return restricted("L2_CHALLENGE_EXPIRED")
+    if challenge.used:
+        return restricted("L2_CHALLENGE_REPLAY")
 
     # Mark used before PoW check (single-attempt per challenge)
     challenge.used = True
 
     # Verify PoW: sha256(challenge_id + ":" + nonce), 14 zero bits
-    if not _pow_valid(challenge.challenge_id, nonce):
-        return L2Result(band="RESTRICT", score=100, reasons=["L2_POW_INVALID"],
-                        clearance_cookie="")
+    if not isinstance(nonce, str) or not _pow_valid(challenge.challenge_id, nonce):
+        return restricted("L2_POW_INVALID")
+
+    if not isinstance(signals, dict) or not _REQUIRED_SIGNALS <= signals.keys():
+        return restricted("L2_SIGNAL_INVALID")
 
     # Score signals
-    score, reasons = score_signals(signals, request_ua, elapsed_ms)
+    server_elapsed_ms = max(0.0, (time.time() - challenge.issued_at) * 1000)
+    score, reasons = score_signals(signals, request_ua, server_elapsed_ms)
 
     # Apply bands
     if score >= _BAND_RESTRICT:

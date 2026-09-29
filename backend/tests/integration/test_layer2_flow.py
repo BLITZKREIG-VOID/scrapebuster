@@ -54,11 +54,16 @@ async def test_layer2_flow_challenge_solve_and_pass(origin_server):
             "challenge_id": cid,
             "nonce": solution,
             "signals": {
+                "webdriver": False,
+                "headlessChrome": False,
                 "navigatorUA": "Mozilla/5.0 EscalateBot/1.0",
-                "mousemove": 10,
-                "keydown": 2,
                 "outerWidth": 1024,
-                "outerHeight": 768
+                "outerHeight": 768,
+                "softwareGL": False,
+                "languages": ["en-US"],
+                "mousemove": 10,
+                "scroll": 0,
+                "keydown": 2,
             }
         }
         resp2 = await app_client.post("/_sb/verify", json=verify_payload, headers=headers)
@@ -106,3 +111,92 @@ async def test_layer2_flow_invalid_solution(origin_server):
         resp3 = await app_client.get("/target-path2", headers=headers)
         assert resp3.status_code == 403
         assert "Access Restricted" in resp3.text
+
+
+@pytest.mark.asyncio
+async def test_headless_behavior_restricts_before_origin(origin_server):
+    reset_db()
+    sessions.reset()
+    reset_rate_state()
+    transport = httpx.ASGITransport(app=app)
+    headers = {
+        "host": "testserver",
+        "user-agent": "Mozilla/5.0 HeadlessChrome/133.0",
+        "accept": "text/html",
+        "accept-language": "en-US,en;q=0.9",
+        "accept-encoding": "gzip, deflate",
+    }
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as app_client:
+        challenged = await app_client.get("/headless-profile", headers=headers)
+        assert challenged.status_code == 200
+        challenge_match = re.search(r'SB_CHALLENGE_ID = "(ch-[^"]+)"', challenged.text)
+        assert challenge_match
+        challenge_id = challenge_match.group(1)
+
+        verified = await app_client.post(
+            "/_sb/verify",
+            headers=headers,
+            json={
+                "challenge_id": challenge_id,
+                "nonce": _solve_pow(challenge_id),
+                "signals": {
+                    "webdriver": True,
+                    "headlessChrome": True,
+                    "navigatorUA": headers["user-agent"],
+                    "outerWidth": 1280,
+                    "outerHeight": 720,
+                    "softwareGL": False,
+                    "languages": ["en-US"],
+                    "mousemove": 0,
+                    "scroll": 0,
+                    "keydown": 0,
+                    "elapsed_ms": 2000,
+                },
+            },
+        )
+        assert verified.status_code == 403
+        assert verified.json() == {"status": "failed"}
+
+        denied = await app_client.get("/headless-profile", headers=headers)
+        assert denied.status_code == 403
+        assert "Access Restricted" in denied.text
+        assert "Origin headless-profile" not in denied.text
+
+
+@pytest.mark.asyncio
+async def test_verify_rejects_non_object_payload_without_server_error(origin_server):
+    reset_db()
+    sessions.reset()
+    reset_rate_state()
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as app_client:
+        response = await app_client.post("/_sb/verify", json=["not", "an", "object"])
+
+    assert response.status_code == 403
+    assert response.json() == {"status": "failed"}
+
+
+@pytest.mark.asyncio
+async def test_legacy_verify_alias_cannot_skip_behavioral_scoring(origin_server):
+    reset_db()
+    sessions.reset()
+    reset_rate_state()
+    transport = httpx.ASGITransport(app=app)
+    headers = {
+        "host": "testserver",
+        "user-agent": "Mozilla/5.0 AliasCheck/1.0",
+        "accept": "text/html",
+        "accept-language": "en-US,en;q=0.9",
+        "accept-encoding": "gzip, deflate",
+    }
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as app_client:
+        challenged = await app_client.get("/legacy-challenge-check", headers=headers)
+        challenge_id = re.search(r'SB_CHALLENGE_ID = "(ch-[^"]+)"', challenged.text).group(1)
+        response = await app_client.post(
+            "/_sb/challenge/verify",
+            headers=headers,
+            json={"challenge_id": challenge_id, "solution": _solve_pow(challenge_id)},
+        )
+
+    assert response.status_code == 403
+    assert response.json() == {"status": "failed"}

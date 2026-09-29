@@ -100,7 +100,7 @@ def test_expired_block_resumes_layer1_evaluation(monkeypatch, quiet_pipeline):
     response = asyncio.run(pipeline._handle_request(_ctx(), session, quiet_pipeline))
 
     assert response.status_code == 200
-    assert session.state == "ESCALATED"
+    assert session.state == "CHALLENGED"
     assert session.block_until == ""
     pipeline.l1_run.assert_called_once()
     pipeline.proxy.assert_not_awaited()
@@ -118,4 +118,17 @@ def test_l1_challenge_decision_never_calls_proxy(monkeypatch, quiet_pipeline):
 
     assert response.status_code == 200
     assert session.state == "CHALLENGED"
+    pipeline.proxy.assert_not_awaited()
+
+
+def test_restricted_session_is_enforced_before_layer1_and_proxy(monkeypatch, quiet_pipeline):
+    session = _session("RESTRICTED")
+    session.l2_signals = ["L2_WEBDRIVER", "L2_HEADLESS_UA"]
+    monkeypatch.setattr(pipeline, "l1_run", MagicMock())
+
+    response = asyncio.run(pipeline._handle_request(_ctx(), session, quiet_pipeline))
+
+    assert response.status_code == 403
+    assert b"Access Restricted" in response.body
+    pipeline.l1_run.assert_not_called()
     pipeline.proxy.assert_not_awaited()

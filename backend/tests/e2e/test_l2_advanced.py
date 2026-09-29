@@ -28,12 +28,16 @@ def test_advanced_scraper_is_challenged_then_restricted(api, reset, attack, wait
     ua = out["user_agent"]
     assert "HeadlessChrome" in ua, "scraper 2 must run default headless Chromium"
 
-    session = wait_for(
-        lambda: next((s for s in api.sessions()
-                      if s.get("user_agent") == ua and s.get("classification") == "AUTOMATION"), None),
-        15, what="scraper 2 session classified AUTOMATION",
-    )
+    def matching_session():
+        for summary in api.sessions():
+            detail = api.session(summary["session_id"])
+            if detail.get("user_agent") == ua:
+                return detail
+        return None
+
+    session = wait_for(matching_session, 15, what="scraper 2 detailed session recorded")
     assert session.get("state") == "RESTRICTED", session
+    assert session.get("classification") == "AUTOMATION", session
 
     events = sorted((e for e in api.events() if e["user_agent"] == ua), key=lambda e: e["seq"])
     decisions = [e["decision"] for e in events]
