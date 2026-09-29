@@ -39,10 +39,10 @@ async def sb_namespace(path: str, request: Request):
             
     if path == "verify":
         from .edge.context import build_context
+        from .edge.intel import record_decision
         from .edge.layer2 import verify_submission
         from .edge.pipeline import log_event
         from .edge.session import sessions
-        from .edge.intel import record_decision
         from .store.sessions import save_session
         
         ctx = build_context(request)
@@ -88,10 +88,10 @@ async def sb_namespace(path: str, request: Request):
     # Legacy alias compatibility if needed
     if path == "challenge/verify":
         from .edge.context import build_context
+        from .edge.intel import record_decision
         from .edge.layer2 import verify
         from .edge.pipeline import log_event
         from .edge.session import sessions
-        from .edge.intel import record_decision
         from .store.sessions import save_session
         
         ctx = build_context(request)
