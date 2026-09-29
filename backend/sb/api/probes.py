@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from ..provenance import doberman, investigate
-from ..contracts import ProbeListResponse, ProbeResult, ProbeRun, ProbeRunResponse
+from ..contracts import ProbeListResponse, ProbeRun, ProbeRunResponse
 
 router = APIRouter()
 
