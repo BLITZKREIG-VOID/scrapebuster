@@ -1,96 +1,110 @@
 #!/usr/bin/env python3
-"""Build the clean control dataset straight from origin HTML (master plan §9).
+"""Build the clean CampusCart control dataset straight from the origin (plan Part I, F-06/R-11).
 
-Reads demo_site/pages/*.html (never through the edge, so no canaries can be present),
-extracts the <main> text with stdlib html.parser and writes one dataset-contract record
-per page: {"url","fetched_at","title","text"}. Block elements become paragraphs separated
-by a blank line, matching the chunking used by the RAG index.
+CampusCart (https://campuscart-c73de.web.app) is a client-rendered Firebase SPA, so the text
+only exists after hydration: each public route is rendered with Playwright Chromium (the same
+toolchain as ``attacks/``) and captured the same way Scraper 3 captures it (``main#content``
+or ``<body>`` ``innerText``). Fetches go to the origin directly, never through the ScapeBusters
+edge, so no canary can be present. Volume is fixed and low: one browser, the listed public
+routes once each, sequentially, with a pause between navigations.
+
+Output: one dataset-contract record per route, ``{"url","fetched_at","title","text"}``, in
+``data/control/control_clean.jsonl``. The run fails (and writes nothing) if a page looks
+edge-served (honeypot link present), renders no text, or contains a canary anchor.
+
+Needs: ``pip install playwright && python -m playwright install chromium``.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
-from datetime import datetime, timezone
-from html.parser import HTMLParser
+import time
+from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import urljoin
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-BLOCK_TAGS = {"p", "h1", "h2", "h3", "h4", "h5", "h6", "li", "pre", "blockquote", "tr", "div", "section", "article", "dd", "dt"}
-SKIP_TAGS = {"script", "style", "template", "noscript"}
+BACKEND_DIR = REPO_ROOT / "backend"
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
+
+from sb.canary.hashing import normalize_for_match
+from sb.canary.registry import load_definitions
+from sb.trap.honeypots import HIDDEN_LINK_PATH
+
+DEFAULT_BASE = "https://campuscart-c73de.web.app"
+# Public, unauthenticated CampusCart routes: the non-trap pages Scraper 3 collects.
+ROUTES = (
+    "/",
+    "/login",
+    "/?category=sale",
+    "/?category=rent",
+    "/?category=projects",
+    "/?category=sports",
+    "/?category=books",
+    "/?category=tech",
+    "/?category=room",
+    "/?category=stationary",
+    "/?category=others",
+    "/requests",
+    "/messages",
+    "/events",
+)
+PAUSE_S = 1.5
+NAV_TIMEOUT_MS = 30_000
+HYDRATE_TIMEOUT_MS = 15_000
+TEXT_JS = "() => { const m = document.querySelector('main#content'); return (m || document.body).innerText; }"
+USER_AGENT_SUFFIX = " ScapeBusters-control-builder/1.0"
 
 
-class MainTextExtractor(HTMLParser):
-    def __init__(self) -> None:
-        super().__init__(convert_charrefs=True)
-        self.title = ""
-        self.paragraphs: list[str] = []
-        self.main_count = 0
-        self._in_title = False
-        self._main_depth = 0
-        self._skip_depth = 0
-        self._buf: list[str] = []
-
-    def _flush(self) -> None:
-        text = re.sub(r"\s+", " ", "".join(self._buf)).strip()
-        if text:
-            self.paragraphs.append(text)
-        self._buf = []
-
-    def handle_starttag(self, tag, attrs):
-        if tag == "title":
-            self._in_title = True
-        elif tag == "main":
-            self.main_count += 1
-            self._main_depth += 1
-        elif self._main_depth and tag in SKIP_TAGS:
-            self._skip_depth += 1
-        elif self._main_depth and tag in BLOCK_TAGS:
-            self._flush()
-        elif self._main_depth and tag == "br":
-            self._buf.append(" ")
-
-    def handle_endtag(self, tag):
-        if tag == "title":
-            self._in_title = False
-        elif tag == "main" and self._main_depth:
-            self._flush()
-            self._main_depth -= 1
-        elif self._main_depth and tag in SKIP_TAGS and self._skip_depth:
-            self._skip_depth -= 1
-        elif self._main_depth and tag in BLOCK_TAGS:
-            self._flush()
-
-    def handle_data(self, data):
-        if self._in_title:
-            self.title += data
-        elif self._main_depth and not self._skip_depth:
-            self._buf.append(data)
+def _utc_now() -> str:
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-def extract(html: str) -> tuple[str, str, int]:
-    parser = MainTextExtractor()
-    parser.feed(html)
-    parser.close()
-    return re.sub(r"\s+", " ", parser.title).strip(), "\n\n".join(parser.paragraphs), parser.main_count
+def _check(url: str, html: str, text: str, anchors: list[str]) -> None:
+    if f'href="{HIDDEN_LINK_PATH}"' in html:
+        raise SystemExit(f"{url}: honeypot link present, page was served through the edge")
+    if not text.strip():
+        raise SystemExit(f"{url}: rendered no text")
+    leaked = [a for a in anchors if a in normalize_for_match(text)]
+    if leaked:
+        raise SystemExit(f"{url}: canary anchor(s) {leaked} in origin content")
 
 
-def build(pages_dir: Path, out_path: Path) -> int:
-    pages = sorted(pages_dir.glob("*.html"))
-    if not pages:
-        raise SystemExit(f"no *.html files in {pages_dir}")
-    fetched_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+def build(base: str, out_path: Path, routes: tuple[str, ...] = ROUTES) -> int:
+    try:
+        from playwright.sync_api import Error as PlaywrightError
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        print("error: playwright is required: pip install playwright && python -m playwright install chromium",
+              file=sys.stderr)
+        return 0
+
+    anchors = [normalize_for_match(c["anchor"]) for c in load_definitions()]
     records = []
-    for page in pages:
-        title, text, main_count = extract(page.read_text(encoding="utf-8"))
-        if main_count != 1:
-            raise SystemExit(f"{page}: expected exactly one <main>, found {main_count}")
-        if not text:
-            raise SystemExit(f"{page}: <main> has no text")
-        rel = page.relative_to(REPO_ROOT) if page.is_relative_to(REPO_ROOT) else page
-        records.append({"url": f"file://{rel.as_posix()}", "fetched_at": fetched_at, "title": title, "text": text})
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        try:
+            ua = browser.new_page().evaluate("navigator.userAgent") + USER_AGENT_SUFFIX
+            page = browser.new_context(user_agent=ua).new_page()
+            for i, route in enumerate(routes):
+                if i:
+                    time.sleep(PAUSE_S)
+                url = urljoin(base.rstrip("/") + "/", route.lstrip("/"))
+                page.goto(url, wait_until="domcontentloaded", timeout=NAV_TIMEOUT_MS)
+                try:
+                    page.locator("#root a[href]").first.wait_for(state="attached", timeout=HYDRATE_TIMEOUT_MS)
+                except PlaywrightError as exc:
+                    raise SystemExit(f"{url}: SPA did not hydrate ({exc.__class__.__name__})") from exc
+                text = page.evaluate(TEXT_JS) or ""
+                _check(url, page.content(), text, anchors)
+                records.append({"url": url, "fetched_at": _utc_now(), "title": page.title(), "text": text})
+                print(f"  {url}: {len(text)} chars", file=sys.stderr)
+        finally:
+            browser.close()
+
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", encoding="utf-8") as fh:
         for rec in records:
@@ -100,13 +114,12 @@ def build(pages_dir: Path, out_path: Path) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--pages", type=Path, default=REPO_ROOT / "demo_site" / "pages")
+    ap.add_argument("--base", default=DEFAULT_BASE, help="CampusCart origin (never the edge)")
     ap.add_argument("--out", type=Path, default=REPO_ROOT / "data" / "control" / "control_clean.jsonl")
     args = ap.parse_args(argv)
-    if not args.pages.is_dir():
-        print(f"error: {args.pages} does not exist", file=sys.stderr)
+    count = build(args.base, args.out)
+    if not count:
         return 1
-    count = build(args.pages.resolve(), args.out)
     print(f"wrote {count} records to {args.out}")
     return 0
 

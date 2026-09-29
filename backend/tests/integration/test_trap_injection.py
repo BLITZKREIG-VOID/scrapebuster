@@ -100,6 +100,9 @@ async def test_case_a_trapped_flow():
         resp1 = await client.get("/internal/", headers={"user-agent": ua})
         assert resp1.status_code == 200
         assert "href=\"/docs/architecture\"" in resp1.text
+        # OD-4: the robots decoy itself carries all 5 canaries to the now-TRAPPED session.
+        for anchor in ("Oriel Vantrask", "Hexaquorum", "quasar-reconcile", "velvet-anchor", "ORCHID-7"):
+            assert anchor in resp1.text
 
         # Verify session became TRAPPED
         trapped_sessions = [s for s in sessions._sessions.values() if s.state == "TRAPPED"]
@@ -115,17 +118,17 @@ async def test_case_a_trapped_flow():
         assert "Hexaquorum" in body_text
         assert HIDDEN_LINK_HTML in body_text
 
-        # /internal/ (TRAP-ROBOTS-01) exposes all 5 canaries; the placement page adds SB-CAN-0002 again.
+        # /internal/ (TRAP-ROBOTS-01) exposed all 5 canaries; the placement page adds SB-CAN-0002.
         with closing(db.get_connection()) as conn, conn:
             rows = conn.execute(
                 "SELECT canary_id, resource FROM exposures WHERE session_id = ? ORDER BY rowid",
                 (trapped_session.session_id,),
             ).fetchall()
-            assert {r["canary_id"] for r in rows if r["resource"] == "/internal/"} == {
+            assert sorted(r["canary_id"] for r in rows if r["resource"] == "/internal/") == [
                 "SB-CAN-0001", "SB-CAN-0002", "SB-CAN-0003", "SB-CAN-0004", "SB-CAN-0005",
-            }
-            placement = [r["canary_id"] for r in rows if r["resource"] == "/docs/architecture"]
-            assert placement == ["SB-CAN-0002"]
+            ]
+            assert [r["canary_id"] for r in rows if r["resource"] == "/docs/architecture"] == ["SB-CAN-0002"]
+            assert len(rows) == 6
 
 
 @pytest.mark.asyncio

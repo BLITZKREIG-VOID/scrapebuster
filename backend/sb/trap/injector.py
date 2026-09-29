@@ -134,7 +134,12 @@ def transform_response(ctx: Any, session: Any, upstream: Any) -> bytes:
                 )
             else:
                 block_text = registry.injected_block_text(db_canary)
-                html_text = insert_canary(html_text, block_text)
+                injected = insert_canary(html_text, block_text)
+                if injected == html_text:
+                    # No </main> to inject into (e.g. a CampusCart SPA route): nothing was
+                    # delivered, so there is no exposure to record.
+                    return html_text.encode("utf-8")
+                html_text = injected
                 registry.record_exposure(
                     canary_id=db_canary.canary_id,
                     session=session,
@@ -193,10 +198,10 @@ def handle_decoy(ctx: Any, session: Any) -> Response | None:
 
 
 def _inject_all_canaries(html_text: str, ctx: Any, session: Any, resource: str) -> str:
-    """TRAP-ROBOTS-01 payload: every published canary, each recorded as an exposure.
+    """TRAP-ROBOTS-01 payload (OD-4): every non-DRAFT canary, each recorded as an exposure.
 
-    Upstreams without canary placement pages (e.g. the CampusCart SPA, which has no
-    ``</main>`` to inject into) still expose all canaries through the trap itself.
+    CampusCart is a client-rendered SPA with no ``</main>`` placement pages, so the robots
+    decoy is the only surface that delivers canaries to a trapped scraper.
     """
     for canary in registry.list_canaries():
         if canary.status == "DRAFT":
@@ -212,8 +217,6 @@ def _inject_all_canaries(html_text: str, ctx: Any, session: Any, resource: str) 
         )
         _note_exposure(session, canary.canary_id)
     return html_text
-
-    return None
 
 
 class ScapeBustersTrapHooks:
