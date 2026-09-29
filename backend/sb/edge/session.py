@@ -11,9 +11,19 @@ class Session:
     state: str = "NEW"
     classification: str = "UNKNOWN"
     l1_score: int = 0
+    l1_reasons: list[str] = field(default_factory=list)
     l2_score: int = 0
+    l2_signals: list[str] = field(default_factory=list)
     layer_path: list[dict[str, Any]] = field(default_factory=list)
-    
+    ip: str = ""
+    user_agent: str = ""
+    header_fp: str = ""
+    first_seen: str = ""
+    last_seen: str = ""
+    request_count: int = 0
+    pages: list[str] = field(default_factory=list)
+    traps_triggered: list[str] = field(default_factory=list)
+    canaries_exposed: list[str] = field(default_factory=list)
     def block_expired(self) -> bool:
         return False
         

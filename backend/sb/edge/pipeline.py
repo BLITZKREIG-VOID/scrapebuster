@@ -60,32 +60,47 @@ async def handle(request: Request) -> Response:
     ctx = build_context(request)
     session = sessions.get_or_create(ctx)
 
+    from .intel import init_request, record_decision
+    init_request(ctx, session)
+
     # ── Layer 1 ─────────────────────────────────────────────────────────────
     l1: L1Result = l1_run(ctx)
     session.l1_score = l1.score
+    for r in l1.reasons:
+        if r not in session.l1_reasons:
+            session.l1_reasons.append(r)
 
     if l1.decision == "BLOCK":
         log_event(ctx, session, "L1", "BLOCK", 403, l1.reasons)
+        record_decision(session, "L1", "BLOCK")
         return Response(content=b"Forbidden", status_code=403)
 
     if l1.decision == "CHALLENGE":
         if session.state == "VERIFIED":
             # Pass through
             log_event(ctx, session, "L1", "CHALLENGE_BYPASSED", 0, l1.reasons)
+            record_decision(session, "L1", "CHALLENGE_BYPASSED")
         else:
             log_event(ctx, session, "L1", "CHALLENGE", 403, l1.reasons)
             session.state = "CHALLENGED"
+            record_decision(session, "L1", "CHALLENGE")
             from .layer2 import generate_challenge_response
             return generate_challenge_response(session)
 
     elif l1.decision == "ESCALATE":
         log_event(ctx, session, "L1", "ESCALATE", 0, l1.reasons)
         session.state = "SUSPICIOUS"
+        record_decision(session, "L1", "ESCALATE")
+    else:
+        record_decision(session, "L1", "ALLOW")
 
     # ── TrapHooks (Layer 3 — INT-08) ────────────────────────────────────────
     trap = trap_hooks.classify_request(ctx, session)
     if trap:
         session.mark_trapped(trap)
+        if trap.trap_id not in session.traps_triggered:
+            session.traps_triggered.append(trap.trap_id)
+        record_decision(session, "L3", "TRAP")
         resp = trap_hooks.handle_decoy(ctx, session)
         if resp:
             return resp
@@ -97,6 +112,7 @@ async def handle(request: Request) -> Response:
     # Log the final outcome (ALLOW or carry-through after CHALLENGE/ESCALATE)
     final_decision = l1.decision if l1.decision in ("ALLOW", "ESCALATE", "CHALLENGE") else "ALLOW"
     log_event(ctx, session, "L1", final_decision, upstream.status_code, l1.reasons)
+    record_decision(session, "ORIGIN", final_decision)
 
     out_headers = dict(upstream.headers)
     out_headers.pop("content-length", None)
