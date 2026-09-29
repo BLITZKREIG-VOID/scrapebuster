@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 import shutil
+import sqlite3
 import time
 from collections.abc import Callable
 from datetime import datetime, timezone
 
 import httpx
-
 from sb.demo import (
     DATASETS_DIR,
     OLLAMA_URL,
@@ -49,7 +49,7 @@ def _reset() -> dict:
         try:
             detail = fn()
             checks.append({"name": name, "ok": True, "detail": "" if detail is None else str(detail)})
-        except Exception as exc:  # every failure is reported by name, never skipped
+        except Exception as exc:  # noqa: BLE001 - every failure is reported by name, never skipped
             checks.append({"name": name, "ok": False, "detail": f"{exc.__class__.__name__}: {exc}"})
 
     previous_run = get_state("run_id")
@@ -139,7 +139,7 @@ def _check_counts_zero() -> str:
         for table in ZERO_TABLES:
             try:
                 count = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
-            except Exception as exc:
+            except sqlite3.Error as exc:
                 problems.append(f"{table}: {exc}")
                 continue
             if count:

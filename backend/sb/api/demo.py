@@ -4,11 +4,11 @@ Mount in ``sb/main.py`` (Anirudh): ``app.include_router(sb.api.demo.router)``.
 """
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import APIRouter, Body, HTTPException
 from pydantic import BaseModel, Field
-
-from sb.demo import DemoBusy
-from sb.demo import golden, runner
+from sb.demo import DemoBusy, golden, runner
 from sb.demo.reset import reset_demo
 
 router = APIRouter(prefix="/api/v1/demo", tags=["demo"])
@@ -28,7 +28,7 @@ def post_reset() -> dict:
 
 
 @router.post("/run")
-def post_run(body: RunRequest | None = Body(default=None)) -> dict:
+def post_run(body: Annotated[RunRequest | None, Body()] = None) -> dict:
     """Start all steps (or one) in the background; returns the initial ``DemoStatus``."""
     try:
         return runner.start(body.step if body else None)
