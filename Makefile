@@ -22,6 +22,7 @@ check:
 	pytest backend/tests/unit/
 	pytest backend/tests/contract/
 	python scripts/check_ownership.py
+	python scripts/check_contracts.py
 	cd dashboard && npm run typecheck && npm run build
 
 test-unit:
