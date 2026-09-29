@@ -8,6 +8,7 @@ from .api.overview import router as overview_router
 from .api.sessions import router as sessions_router
 from .api.traffic import router as traffic_router
 from .edge.pipeline import handle
+from .trap import install as install_trap_hooks
 
 
 @asynccontextmanager
@@ -18,6 +19,7 @@ async def lifespan(app: FastAPI):
         await _client.aclose()
 
 app = FastAPI(title="ScapeBusters", lifespan=lifespan)
+install_trap_hooks()
 
 api_v1_router = APIRouter(prefix="/api/v1")
 api_v1_router.include_router(health_router, tags=["health"])
