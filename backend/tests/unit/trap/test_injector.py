@@ -226,18 +226,11 @@ def test_handle_decoy_api():
 
 def test_handle_decoy_html_pages_and_anchors():
     session = SimpleNamespace(session_id="sess-decoy-html", state="TRAPPED")
-
-    paths_to_test = [
-        "/internal/",
-        "/internal",
-        "/internal/deep/path",
-        "/docs/archive/legacy-index",
-        "/docs/archive/legacy-index/",
-    ]
-
     anchors = [anchor for _, _, anchor in CANARY_TEST_CASES]
+    robots_area = ["/internal/", "/internal", "/internal/deep/path"]
+    hidden_index = ["/docs/archive/legacy-index", "/docs/archive/legacy-index/"]
 
-    for p in paths_to_test:
+    for p in robots_area + hidden_index:
         ctx = SimpleNamespace(path=p)
         resp = handle_decoy(ctx, session)
         assert resp is not None, f"Expected decoy response for {p}"
@@ -251,12 +244,20 @@ def test_handle_decoy_html_pages_and_anchors():
         for doc_path in ("/docs/architecture", "/docs/api", "/docs/team", "/docs/operations", "/docs/metrics"):
             assert f'href="{doc_path}"' in body_text
 
-        # Must NOT contain any canary anchors case-insensitively
+        # TRAP-ROBOTS-01 area carries every canary to a trapped session; the hidden index never does.
         for anchor in anchors:
-            assert anchor.lower() not in body_text.lower(), f"Decoy HTML leaked anchor '{anchor}' on {p}"
+            leaked = anchor.lower() in body_text.lower()
+            assert leaked == (p in robots_area), f"anchor '{anchor}' on {p}: present={leaked}"
 
     # Non-decoy path returns None
     assert handle_decoy(SimpleNamespace(path="/docs/api"), session) is None
+
+
+def test_robots_decoy_withholds_canaries_from_untrapped_session():
+    resp = handle_decoy(SimpleNamespace(path="/internal/"), SimpleNamespace(session_id="s-new", state="NEW"))
+    body_text = resp.body.decode("utf-8").lower()
+    for _, _, anchor in CANARY_TEST_CASES:
+        assert anchor.lower() not in body_text
 
 
 def test_decoy_index_html_no_canary_anchors():

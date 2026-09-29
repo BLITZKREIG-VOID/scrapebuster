@@ -21,7 +21,7 @@ from sb.trap.decoys import (
     decoy_api_payload,
     decoy_index_html,
 )
-from sb.trap.honeypots import DECOY_API_PATH, HIDDEN_LINK_HTML
+from sb.trap.honeypots import DECOY_API_PATH, HIDDEN_LINK_HTML, ROBOTS_PREFIX
 
 logger = logging.getLogger(__name__)
 
@@ -183,8 +183,35 @@ def handle_decoy(ctx: Any, session: Any) -> Response | None:
     # 2. INTERNAL_INDEX_PATHS or under /internal/
     internal_index_norms = {p.rstrip("/") for p in INTERNAL_INDEX_PATHS}
     if norm_path in internal_index_norms or raw_path.startswith("/internal/"):
-        html_content = insert_hidden_link(decoy_index_html("ExampleCorp Internal Documentation Index"))
-        return HTMLResponse(content=html_content)
+        html_content = decoy_index_html("ExampleCorp Internal Documentation Index")
+        robots_area = norm_path == ROBOTS_PREFIX.rstrip("/") or raw_path.startswith(ROBOTS_PREFIX)
+        if robots_area and getattr(session, "state", None) == "TRAPPED":
+            html_content = _inject_all_canaries(html_content, ctx, session, raw_path)
+        return HTMLResponse(content=insert_hidden_link(html_content))
+
+    return None
+
+
+def _inject_all_canaries(html_text: str, ctx: Any, session: Any, resource: str) -> str:
+    """TRAP-ROBOTS-01 payload: every published canary, each recorded as an exposure.
+
+    Upstreams without canary placement pages (e.g. the CampusCart SPA, which has no
+    ``</main>`` to inject into) still expose all canaries through the trap itself.
+    """
+    for canary in registry.list_canaries():
+        if canary.status == "DRAFT":
+            continue
+        block_text = registry.injected_block_text(canary)
+        html_text = insert_canary(html_text, block_text)
+        registry.record_exposure(
+            canary_id=canary.canary_id,
+            session=session,
+            ctx=ctx,
+            resource=resource,
+            block_text=block_text,
+        )
+        _note_exposure(session, canary.canary_id)
+    return html_text
 
     return None
 
