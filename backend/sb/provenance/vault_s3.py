@@ -37,6 +37,13 @@ LOCK_MODE = "GOVERNANCE"
 RETENTION = timedelta(hours=24)
 TIMEOUT_S = 5
 RECEIPT_NAME = "vault_receipt.json"
+# Single attempt. botocore's ``total_max_attempts`` counts the initial request (1 = no retry);
+# the legacy ``max_attempts`` counts retries only, so ``max_attempts=1`` would send 2 requests.
+CLIENT_CONFIG: dict[str, Any] = {
+    "connect_timeout": TIMEOUT_S,
+    "read_timeout": TIMEOUT_S,
+    "retries": {"total_max_attempts": 1},
+}
 
 _state_lock = threading.Lock()
 _last_error: str | None = None
@@ -110,11 +117,7 @@ def upload_bundle(case_id: str, run_id: str, bundle_dir: Path) -> dict[str, Any]
         client = boto3.client(
             "s3",
             region_name=os.getenv("AWS_REGION") or None,
-            config=config_cls(
-                connect_timeout=TIMEOUT_S,
-                read_timeout=TIMEOUT_S,
-                retries={"total_max_attempts": 1},
-            ),
+            config=config_cls(**CLIENT_CONFIG),
         )
         retain_until = datetime.now(UTC).replace(microsecond=0) + RETENTION
         objects = []

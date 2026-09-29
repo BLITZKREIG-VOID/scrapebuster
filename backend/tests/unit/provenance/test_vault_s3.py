@@ -245,3 +245,49 @@ def test_failure_recording_db_error_does_not_kill_thread_or_report_ok(bundle, mo
     assert _run_in_thread(monkeypatch, bundle) == []
     assert vault_s3.s3_status() == "down"
     assert not (bundle / vault_s3.RECEIPT_NAME).exists()
+
+
+def _count_requests_against_failing_s3(config_kwargs: dict) -> int:
+    """Real boto3/botocore client vs a local endpoint that always answers 500; count requests."""
+    boto3 = pytest.importorskip("boto3")
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    from botocore.config import Config
+    from botocore.exceptions import ClientError
+
+    seen: list[str] = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_PUT(self):
+            seen.append(self.path)
+            self.rfile.read(int(self.headers.get("Content-Length") or 0))
+            self.send_response(500)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        client = boto3.client(
+            "s3",
+            endpoint_url=f"http://127.0.0.1:{server.server_address[1]}",
+            region_name="us-east-1",
+            aws_access_key_id="test",
+            aws_secret_access_key="test",
+            config=Config(**config_kwargs),
+        )
+        with pytest.raises(ClientError):
+            client.put_object(Bucket="b", Key="k", Body=b"x")
+    finally:
+        server.shutdown()
+    return len(seen)
+
+
+def test_client_config_is_valid_botocore_and_single_attempt():
+    # Real botocore accepts the vault config and sends exactly one request on a 5xx.
+    assert _count_requests_against_failing_s3(vault_s3.CLIENT_CONFIG) == 1
+    # The legacy key counts retries, not attempts: max_attempts=1 would send two requests.
+    assert _count_requests_against_failing_s3({"retries": {"max_attempts": 1}}) == 2
