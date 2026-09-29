@@ -23,8 +23,6 @@ import time
 from collections import deque
 from pathlib import Path
 
-from playwright.sync_api import sync_playwright
-
 from common import (
     DEFAULT_BASE,
     PageDriver,
@@ -38,6 +36,8 @@ from common import (
     same_origin,
     utc_now,
 )
+from playwright.sync_api import Error as PlaywrightError
+from playwright.sync_api import sync_playwright
 
 SEED = 1337
 MAX_PAGES = 20
@@ -90,7 +90,7 @@ def crawl(base: str, out: Path, headless: bool, dump_signals: bool) -> dict:
                 time.sleep(DELAY_S + delay_rng.uniform(-JITTER_S, JITTER_S))
             try:
                 v = driver.goto(url, rng=move_rng)
-            except Exception as exc:
+            except PlaywrightError as exc:
                 log(f"  {url}: {exc.__class__.__name__}: {exc}")
                 visited.append({"url": url, "status": None})
                 return None
@@ -125,7 +125,7 @@ def crawl(base: str, out: Path, headless: bool, dump_signals: bool) -> dict:
         try:
             robots = driver.goto(robots_url, rng=move_rng)
             disallows = parse_disallows(robots.raw)
-        except Exception as exc:
+        except PlaywrightError as exc:
             log(f"  robots.txt: {exc.__class__.__name__}: {exc}")
         log(f"  robots Disallow: {disallows}")
 

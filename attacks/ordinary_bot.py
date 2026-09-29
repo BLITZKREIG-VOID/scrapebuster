@@ -13,7 +13,6 @@ from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 
 import requests
-
 from common import BRAND, DEFAULT_BASE, PAGES, anchors_in, emit, log, resolve
 
 
