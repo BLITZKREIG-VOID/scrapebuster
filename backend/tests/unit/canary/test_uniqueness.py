@@ -3,7 +3,6 @@
 import json
 
 import pytest
-
 from sb.canary.hashing import normalize_for_match
 
 from ._defs import REPO_ROOT, load_canaries

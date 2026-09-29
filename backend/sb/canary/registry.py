@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-
 from sb.canary import hashing
 from sb.contracts import Canary, ExposureEvent
 from sb.store import db
@@ -56,10 +55,7 @@ def _row_to_publication(row: sqlite3.Row | dict) -> dict:
     d = dict(row)
     val = d.get("placements")
     if isinstance(val, str):
-        try:
-            d["placements"] = json.loads(val)
-        except Exception:
-            pass
+        d["placements"] = json.loads(val)
     elif val is None:
         d["placements"] = []
     return d

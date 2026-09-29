@@ -5,7 +5,6 @@ import types
 from datetime import datetime
 
 import pytest
-
 from sb.canary import hashing, registry, seed
 from sb.canary.registry import InvalidTransition
 from sb.contracts import Canary, ExposureEvent

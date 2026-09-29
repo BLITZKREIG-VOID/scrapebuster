@@ -68,14 +68,11 @@ def compute_finding(
 
     ordered = False
     if pub_ts is not None and first_exposed_at is not None and ingested_at is not None and observed_at is not None:
-        try:
-            dt_pub = datetime.fromisoformat(pub_ts.replace("Z", "+00:00"))
-            dt_exp = datetime.fromisoformat(first_exposed_at.replace("Z", "+00:00"))
-            dt_ing = datetime.fromisoformat(ingested_at.replace("Z", "+00:00"))
-            dt_obs = datetime.fromisoformat(observed_at.replace("Z", "+00:00"))
-            ordered = dt_pub < dt_exp < dt_ing < dt_obs
-        except Exception:
-            ordered = False
+        dt_pub = datetime.fromisoformat(pub_ts.replace("Z", "+00:00"))
+        dt_exp = datetime.fromisoformat(first_exposed_at.replace("Z", "+00:00"))
+        dt_ing = datetime.fromisoformat(ingested_at.replace("Z", "+00:00"))
+        dt_obs = datetime.fromisoformat(observed_at.replace("Z", "+00:00"))
+        ordered = dt_pub < dt_exp < dt_ing < dt_obs
 
     temporal = {
         "published_at": pub_ts,

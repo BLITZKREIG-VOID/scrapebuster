@@ -12,7 +12,6 @@ from typing import Any
 
 from fastapi import Response
 from fastapi.responses import HTMLResponse, JSONResponse
-
 from sb.canary import registry
 from sb.contracts import Canary
 from sb.store import db
@@ -70,9 +69,13 @@ def insert_canary(html: str, block_text: str) -> str:
 
 def _note_exposure(session: Any, canary_id: str) -> None:
     """Record canary_id in session.canaries_exposed and update DB sessions row if present."""
-    if session is not None and hasattr(session, "canaries_exposed") and isinstance(session.canaries_exposed, list):
-        if canary_id not in session.canaries_exposed:
-            session.canaries_exposed.append(canary_id)
+    if (
+        session is not None
+        and hasattr(session, "canaries_exposed")
+        and isinstance(session.canaries_exposed, list)
+        and canary_id not in session.canaries_exposed
+    ):
+        session.canaries_exposed.append(canary_id)
 
     session_id = getattr(session, "session_id", None)
     if session_id is not None:

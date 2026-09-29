@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import yaml
-
 from sb.canary import hashing
 from sb.provenance.correlate import (
     build_statement,

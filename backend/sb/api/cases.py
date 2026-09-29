@@ -34,12 +34,12 @@ class CaseEvidenceResponse(BaseModel):
 
 
 @router.get("/cases", response_model=list[CaseSummary])
-async def list_cases() -> list[CaseSummary]:
+def list_cases() -> list[CaseSummary]:
     return investigate.list_cases()
 
 
 @router.get("/cases/{case_id}", response_model=Case)
-async def get_case(case_id: str) -> Case:
+def get_case(case_id: str) -> Case:
     c = investigate.get_case(case_id)
     if c is None:
         raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
@@ -47,7 +47,7 @@ async def get_case(case_id: str) -> Case:
 
 
 @router.get("/cases/{case_id}/evidence", response_model=CaseEvidenceResponse)
-async def get_case_evidence(case_id: str) -> CaseEvidenceResponse:
+def get_case_evidence(case_id: str) -> CaseEvidenceResponse:
     c = investigate.get_case(case_id)
     if c is None:
         raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
@@ -76,16 +76,13 @@ async def get_case_evidence(case_id: str) -> CaseEvidenceResponse:
 
     try:
         manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
-    except Exception as exc:
+    except (OSError, ValueError) as exc:
         raise HTTPException(status_code=500, detail=f"Error reading manifest: {exc}") from exc
 
     receipt_data = None
     receipt_path = manifest_path.parent / "vault_receipt.json"
     if receipt_path.is_file():
-        try:
-            receipt_data = json.loads(receipt_path.read_text(encoding="utf-8"))
-        except Exception:
-            pass
+        receipt_data = json.loads(receipt_path.read_text(encoding="utf-8"))
 
     objects = [
         EvidenceObject(
@@ -108,7 +105,7 @@ async def get_case_evidence(case_id: str) -> CaseEvidenceResponse:
 
 
 @router.post("/cases/{case_id}/verify")
-async def verify_case(case_id: str) -> dict[str, Any]:
+def verify_case(case_id: str) -> dict[str, Any]:
     try:
         return evidence.verify_case(case_id)
     except KeyError as exc:

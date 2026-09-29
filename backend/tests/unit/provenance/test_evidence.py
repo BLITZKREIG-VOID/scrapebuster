@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
 from sb.canary import hashing, registry
 from sb.provenance import evidence
 from sb.store import db

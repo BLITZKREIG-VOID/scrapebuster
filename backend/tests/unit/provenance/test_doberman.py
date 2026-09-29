@@ -7,7 +7,6 @@ from datetime import datetime
 from pathlib import Path
 
 import pytest
-
 from sb.canary import registry
 from sb.canary.seed import seed_canaries
 from sb.provenance import dataset, llm, rag

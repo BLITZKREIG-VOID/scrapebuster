@@ -1,7 +1,6 @@
 """T-CA-3: no probe prompt contains its anchor or any context term; §8 definition invariants."""
 
 import pytest
-
 from sb.canary.hashing import normalize_for_match
 
 from ._defs import load_canaries

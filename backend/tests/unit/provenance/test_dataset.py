@@ -4,7 +4,6 @@ import hashlib
 from pathlib import Path
 
 import pytest
-
 from sb.provenance import dataset
 from sb.provenance import reset as provenance_reset
 from sb.provenance.dataset import DatasetValidationError
@@ -40,7 +39,7 @@ def test_latest(sample_path: Path):
     """latest('target') returns newest ingest; latest('control') returns None when none."""
     assert dataset.latest("control") is None
 
-    ds1 = dataset.ingest(sample_path, role="target", now="2026-09-29T10:00:00Z")
+    dataset.ingest(sample_path, role="target", now="2026-09-29T10:00:00Z")
     ds2 = dataset.ingest(sample_path, role="target", now="2026-09-29T11:00:00Z")
 
     latest_target = dataset.latest("target")
@@ -62,13 +61,17 @@ def test_invalid_role(sample_path: Path):
     ("bad_content", "expected_line"),
     [
         (
-            '{"url": "http://1", "fetched_at": "2026-09-29T10:00:00Z", "title": "t", "text": "ok"}\n'
-            "not a valid json string\n",
+            (
+                '{"url": "http://1", "fetched_at": "2026-09-29T10:00:00Z", "title": "t", "text": "ok"}\n'
+                "not a valid json string\n"
+            ),
             "line 2",
         ),
         (
-            '{"url": "http://1", "fetched_at": "2026-09-29T10:00:00Z", "title": "t", "text": "ok"}\n'
-            '{"url": "http://2", "fetched_at": "2026-09-29T10:00:00Z", "title": "t"}\n',
+            (
+                '{"url": "http://1", "fetched_at": "2026-09-29T10:00:00Z", "title": "t", "text": "ok"}\n'
+                '{"url": "http://2", "fetched_at": "2026-09-29T10:00:00Z", "title": "t"}\n'
+            ),
             "line 2",
         ),
         (
@@ -76,8 +79,10 @@ def test_invalid_role(sample_path: Path):
             "line 1",
         ),
         (
-            '{"url": "http://1", "fetched_at": "2026-09-29T10:00:00Z", "title": "t1", "text": "ok"}\n'
-            '{"url": "http://2", "fetched_at": "not-iso-timestamp", "title": "t2", "text": "ok"}\n',
+            (
+                '{"url": "http://1", "fetched_at": "2026-09-29T10:00:00Z", "title": "t1", "text": "ok"}\n'
+                '{"url": "http://2", "fetched_at": "not-iso-timestamp", "title": "t2", "text": "ok"}\n'
+            ),
             "line 2",
         ),
         (

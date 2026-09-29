@@ -236,7 +236,7 @@ def verify_bundle(bundle_dir: Path | str, chain_path: Path | str | None = None) 
 
     try:
         manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
-    except Exception as e:
+    except (OSError, ValueError, KeyError, TypeError) as e:
         for fname in CONTENT_FILE_NAMES:
             checks.append({"name": f"file:{fname}", "ok": False, "detail": f"manifest.json unparseable: {e}"})
         checks.append({"name": "manifest_self_hash", "ok": False, "detail": f"manifest.json unparseable: {e}"})
@@ -276,7 +276,7 @@ def verify_bundle(bundle_dir: Path | str, chain_path: Path | str | None = None) 
                             f"got sha256={actual_sha}, bytes={actual_bytes}"
                         ),
                     })
-            except Exception as e:
+            except (OSError, ValueError, KeyError, TypeError) as e:
                 checks.append({"name": check_name, "ok": False, "detail": f"Error reading {fname}: {e}"})
 
     # 2. manifest_self_hash
@@ -291,7 +291,7 @@ def verify_bundle(bundle_dir: Path | str, chain_path: Path | str | None = None) 
                 "ok": False,
                 "detail": f"Self hash mismatch: expected {expected_self_hash}, got {actual_self_hash}",
             })
-    except Exception as e:
+    except (OSError, ValueError, KeyError, TypeError) as e:
         checks.append({"name": "manifest_self_hash", "ok": False, "detail": f"Error verifying self hash: {e}"})
 
     # 3. chain_link (only when chain_path given)
@@ -330,7 +330,7 @@ def verify_bundle(bundle_dir: Path | str, chain_path: Path | str | None = None) 
                                 f"manifest(manifest={m_sha}, prev={m_prev}), expected_prev={expected_prev}"
                             ),
                         })
-            except Exception as e:
+            except (OSError, ValueError, KeyError, TypeError) as e:
                 checks.append({"name": "chain_link", "ok": False, "detail": f"Error verifying chain: {e}"})
 
     # 4. canary_hashes
@@ -375,7 +375,7 @@ def verify_bundle(bundle_dir: Path | str, chain_path: Path | str | None = None) 
                 })
             else:
                 checks.append({"name": "canary_hashes", "ok": True, "detail": "ok"})
-        except Exception as e:
+        except (OSError, ValueError, KeyError, TypeError) as e:
             checks.append({"name": "canary_hashes", "ok": False, "detail": f"Error verifying canary hashes: {e}"})
 
     result = "VALID" if all(c["ok"] for c in checks) else "TAMPERED"
@@ -429,7 +429,7 @@ def verify_case(case_id: str) -> dict[str, Any]:
                     "ok": False,
                     "detail": f"DB hash {expected_sha} != disk hash {actual_sha}",
                 })
-        except Exception as e:
+        except (OSError, ValueError, KeyError, TypeError) as e:
             checks.append({"name": check_name, "ok": False, "detail": f"Error reading {name}: {e}"})
 
     result = "VALID" if all(c["ok"] for c in checks) else "TAMPERED"

@@ -7,11 +7,10 @@ from contextlib import closing
 
 import httpx
 import pytest
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
-
 import sb.edge.pipeline as pipeline_module
 import sb.edge.proxy as proxy_module
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
 from sb.canary.seed import seed_canaries
 from sb.edge.session import sessions
 from sb.main import app

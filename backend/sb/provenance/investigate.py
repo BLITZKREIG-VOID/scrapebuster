@@ -54,16 +54,14 @@ def _load_baseline_texts(baseline_path: Path | str | None = None) -> list[str]:
         return []
     texts: list[str] = []
     with b_path.open("r", encoding="utf-8") as f:
-        for line in f:
+        for line_no, line in enumerate(f, start=1):
             line = line.strip()
             if not line:
                 continue
-            try:
-                rec = json.loads(line)
-                if isinstance(rec, dict) and "text" in rec and isinstance(rec["text"], str):
-                    texts.append(rec["text"])
-            except Exception:
-                pass
+            rec = json.loads(line)
+            if not isinstance(rec, dict) or "text" not in rec or not isinstance(rec["text"], str):
+                raise ValueError(f"Invalid baseline record at line {line_no}: missing str 'text'")
+            texts.append(rec["text"])
     return texts
 
 
@@ -260,10 +258,7 @@ def investigate(
                 for col in SESSION_JSON_COLUMNS:
                     val = s_dict.get(col)
                     if isinstance(val, str):
-                        try:
-                            s_dict[col] = json.loads(val)
-                        except Exception:
-                            pass
+                        s_dict[col] = json.loads(val)
                 sessions_data.append(s_dict)
 
     probe_request: dict[str, Any] = {
@@ -367,10 +362,7 @@ def get_case(case_id: str) -> Case | None:
         for field in ("session_ids", "probe_ids", "findings", "evidence"):
             val = d.get(field)
             if isinstance(val, str):
-                try:
-                    d[field] = json.loads(val)
-                except Exception:
-                    pass
+                d[field] = json.loads(val)
         return Case.model_validate(d)
 
 

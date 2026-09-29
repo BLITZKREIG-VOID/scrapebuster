@@ -7,7 +7,6 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-
 from sb.canary import registry
 from sb.canary.seed import seed_canaries
 from sb.provenance import dataset, evidence, investigate, llm
@@ -88,7 +87,7 @@ def test_investigate_pipeline(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, s
         )
 
     # 4. Ingest target and control datasets (t2: after exposure)
-    target_ds = dataset.ingest(
+    dataset.ingest(
         sample_path,
         role="target",
         now="2026-01-01T10:10:00.000000Z",

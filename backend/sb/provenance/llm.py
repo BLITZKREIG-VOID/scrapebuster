@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import time
 from dataclasses import dataclass
 from typing import Any, Literal
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 OPTIONS = {"temperature": 0, "seed": 42, "num_predict": 96}
 TIMEOUT_S = 25.0
@@ -44,8 +47,8 @@ def model_info() -> dict[str, Any]:
                 for item in models:
                     if item.get("name") == model_name or item.get("model") == model_name:
                         return {"name": model_name, "digest": item.get("digest")}
-    except Exception:
-        pass
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.warning("Ollama tags request failed: %s", exc)
     return {"name": model_name, "digest": None}
 
 
@@ -90,8 +93,8 @@ def generate(prompt: str, fallback_text: str, replay_text: str | None = None) ->
                         model_digest=info.get("digest"),
                         latency_ms=latency,
                     )
-    except Exception:
-        pass
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.warning("Ollama generate request failed: %s", exc)
 
     _last_mode = "extractive_fallback"
     latency = int((time.perf_counter() - start) * 1000)
@@ -120,7 +123,8 @@ def llm_status() -> Literal["ok", "down", "fallback"]:
             )
             if not model_found:
                 return "fallback"
-    except Exception:
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.warning("Ollama status check failed: %s", exc)
         return "down"
 
     if _last_mode == "extractive_fallback":

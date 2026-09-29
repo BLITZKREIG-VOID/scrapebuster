@@ -51,12 +51,13 @@ class ProbeListResponse(BaseModel):
 
 
 @router.post("/probes/run", response_model=ProbeRunResponse)
-async def run_probe(payload: ProbeRunRequest = ProbeRunRequest()) -> ProbeRunResponse:
+def run_probe(payload: ProbeRunRequest | None = None) -> ProbeRunResponse:
+    req = payload or ProbeRunRequest()
     try:
         res = investigate.investigate(
-            target_dataset_id=payload.target_dataset_id,
-            control_dataset_id=payload.control_dataset_id,
-            canary_ids=payload.canary_ids,
+            target_dataset_id=req.target_dataset_id,
+            control_dataset_id=req.control_dataset_id,
+            canary_ids=req.canary_ids,
         )
         return ProbeRunResponse.model_validate(res)
     except ValueError as exc:
@@ -69,13 +70,13 @@ async def run_probe(payload: ProbeRunRequest = ProbeRunRequest()) -> ProbeRunRes
 
 
 @router.get("/probes", response_model=ProbeListResponse)
-async def list_probes() -> ProbeListResponse:
+def list_probes() -> ProbeListResponse:
     probes = doberman.list_probes()
     return ProbeListResponse(probes=[ProbeRun.model_validate(p) for p in probes])
 
 
 @router.get("/probes/{probe_id}", response_model=ProbeRun)
-async def get_probe(probe_id: str) -> ProbeRun:
+def get_probe(probe_id: str) -> ProbeRun:
     probe = doberman.get_probe(probe_id)
     if probe is None:
         raise HTTPException(status_code=404, detail=f"Probe run {probe_id} not found")

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import httpx
 import pytest
-
 from sb.provenance.llm import (
     OPTIONS,
     build_prompt,

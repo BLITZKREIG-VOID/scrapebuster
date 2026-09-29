@@ -12,7 +12,6 @@ os.environ.setdefault("SB_DB_PATH", os.path.join(_BOOTSTRAP_DIR, "sb.db"))
 atexit.register(lambda: shutil.rmtree(_BOOTSTRAP_DIR, ignore_errors=True))
 
 import pytest
-
 from sb.provenance import dataset
 from sb.provenance import reset as provenance_reset
 from sb.store import db

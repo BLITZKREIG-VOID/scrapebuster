@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pytest
 import yaml
-
 from sb.provenance import dataset, rag
 from sb.provenance import reset as provenance_reset
 from sb.provenance.rag import STOPWORDS, BM25Index, chunk_records, tokenize

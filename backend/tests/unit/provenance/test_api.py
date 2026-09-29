@@ -9,7 +9,6 @@ from types import SimpleNamespace
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
 from sb.api.canaries import CanaryDetail
 from sb.api.canaries import router as canaries_router
 from sb.api.cases import router as cases_router

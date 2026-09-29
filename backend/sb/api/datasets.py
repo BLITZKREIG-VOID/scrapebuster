@@ -24,7 +24,7 @@ class DatasetsResponse(BaseModel):
 
 
 @router.post("/datasets/ingest", response_model=Dataset)
-async def ingest_dataset(payload: DatasetIngestRequest) -> Dataset:
+def ingest_dataset(payload: DatasetIngestRequest) -> Dataset:
     path_obj = Path(payload.path)
     if not path_obj.is_file():
         raise HTTPException(status_code=404, detail=f"Dataset file not found: {payload.path}")
@@ -39,6 +39,6 @@ async def ingest_dataset(payload: DatasetIngestRequest) -> Dataset:
 
 
 @router.get("/datasets", response_model=DatasetsResponse)
-async def list_datasets() -> DatasetsResponse:
+def list_datasets() -> DatasetsResponse:
     datasets = dataset.list_datasets()
     return DatasetsResponse(datasets=datasets)
