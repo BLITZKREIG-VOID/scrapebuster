@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import Logo from './Logo';
+import Ferrofluid from './ui/Ferrofluid';
 import { TooltipProvider } from './ui/tooltip';
 import { Toaster } from 'sonner';
 
@@ -148,7 +149,7 @@ export default function Layout() {
     },
   ];
 
-  const notifications = [
+  const [alerts, setAlerts] = useState([
     {
       id: 'notif-1',
       title: 'Provenance Signal Confirmed',
@@ -173,7 +174,13 @@ export default function Layout() {
       type: 'info',
       link: '/traffic',
     },
-  ];
+  ]);
+
+  const handleDismissAlert = (idToRemove: string) => {
+    setAlerts((prev) => prev.filter(alert => alert.id !== idToRemove));
+    // Also decrease unread count if applicable, safely bounded at 0
+    setUnreadCount((prev) => Math.max(0, prev - 1));
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -208,8 +215,21 @@ export default function Layout() {
 
   return (
     <TooltipProvider delayDuration={150}>
-      <div className="h-screen bg-slate-950 text-slate-300 text-base flex flex-col font-sans overflow-hidden select-none transition-colors duration-250">
-        <Toaster theme={theme} position="top-right" richColors />
+      <div className="h-screen text-slate-300 text-base flex flex-col font-sans overflow-hidden select-none transition-colors duration-250 relative">
+        {/* Universal Ferrofluid Background */}
+        <div className="absolute inset-0 z-0 pointer-events-none">
+          <Ferrofluid 
+            colors={theme === 'dark' ? ["#ef4444", "#0f172a", "#1e293b"] : ["#ef4444", "#e2e8f0", "#f8fafc"]} 
+            speed={0.4} 
+            scale={1.2} 
+            glow={3} 
+            mouseInteraction={false} 
+            opacity={0.8}
+          />
+        </div>
+        
+        <div className="relative z-10 flex flex-col h-full pointer-events-none *:pointer-events-auto">
+          <Toaster theme={theme} position="top-right" richColors />
         {/* Network Partition Banner */}
         {isUnreachable && (
           <div className="bg-amber-950/90 text-amber-200 px-4 py-1.5 text-center text-xs font-mono flex items-center justify-between shrink-0 border-b border-amber-600/50">
@@ -309,34 +329,45 @@ export default function Layout() {
               {/* Notification Dropdown Drawer */}
               {notifOpen && (
                 <div className="absolute right-0 mt-2 w-80 bg-slate-900 border border-slate-800 rounded-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-                  <div className="p-3 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
-                    <div className="flex items-center gap-2">
-                      <Bell size={14} className="text-slate-400" />
-                      <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">SOC Alerts & Events</span>
-                    </div>
-                    <button onClick={() => setNotifOpen(false)} className="text-slate-500 hover:text-slate-300">
-                      <X size={14} />
-                    </button>
-                  </div>
+
                   <div className="divide-y divide-slate-800/60 max-h-80 overflow-y-auto custom-scrollbar">
-                    {notifications.map(n => (
-                      <div
-                        key={n.id}
-                        onClick={() => { navigate(n.link); setNotifOpen(false); }}
-                        className="p-3 hover:bg-slate-800/60 cursor-pointer transition-colors"
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded border ${n.type === 'threat' ? 'bg-red-500/10 text-red-400 border-red-500/30' :
-                            n.type === 'warning' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' :
-                              'bg-blue-500/10 text-blue-400 border-blue-500/30'
-                            }`}>
-                            {n.title}
-                          </span>
-                          <span className="text-[10px] text-slate-500 font-mono">{n.time}</span>
-                        </div>
-                        <p className="text-sm text-slate-300 leading-snug">{n.desc}</p>
+                    {alerts.length === 0 ? (
+                      <div className="p-8 text-center text-sm text-slate-500 italic flex flex-col items-center gap-2">
+                        <CheckCircle size={20} className="text-emerald-500/50" />
+                        No new notifications
                       </div>
-                    ))}
+                    ) : (
+                      alerts.map(n => (
+                        <div
+                          key={n.id}
+                          onClick={() => { navigate(n.link); setNotifOpen(false); }}
+                          className="p-3 hover:bg-slate-800/60 cursor-pointer transition-colors relative group"
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded border ${n.type === 'threat' ? 'bg-red-500/10 text-red-400 border-red-500/30' :
+                              n.type === 'warning' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' :
+                                'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                              }`}>
+                              {n.title}
+                            </span>
+                            <div className="flex items-center gap-3">
+                              <span className="text-[10px] text-slate-500 font-mono">{n.time}</span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDismissAlert(n.id);
+                                }}
+                                className="text-slate-500 hover:text-slate-300 transition-colors opacity-0 group-hover:opacity-100"
+                                title="Dismiss"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          </div>
+                          <p className="text-sm text-slate-300 leading-snug">{n.desc}</p>
+                        </div>
+                      ))
+                    )}
                   </div>
                   <div className="p-2 border-t border-slate-800 bg-slate-950/50 text-center">
                     <button onClick={() => { navigate('/dashboard/cases'); setNotifOpen(false); }} className="text-xs text-blue-400 hover:text-blue-300 font-medium cursor-pointer">
@@ -413,7 +444,7 @@ export default function Layout() {
             </div>
 
             {/* Bottom Dock: Unified floating pill container */}
-            <div className="flex flex-col items-center gap-4 bg-slate-900/60 backdrop-blur-md border border-slate-700/50 rounded-full py-4 px-2 mb-6 mx-auto w-12">
+            <div className="flex flex-col items-center gap-4 bg-slate-900/60 backdrop-blur-md border border-slate-700/50 rounded-full py-4 px-2 mb-0 mx-auto w-12">
               <button
                 onClick={toggleTheme}
                 className="text-slate-400 hover:text-slate-100 transition-all cursor-pointer group"
@@ -436,9 +467,10 @@ export default function Layout() {
           </aside>
 
           {/* Main Content Area */}
-          <main className="flex-1 overflow-y-auto bg-slate-950 p-6 relative transition-colors duration-250">
+          <main className="flex-1 overflow-y-auto p-6 relative transition-colors duration-250">
             <Outlet />
           </main>
+        </div>
         </div>
 
         {/* Global Command Palette Modal (Cmd+K) */}
