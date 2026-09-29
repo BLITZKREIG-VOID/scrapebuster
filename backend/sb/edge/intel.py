@@ -37,7 +37,7 @@ def classify_session(session: Session) -> str:
     Deterministic rule engine for scraper classification.
     
     BOT_BASIC: any L1_AUTOMATION_UA or BLOCKED by L1
-    AUTOMATION: RESTRICTED by L2 (or SUSPICIOUS in our state)
+    AUTOMATION: RESTRICTED by L2 (or ESCALATED in our state)
     SOPHISTICATED_SCRAPER: TRAPPED after a PASS, or TRAP band
     HUMAN_LIKELY: PASS, no trap hits
     UNKNOWN: otherwise
@@ -52,7 +52,7 @@ def classify_session(session: Session) -> str:
         
     # 2. AUTOMATION
     # Failed Layer 2 challenges / restricted states
-    if session.state in ("RESTRICTED", "SUSPICIOUS"):
+    if session.state in ("RESTRICTED", "ESCALATED"):
         return "AUTOMATION"
         
     # 3. SOPHISTICATED_SCRAPER

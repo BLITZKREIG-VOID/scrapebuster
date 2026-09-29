@@ -73,8 +73,8 @@ def test_automation():
     ctx = make_ctx()
     init_request(ctx, session)
     
-    # Escalate -> Suspicious state
-    session.state = "SUSPICIOUS"
+    # Escalate -> Escalated state
+    session.state = "ESCALATED"
     record_decision(session, "L1", "ESCALATE")
     
     assert session.classification == "AUTOMATION"

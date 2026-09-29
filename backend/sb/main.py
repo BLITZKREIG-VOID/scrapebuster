@@ -37,6 +37,44 @@ async def sb_namespace(path: str, request: Request):
         js_path = os.path.join(os.path.dirname(__file__), "edge", "static", "challenge.js")
         return FileResponse(js_path, media_type="application/javascript")
             
+    if path == "verify":
+        from .edge.context import build_context
+        from .edge.layer2 import verify_submission
+        from .edge.session import sessions
+        
+        ctx = build_context(request)
+        session = sessions.get_or_create(ctx)
+        
+        body = await request.json()
+        cid = body.get("challenge_id")
+        nonce = body.get("nonce")
+        signals = body.get("signals", {})
+        
+        res = verify_submission(
+            challenge_id=cid,
+            nonce=nonce,
+            signals=signals,
+            session=session,
+            request_ua=ctx.user_agent,
+            elapsed_ms=signals.get("elapsed_ms", 0.0)
+        )
+        
+        if res.band == "PASS" or res.band == "TRAP":
+            if res.band == "PASS":
+                session.state = "VERIFIED"
+            else:
+                session.state = "TRAPPED"
+                
+            response = JSONResponse({"status": "ok"})
+            if res.clearance_cookie:
+                response.headers["Set-Cookie"] = res.clearance_cookie
+            return response
+            
+        else:
+            session.state = "RESTRICTED"
+            return JSONResponse({"status": "failed"}, status_code=403)
+            
+    # Legacy alias compatibility if needed
     if path == "challenge/verify":
         from .edge.context import build_context
         from .edge.layer2 import verify
@@ -53,7 +91,7 @@ async def sb_namespace(path: str, request: Request):
             session.state = "VERIFIED"
             return JSONResponse({"status": "ok"})
         else:
-            session.state = "SUSPICIOUS"
+            session.state = "RESTRICTED"
             return JSONResponse({"status": "failed"}, status_code=403)
             
     return JSONResponse(content={"msg": f"SB stub for {path}"})
