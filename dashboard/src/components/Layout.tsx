@@ -67,12 +67,11 @@ export default function Layout() {
   const [cmdOpen, setCmdOpen] = useState(false);
   const [cmdQuery, setCmdQuery] = useState('');
   const [notifOpen, setNotifOpen] = useState(false);
-  const [] = useState(false);
+  const [_aboutOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportDone, setExportDone] = useState(false);
   const [unreadCount, setUnreadCount] = useState(3);
-  const isBreached = false;
 
   // Determine current active page for dynamic logo and navbar state
   const getCurrentPage = (): 'overview' | 'traffic' | 'canaries' | 'probes' | 'cases' => {
@@ -90,7 +89,7 @@ export default function Layout() {
   const navDockItems = [
     {
       id: 'dashboard',
-      path: '/',
+      path: '/dashboard',
       label: 'Overview & Threat Feed',
       page: 'overview' as const,
       sub: 'Sentinel Active Defense',
@@ -100,7 +99,7 @@ export default function Layout() {
     },
     {
       id: 'profile',
-      path: '/traffic',
+      path: '/dashboard/traffic',
       label: 'Traffic Intelligence',
       page: 'traffic' as const,
       sub: 'Adversary Radar & Volume',
@@ -110,7 +109,7 @@ export default function Layout() {
     },
     {
       id: 'messages',
-      path: '/canaries',
+      path: '/dashboard/canaries',
       label: 'Canaries & Honeytokens',
       page: 'canaries' as const,
       sub: 'Decoy Knowledge Traps',
@@ -123,7 +122,7 @@ export default function Layout() {
     },
     {
       id: 'help',
-      path: '/probes',
+      path: '/dashboard/probes',
       label: 'Doberman Interrogator',
       page: 'probes' as const,
       sub: 'Differential Model Probing',
@@ -136,7 +135,7 @@ export default function Layout() {
     },
     {
       id: 'settings',
-      path: '/cases',
+      path: '/dashboard/cases',
       label: 'GPS Tracker & Provenance',
       page: 'cases' as const,
       sub: 'Chain-of-Custody Forensics',
@@ -251,20 +250,30 @@ export default function Layout() {
           </div>
         )}
 
-        {/* SaaS Header without Logo, Search centered */}
-        <header className="bg-slate-950 border-b border-slate-800 h-14 flex items-center justify-between px-5 shrink-0 z-20 transition-colors duration-250">
-          {/* Left: Empty for spacing to keep center centered */}
-          <div className="flex-1"></div>
+        {/* Floating Island Header — no edge-to-edge borders */}
+        <header className="bg-transparent h-14 flex items-center justify-between px-5 shrink-0 z-20 transition-colors duration-250">
+          {/* Left: Logo */}
+          <div className="flex-1 flex items-center">
+            <div
+              onClick={() => navigate('/dashboard/about')}
+              className="cursor-pointer group"
+              title="About ScrapeBuster"
+            >
+              <div className="w-10 h-10 rounded-full bg-slate-900/60 backdrop-blur-md border border-slate-700/50 flex items-center justify-center p-0.5 group-hover:border-slate-500 transition-all duration-300">
+                <Logo size={28} page={currentPage} />
+              </div>
+            </div>
+          </div>
 
           {/* Center: Global Search Bar */}
           <div className="flex-1 flex justify-center max-w-xl">
             <div
               onClick={() => setCmdOpen(true)}
-              className="flex items-center gap-2 bg-slate-900/80 border border-slate-800 hover:border-slate-700 hover:bg-slate-850 transition-all px-4 py-2 rounded-full w-full max-w-md cursor-pointer text-sm text-slate-400 shadow-inner group"
+              className="flex items-center gap-2.5 bg-slate-900/60 backdrop-blur-md border border-slate-700/50 hover:border-slate-500 transition-all px-5 py-2.5 rounded-full w-full max-w-md min-w-[250px] shrink-0 cursor-pointer text-sm text-slate-400 group"
             >
-              <Search size={16} className="text-slate-500 group-hover:text-slate-300 transition-colors" />
-              <span className="flex-1 text-left font-mono">Search IPs, Rules, Provenance cases...</span>
-              <div className="flex items-center gap-1 bg-slate-950 px-1.5 py-0.5 rounded text-[10px] font-mono border border-slate-800 text-slate-400">
+              <Search size={16} className="text-slate-500 shrink-0 group-hover:text-slate-300 transition-colors" />
+              <span className="flex-1 text-left font-mono text-slate-500 group-hover:text-slate-400 transition-colors whitespace-nowrap truncate overflow-hidden">Search IPs, Rules, Provenance cases...</span>
+              <div className="flex items-center gap-1 bg-slate-800/60 px-1.5 py-0.5 rounded text-[10px] font-mono border border-slate-700/40 text-slate-500">
                 <Command size={10} />
                 <span>K</span>
               </div>
@@ -273,20 +282,11 @@ export default function Layout() {
 
           {/* Right: Global Status, Notifications, & Actions */}
           <div className="flex flex-1 items-center justify-end gap-3 text-base">
-            {/* Protection Status Pill */}
-            <div className="flex items-center gap-2 px-3 py-1 rounded-md text-sm font-mono font-medium border bg-slate-900/90 border-slate-800 shadow-md">
-              <div className={`w-2.5 h-2.5 rounded-full ${isBreached ? 'bg-red-500 animate-ping' : 'bg-blue-400 shadow-[0_0_8px_currentColor]'}`} />
-              <span className={isBreached ? 'text-red-400 font-bold' : 'text-slate-200'}>
-                {isBreached ? 'ACTIVE BREACH' : 'SYSTEM SECURE'}
-              </span>
-            </div>
-
-            <div className="h-5 w-px bg-slate-800" />
 
             {/* Export Report Button */}
             <button
               onClick={() => setExportOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 rounded-md border border-slate-800 transition-colors cursor-pointer shadow-md"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 rounded-md border border-slate-800 transition-colors cursor-pointer"
               title="Export SOC Report"
             >
               <Download size={15} className="text-slate-400" />
@@ -297,7 +297,7 @@ export default function Layout() {
             <div className="relative">
               <button
                 onClick={() => { setNotifOpen(!notifOpen); setUnreadCount(0); }}
-                className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-900 rounded-md transition-colors relative cursor-pointer"
+                className="w-10 h-10 rounded-full bg-slate-900/60 backdrop-blur-md border border-slate-700/50 flex items-center justify-center text-slate-400 hover:text-slate-200 hover:border-slate-500 transition-all relative cursor-pointer"
                 title="Notification Center"
               >
                 <Bell size={18} />
@@ -308,7 +308,7 @@ export default function Layout() {
 
               {/* Notification Dropdown Drawer */}
               {notifOpen && (
-                <div className="absolute right-0 mt-2 w-80 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                <div className="absolute right-0 mt-2 w-80 bg-slate-900 border border-slate-800 rounded-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                   <div className="p-3 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
                     <div className="flex items-center gap-2">
                       <Bell size={14} className="text-slate-400" />
@@ -327,8 +327,8 @@ export default function Layout() {
                       >
                         <div className="flex items-center justify-between mb-1">
                           <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded border ${n.type === 'threat' ? 'bg-red-500/10 text-red-400 border-red-500/30' :
-                              n.type === 'warning' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' :
-                                'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                            n.type === 'warning' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' :
+                              'bg-blue-500/10 text-blue-400 border-blue-500/30'
                             }`}>
                             {n.title}
                           </span>
@@ -339,7 +339,7 @@ export default function Layout() {
                     ))}
                   </div>
                   <div className="p-2 border-t border-slate-800 bg-slate-950/50 text-center">
-                    <button onClick={() => { navigate('/cases'); setNotifOpen(false); }} className="text-xs text-blue-400 hover:text-blue-300 font-medium cursor-pointer">
+                    <button onClick={() => { navigate('/dashboard/cases'); setNotifOpen(false); }} className="text-xs text-blue-400 hover:text-blue-300 font-medium cursor-pointer">
                       View All Incident Logs →
                     </button>
                   </div>
@@ -351,25 +351,12 @@ export default function Layout() {
 
         {/* Main App Layout */}
         <div className="flex flex-1 overflow-hidden relative">
-          {/* Left Side Navigation: Perfectly matched color palette and proportioned dock */}
-          <aside className="w-[72px] bg-slate-950 border-r border-slate-800 flex flex-col items-center py-4 shrink-0 z-10 justify-between select-none transition-colors duration-250">
-            {/* Top Page Logo Emblem (Click to navigate About page) */}
-            <div
-              onClick={() => navigate('/about')}
-              className="cursor-pointer group flex flex-col items-center gap-1"
-              title="Click to view About ScrapeBuster & Terms of Service"
-            >
-              <div className="w-11 h-11 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center shadow-lg p-1 group-hover:border-blue-400 group-hover:shadow-[0_0_12px_rgba(121,180,178,0.25)] transition-all duration-300">
-                <Logo size={32} page={currentPage} />
-              </div>
-              <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest font-semibold group-hover:text-blue-400 transition-colors">
-                ABOUT
-              </span>
-            </div>
+          {/* Left Side Navigation: floating island — no borders, no shadows, seamless canvas */}
+          <aside className="w-[72px] bg-transparent flex flex-col items-center py-4 shrink-0 z-10 justify-between select-none transition-colors duration-250">
 
             {/* Uiverse.io Navbar Dock */}
             <div className="flex flex-col justify-center items-center relative transition-all duration-[450ms] ease-in-out w-14 my-auto">
-              <article className="border border-solid border-slate-800 w-full ease-in-out duration-500 left-0 rounded-2xl inline-block shadow-2xl bg-slate-900 overflow-visible">
+              <article className="border border-solid border-slate-800 w-full ease-in-out duration-500 left-0 rounded-2xl inline-block bg-slate-900 overflow-visible">
                 {navDockItems.map(item => {
                   const isChecked =
                     item.path === '/'
@@ -384,7 +371,7 @@ export default function Layout() {
                         e.preventDefault();
                         navigate(item.path);
                       }}
-                      className="has-[:checked]:shadow-lg relative w-full h-13 p-2.5 ease-in-out duration-300 border-solid border-transparent has-[:checked]:border-slate-700/60 has-[:checked]:bg-slate-800/80 group flex flex-row gap-3 items-center justify-center text-slate-400 has-[:checked]:text-blue-400 rounded-xl cursor-pointer transition-all"
+                      className="relative w-full h-13 p-2.5 ease-in-out duration-300 border-solid border-transparent has-[:checked]:border-slate-700/60 has-[:checked]:bg-slate-800/80 group flex flex-row gap-3 items-center justify-center text-slate-400 has-[:checked]:text-blue-400 rounded-xl cursor-pointer transition-all"
                     >
                       <input
                         className="hidden peer/expand"
@@ -396,7 +383,7 @@ export default function Layout() {
                       />
 
                       {/* Glowing active indicator bar on left */}
-                      <span className="absolute left-1 w-1 h-5 rounded-full bg-blue-400 opacity-0 peer-checked/expand:opacity-100 transition-opacity duration-300 shadow-[0_0_8px_currentColor]" />
+                      <span className="absolute left-1 w-1 h-5 rounded-full bg-blue-400 opacity-0 peer-checked/expand:opacity-100 transition-opacity duration-300" />
 
                       <svg
                         className="peer-hover/expand:scale-125 peer-hover/expand:text-blue-400 peer-hover/expand:fill-blue-400 peer-checked/expand:text-blue-400 peer-checked/expand:fill-blue-400 text-2xl peer-checked/expand:scale-125 ease-in-out duration-300 transition-all shrink-0"
@@ -410,7 +397,7 @@ export default function Layout() {
                       </svg>
 
                       {/* Floating Tooltip displaying Page Name & Unique Logo */}
-                      <div className="pointer-events-none absolute left-full ml-3 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 text-xs font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-[-6px] group-hover:translate-x-0 shadow-2xl z-50 flex items-center gap-2.5">
+                      <div className="pointer-events-none absolute left-full ml-3 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 text-xs font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-[-6px] group-hover:translate-x-0 z-50 flex items-center gap-2.5">
                         <div className="w-6 h-6 rounded-lg bg-slate-950 border border-slate-700 flex items-center justify-center p-0.5">
                           <Logo page={item.page} size={18} />
                         </div>
@@ -425,17 +412,11 @@ export default function Layout() {
               </article>
             </div>
 
-            {/* Bottom Dock Actions: Settings, Sync Status, Theme Switcher */}
-            <div className="flex flex-col items-center gap-4">
-              <button className="text-slate-500 hover:text-slate-300 transition-colors cursor-pointer" title="Settings">
-                <Settings size={20} />
-              </button>
-              <button className="text-slate-500 hover:text-slate-300 transition-colors cursor-pointer" title="Sync Status">
-                <RefreshCw size={20} />
-              </button>
+            {/* Bottom Dock: Unified floating pill container */}
+            <div className="flex flex-col items-center gap-4 bg-slate-900/60 backdrop-blur-md border border-slate-700/50 rounded-full py-4 px-2 mb-6 mx-auto w-12">
               <button
                 onClick={toggleTheme}
-                className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 flex items-center justify-center text-slate-400 hover:text-slate-100 transition-all cursor-pointer shadow-md group"
+                className="text-slate-400 hover:text-slate-100 transition-all cursor-pointer group"
                 title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
               >
                 {theme === 'dark' ? (
@@ -444,10 +425,13 @@ export default function Layout() {
                   <Moon size={18} className="text-blue-500 group-hover:-rotate-12 transition-transform duration-300" />
                 )}
               </button>
-              <div
-                className="w-2.5 h-2.5 rounded-full bg-blue-400 shadow-[0_0_8px_currentColor] animate-pulse"
-                title="SOC Telemetry Active"
-              />
+              <div className="w-5 h-px bg-slate-700/60" />
+              <button className="text-slate-500 hover:text-slate-300 transition-colors cursor-pointer" title="Sync Status">
+                <RefreshCw size={16} />
+              </button>
+              <button className="text-slate-500 hover:text-slate-300 transition-colors cursor-pointer" title="Settings">
+                <Settings size={16} />
+              </button>
             </div>
           </aside>
 
@@ -461,7 +445,7 @@ export default function Layout() {
         {cmdOpen && (
           <div className="fixed inset-0 z-50 flex items-start justify-center pt-[12vh]">
             <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setCmdOpen(false)} />
-            <div className="relative bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-[580px] overflow-hidden flex flex-col">
+            <div className="relative bg-slate-900 border border-slate-800 rounded-xl w-[580px] overflow-hidden flex flex-col">
               <div className="flex items-center border-b border-slate-800 px-4 py-3.5 bg-slate-950/50">
                 <Search className="text-slate-500 mr-3" size={18} />
                 <input
@@ -476,29 +460,29 @@ export default function Layout() {
               </div>
               <div className="max-h-[380px] overflow-y-auto p-2">
                 <div className="px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Navigation</div>
-                <button onClick={() => { navigate('/'); setCmdOpen(false); }} className="w-full text-left flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-slate-100 transition-colors text-xs">
+                <button onClick={() => { navigate('/dashboard'); setCmdOpen(false); }} className="w-full text-left flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-slate-100 transition-colors text-xs">
                   <span className="flex items-center gap-2.5"><Activity size={15} /> Overview & SOC Threat Feed</span>
                   <span className="text-[10px] font-mono text-slate-500">Page 1</span>
                 </button>
-                <button onClick={() => { navigate('/traffic'); setCmdOpen(false); }} className="w-full text-left flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-slate-100 transition-colors text-xs">
+                <button onClick={() => { navigate('/dashboard/traffic'); setCmdOpen(false); }} className="w-full text-left flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-slate-100 transition-colors text-xs">
                   <span className="flex items-center gap-2.5"><Activity size={15} /> Traffic Intelligence & Attack Surface</span>
                   <span className="text-[10px] font-mono text-slate-500">Page 2</span>
                 </button>
-                <button onClick={() => { navigate('/canaries'); setCmdOpen(false); }} className="w-full text-left flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-slate-100 transition-colors text-xs">
+                <button onClick={() => { navigate('/dashboard/canaries'); setCmdOpen(false); }} className="w-full text-left flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-slate-100 transition-colors text-xs">
                   <span className="flex items-center gap-2.5"><Layers size={15} /> Canaries & Honeytokens</span>
                   <span className="text-[10px] font-mono text-slate-500">Page 3</span>
                 </button>
-                <button onClick={() => { navigate('/probes'); setCmdOpen(false); }} className="w-full text-left flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-slate-100 transition-colors text-xs">
+                <button onClick={() => { navigate('/dashboard/probes'); setCmdOpen(false); }} className="w-full text-left flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-slate-100 transition-colors text-xs">
                   <span className="flex items-center gap-2.5"><Cpu size={15} /> Doberman Probes Interrogation</span>
                   <span className="text-[10px] font-mono text-slate-500">Page 4</span>
                 </button>
-                <button onClick={() => { navigate('/cases'); setCmdOpen(false); }} className="w-full text-left flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-slate-100 transition-colors text-xs">
+                <button onClick={() => { navigate('/dashboard/cases'); setCmdOpen(false); }} className="w-full text-left flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-slate-100 transition-colors text-xs">
                   <span className="flex items-center gap-2.5"><Database size={15} /> GPS Tracker & Provenance Pipeline</span>
                   <span className="text-[10px] font-mono text-slate-500">Page 5</span>
                 </button>
 
                 <div className="px-3 py-1.5 mt-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Quick Actions</div>
-                <button onClick={() => { navigate('/probes'); setCmdOpen(false); }} className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-slate-100 transition-colors text-xs">
+                <button onClick={() => { navigate('/dashboard/probes'); setCmdOpen(false); }} className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-slate-100 transition-colors text-xs">
                   <Cpu size={15} className="text-blue-400" /> <span>Run Doberman Probe Interrogation</span>
                 </button>
                 <button onClick={() => { setExportOpen(true); setCmdOpen(false); }} className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-slate-100 transition-colors text-xs">
@@ -513,7 +497,7 @@ export default function Layout() {
         {exportOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">
             <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setExportOpen(false)} />
-            <div className="relative bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-[480px] p-6 space-y-5">
+            <div className="relative bg-slate-900 border border-slate-800 rounded-xl w-[480px] p-6 space-y-5">
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <div className="flex items-center gap-2">
                   <FileText className="text-blue-400" size={18} />

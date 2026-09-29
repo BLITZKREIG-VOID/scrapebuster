@@ -212,7 +212,7 @@ export default function CaseDetail() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
         <div className="flex items-center gap-3">
           <Link 
-            to="/cases" 
+            to="/dashboard/cases" 
             className="text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800 p-2 rounded-lg border border-slate-800 transition-colors"
           >
             <ChevronLeft size={18} />

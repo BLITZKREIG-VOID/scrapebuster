@@ -133,8 +133,8 @@ export default function Overview() {
   return (
     <div className="space-y-6 max-w-full pb-12 select-none">
       {/* Hero Header */}
-      <div className="flex items-center justify-between gap-4 mb-2">
-        <h1 className="text-2xl font-bold text-slate-100">SOC Threat Feed</h1>
+      <div className="flex items-center justify-between gap-4 mb-4">
+        <h1 className="text-5xl font-extrabold text-slate-100 tracking-tight font-display">SOC Threat Feed</h1>
       </div>
 
       {/* 1. KPI Cards (With Bespoke 4-Card Pulsating Skeleton) */}

@@ -190,8 +190,8 @@ export default function Probes() {
       )}
 
       {/* Hero Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
-        <h1 className="text-2xl font-bold text-slate-100">Doberman Interrogator</h1>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+        <h1 className="text-5xl font-extrabold text-slate-100 tracking-tight font-display">Doberman Interrogator</h1>
 
         <div className="flex items-center gap-4 flex-wrap">
           <div className="text-right">
@@ -250,21 +250,21 @@ export default function Probes() {
         </div>
       </div>
 
-      {/* Cyber/Neon Glow Interrogator Cards Fleet */}
-      <section className="space-y-3">
+      {/* Interrogator Target Fleet */}
+      <section className="space-y-5">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles size={14} className="text-red-400 animate-pulse" />
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 font-mono">
-              Interrogator Target Fleet (Click Card for Neural Stream)
+          <div className="flex items-center gap-2.5">
+            <Sparkles size={16} className="text-red-400 animate-pulse" />
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200 font-mono">
+              Interrogator Target Fleet
             </h3>
           </div>
-          <span className="text-[10px] font-mono text-slate-500">
+          <span className="text-xs font-mono text-slate-500">
             Active: <span className="text-slate-300 font-semibold">{models.find((m) => m.id === activeModelId)?.name}</span>
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-6">
           {models.map((m) => (
             <InterrogatorCard
               key={m.id}

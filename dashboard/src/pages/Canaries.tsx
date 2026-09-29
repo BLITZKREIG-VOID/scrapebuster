@@ -9,8 +9,8 @@ export default function Canaries() {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12 select-none">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
-        <h1 className="text-2xl font-bold text-slate-100">Canaries & Honeytokens</h1>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+        <h1 className="text-5xl font-extrabold text-slate-100 tracking-tight font-display">Canaries <span className="font-sans not-italic font-semibold">&</span> Honeytokens</h1>
 
         <div className="text-xs font-mono text-slate-400 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.8)]" />

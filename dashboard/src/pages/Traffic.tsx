@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { usePoll } from '../api/poll';
 import { getEvents } from '../api/client';
 import type { TrafficEvent } from '../types/contracts';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import {
   Shield,
   Server,
@@ -13,15 +13,23 @@ import {
   ChevronDown
 } from 'lucide-react';
 
-const DECISION_COLORS = {
-  ALLOW: '#79b4b2',
-  PASS: '#aec7c6',
-  ESCALATE: '#f59e0b',
-  CHALLENGE: '#f59e0b',
-  RESTRICT: '#ef4444',
-  THROTTLE: '#ef4444',
-  BLOCK: '#ef4444',
-  TRAP: '#416866',
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-slate-950/80 backdrop-blur-md border border-slate-800 rounded-md p-3 shadow-xl">
+        <p className="text-slate-200 font-mono text-xs mb-2 border-b border-slate-800 pb-2">{new Date(label).toLocaleTimeString()}</p>
+        {payload.map((entry: any, index: number) => (
+          <div key={index} className="flex items-center gap-2 text-xs font-mono mb-1">
+            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color || entry.fill }} />
+            <span className="text-slate-400 w-20">{entry.name}:</span>
+            <span className="text-slate-200 font-bold">{entry.value}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return null;
 };
 
 export default function Traffic() {
@@ -85,8 +93,8 @@ export default function Traffic() {
   return (
     <div className="space-y-6 max-w-full pb-12">
       {/* Header with Saved Views & Advanced Controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
-        <h1 className="text-2xl font-bold text-slate-100">Traffic Intelligence</h1>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+        <h1 className="text-5xl font-extrabold text-slate-100 tracking-tight font-display">Traffic Intelligence</h1>
 
         {/* Saved Views Tabs & Filters */}
         <div className="flex items-center gap-2">
@@ -131,54 +139,82 @@ export default function Traffic() {
 
         <div className="h-64 w-full group hover:scale-[1.01] transition-transform duration-500 ease-out cursor-crosshair">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData}>
-              <XAxis dataKey="ts" tickFormatter={(ts) => new Date(ts).toLocaleTimeString([], { minute: '2-digit', second: '2-digit' })} stroke="#1d2726" tick={{ fill: '#7e9998', fontSize: 10, fontFamily: 'monospace' }} />
-              <YAxis stroke="#1d2726" tick={{ fill: '#7e9998', fontSize: 10, fontFamily: 'monospace' }} />
-              <Tooltip contentStyle={{ backgroundColor: '#090c0c', borderColor: '#1d2726', color: '#ebefee', fontSize: '11px', fontFamily: 'monospace' }} labelFormatter={(ts) => new Date(ts as number).toLocaleTimeString()} />
-              <Bar dataKey="ALLOW" stackId="a" fill={DECISION_COLORS.ALLOW} />
-              <Bar dataKey="PASS" stackId="a" fill={DECISION_COLORS.PASS} />
-              <Bar dataKey="ESCALATE" stackId="a" fill={DECISION_COLORS.ESCALATE} />
-              <Bar dataKey="CHALLENGE" stackId="a" fill={DECISION_COLORS.CHALLENGE} />
-              <Bar dataKey="RESTRICT" stackId="a" fill={DECISION_COLORS.RESTRICT} />
-              <Bar dataKey="THROTTLE" stackId="a" fill={DECISION_COLORS.THROTTLE} />
-              <Bar dataKey="BLOCK" stackId="a" fill={DECISION_COLORS.BLOCK} />
-              <Bar dataKey="TRAP" stackId="a" fill={DECISION_COLORS.TRAP} />
+            <BarChart data={chartData} barCategoryGap="20%">
+              <defs>
+                <linearGradient id="colorSafe" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.9} />
+                  <stop offset="95%" stopColor="#0891b2" stopOpacity={0.8} />
+                </linearGradient>
+                <linearGradient id="colorChallenge" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#fbbf24" stopOpacity={0.9} />
+                  <stop offset="95%" stopColor="#d97706" stopOpacity={0.8} />
+                </linearGradient>
+                <linearGradient id="colorBlock" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#f87171" stopOpacity={0.9} />
+                  <stop offset="95%" stopColor="#dc2626" stopOpacity={0.8} />
+                </linearGradient>
+                <linearGradient id="colorTrap" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#34d399" stopOpacity={0.9} />
+                  <stop offset="95%" stopColor="#059669" stopOpacity={0.8} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#1e293b" />
+              <XAxis dataKey="ts" tickFormatter={(ts) => new Date(ts).toLocaleTimeString([], { minute: '2-digit', second: '2-digit' })} stroke="#1e293b" tick={{ fill: '#94a3b8', fontSize: 12, fontFamily: 'monospace' }} tickMargin={12} height={50} label={{ value: 'Time (mm:ss)', position: 'insideBottom', offset: -5, fill: '#64748b', fontSize: 11, fontFamily: 'monospace', fontWeight: 'bold' }} />
+              <YAxis allowDecimals={false} stroke="#1e293b" tick={{ fill: '#94a3b8', fontSize: 12, fontFamily: 'monospace' }} tickMargin={12} width={60} label={{ value: 'Request Volume (req/10s)', angle: -90, position: 'insideLeft', offset: 0, fill: '#64748b', fontSize: 11, fontFamily: 'monospace', fontWeight: 'bold' }} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: '#1e293b', opacity: 0.6 }} />
+              <Bar dataKey="ALLOW" stackId="a" fill="url(#colorSafe)" fillOpacity={0.85} isAnimationActive={true} animationDuration={1200} animationEasing="ease-out" />
+              <Bar dataKey="PASS" stackId="a" fill="url(#colorSafe)" fillOpacity={0.85} isAnimationActive={true} animationDuration={1200} animationEasing="ease-out" />
+              <Bar dataKey="ESCALATE" stackId="a" fill="url(#colorChallenge)" fillOpacity={0.85} isAnimationActive={true} animationDuration={1200} animationEasing="ease-out" />
+              <Bar dataKey="CHALLENGE" stackId="a" fill="url(#colorChallenge)" fillOpacity={0.85} isAnimationActive={true} animationDuration={1200} animationEasing="ease-out" />
+              <Bar dataKey="RESTRICT" stackId="a" fill="url(#colorBlock)" fillOpacity={0.85} isAnimationActive={true} animationDuration={1200} animationEasing="ease-out" />
+              <Bar dataKey="THROTTLE" stackId="a" fill="url(#colorBlock)" fillOpacity={0.85} isAnimationActive={true} animationDuration={1200} animationEasing="ease-out" />
+              <Bar dataKey="BLOCK" stackId="a" fill="url(#colorBlock)" fillOpacity={0.85} isAnimationActive={true} animationDuration={1200} animationEasing="ease-out" />
+              <Bar dataKey="TRAP" stackId="a" fill="url(#colorTrap)" fillOpacity={0.85} isAnimationActive={true} animationDuration={1200} animationEasing="ease-out" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </section>
 
-      {/* Grid: Attack Surface, Top Actors & Geographic Attribution (P2 Scaffold) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Attack Surface */}
-        <section className="bg-slate-900 rounded-xl border border-slate-800 p-5 shadow-sm flex flex-col h-[340px]">
-          <h3 className="text-xs font-bold mb-3 text-slate-200 uppercase tracking-wider flex items-center gap-2">
-            <Server size={15} className="text-slate-400" /> Guarded Attack Surface
-          </h3>
-          <div className="overflow-y-auto flex-1 custom-scrollbar pr-1">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950/90 text-slate-500 sticky top-0 text-[10px] uppercase tracking-wider">
+      {/* Grid: Attack Surface, Top Actors & Geographic Attribution */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-6">
+
+        {/* ── Attack Surface ── */}
+        <section className="bg-slate-900/40 backdrop-blur-xl rounded-2xl border border-slate-800 border-t-2 border-t-blue-500/60 shadow-lg flex flex-col min-h-[320px] overflow-hidden">
+          <div className="px-7 pt-7 pb-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                <Server size={18} className="text-blue-400" />
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold text-slate-100 tracking-tight">Guarded Attack Surface</h3>
+                <p className="text-sm text-slate-400 font-mono mt-0.5">{endpoints.length} monitored endpoints</p>
+              </div>
+            </div>
+          </div>
+          <div className="overflow-y-auto flex-1 custom-scrollbar">
+            <table className="w-full text-left">
+              <thead className="bg-slate-950/60 text-slate-500 sticky top-0 text-[10px] uppercase tracking-widest">
                 <tr>
-                  <th className="p-2.5 font-semibold border-b border-slate-800">Endpoint</th>
-                  <th className="p-2.5 font-semibold border-b border-slate-800 text-right">Vol</th>
-                  <th className="p-2.5 font-semibold border-b border-slate-800 text-center">Threat</th>
+                  <th className="px-7 py-3 font-semibold">Endpoint</th>
+                  <th className="px-5 py-3 font-semibold text-right">Volume</th>
+                  <th className="px-5 py-3 font-semibold text-center">Threat</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/50">
+              <tbody>
                 {endpoints.map((ep, i) => (
-                  <tr key={i} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="p-2.5 font-mono text-slate-300">
-                      <div>{ep.path}</div>
-                      <div className="text-[10px] text-slate-500">{ep.status}</div>
+                  <tr key={i} className="border-b border-slate-800/30 hover:bg-slate-800/20 transition-colors group/row">
+                    <td className="px-7 py-4">
+                      <div className="font-mono text-sm text-slate-200 font-medium group-hover/row:text-blue-300 transition-colors">{ep.path}</div>
+                      <div className="text-xs text-slate-500 mt-1">{ep.status}</div>
                     </td>
-                    <td className="p-2.5 font-mono text-slate-400 text-right">
-                      {ep.hits.toLocaleString()}
-                      <span className="text-[10px] text-amber-400 ml-1 block">{ep.trend}</span>
+                    <td className="px-5 py-4 text-right">
+                      <span className="font-mono text-sm text-slate-200 font-medium">{ep.hits.toLocaleString()}</span>
+                      <span className="text-xs text-amber-400 font-mono ml-1.5">{ep.trend}</span>
                     </td>
-                    <td className="p-2.5 text-center">
-                      <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border ${ep.risk === 'CRITICAL' ? 'bg-red-500/10 text-red-400 border-red-500/30' :
-                          ep.risk === 'HIGH' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' :
-                            'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                    <td className="px-5 py-4 text-center">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${ep.risk === 'CRITICAL' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                          ep.risk === 'HIGH' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                            'bg-blue-500/10 text-blue-400 border-blue-500/20'
                         }`}>
                         {ep.risk}
                       </span>
@@ -190,37 +226,55 @@ export default function Traffic() {
           </div>
         </section>
 
-        {/* Top Actors */}
-        <section className="bg-slate-900 rounded-xl border border-slate-800 p-5 shadow-sm flex flex-col h-[340px]">
-          <h3 className="text-xs font-bold mb-3 text-slate-200 uppercase tracking-wider flex items-center gap-2">
-            <Target size={15} className="text-red-400" /> High-Risk Adversary Actors
-          </h3>
-          <div className="overflow-y-auto flex-1 custom-scrollbar pr-1">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950/90 text-slate-500 sticky top-0 text-[10px] uppercase tracking-wider">
+        {/* ── Top Actors ── */}
+        <section className="bg-slate-900/40 backdrop-blur-xl rounded-2xl border border-slate-800 border-t-2 border-t-red-500/60 shadow-lg flex flex-col min-h-[320px] overflow-hidden">
+          <div className="px-7 pt-7 pb-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                <Target size={18} className="text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold text-slate-100 tracking-tight">High-Risk Adversary Actors</h3>
+                <p className="text-sm text-slate-400 font-mono mt-0.5">{topActors.length} tracked entities</p>
+              </div>
+            </div>
+          </div>
+          <div className="overflow-y-auto flex-1 custom-scrollbar">
+            <table className="w-full text-left">
+              <thead className="bg-slate-950/60 text-slate-500 sticky top-0 text-[10px] uppercase tracking-widest">
                 <tr>
-                  <th className="p-2.5 font-semibold border-b border-slate-800">IP / ASN</th>
-                  <th className="p-2.5 font-semibold border-b border-slate-800">Class</th>
-                  <th className="p-2.5 font-semibold border-b border-slate-800 text-right">Risk</th>
+                  <th className="px-7 py-3 font-semibold">IP / ASN</th>
+                  <th className="px-5 py-3 font-semibold">Class</th>
+                  <th className="px-5 py-3 font-semibold text-right">Risk</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/50">
+              <tbody>
                 {topActors.map((actor, i) => (
-                  <tr key={i} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="p-2.5 font-mono">
-                      <div className="text-blue-400 flex items-center gap-1.5 font-bold">
+                  <tr key={i} className="border-b border-slate-800/30 hover:bg-slate-800/20 transition-colors group/row">
+                    <td className="px-7 py-4">
+                      <div className="font-mono text-sm text-blue-400 font-bold flex items-center gap-2 group-hover/row:text-blue-300 transition-colors">
                         {actor.ip}
-                        {actor.blocked && <Shield size={11} className="text-red-400" />}
+                        {actor.blocked && <Shield size={12} className="text-red-400" />}
                       </div>
-                      <div className="text-[10px] text-slate-500">{actor.asn}</div>
+                      <div className="text-xs text-slate-500 mt-1">{actor.asn}</div>
                     </td>
-                    <td className="p-2.5 text-[10px] text-slate-400 font-mono tracking-tight uppercase">
-                      {actor.type}
-                    </td>
-                    <td className="p-2.5 text-right font-mono">
-                      <span className={`text-xs font-bold ${actor.risk > 80 ? 'text-red-400' : 'text-amber-400'}`}>
-                        {actor.risk}
+                    <td className="px-5 py-4">
+                      <span className="text-xs text-slate-300 font-mono tracking-tight uppercase bg-slate-800/60 px-2.5 py-1 rounded-md border border-slate-700/40">
+                        {actor.type}
                       </span>
+                    </td>
+                    <td className="px-5 py-4 text-right">
+                      <div className="flex items-center justify-end gap-3">
+                        <div className="w-16 h-2 rounded-full bg-slate-800 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${actor.risk > 80 ? 'bg-red-500' : actor.risk > 50 ? 'bg-amber-500' : 'bg-blue-500'}`}
+                            style={{ width: `${actor.risk}%` }}
+                          />
+                        </div>
+                        <span className={`text-sm font-bold font-mono min-w-[28px] text-right ${actor.risk > 80 ? 'text-red-400' : 'text-amber-400'}`}>
+                          {actor.risk}
+                        </span>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -229,27 +283,41 @@ export default function Traffic() {
           </div>
         </section>
 
-        {/* Geographic Attribution Preview (P2 Future Readiness) */}
-        <section className="bg-slate-900 rounded-xl border border-slate-800 p-5 shadow-sm flex flex-col h-[340px]">
-          <h3 className="text-xs font-bold mb-3 text-slate-200 uppercase tracking-wider flex items-center gap-2">
-            <Globe size={15} className="text-emerald-400" /> Geographic Threat Origins
-          </h3>
-          <div className="space-y-3 flex-1 flex flex-col justify-center">
+        {/* ── Geographic Attribution (full-width span) ── */}
+        <section className="bg-slate-900/40 backdrop-blur-xl rounded-2xl border border-slate-800 border-t-2 border-t-emerald-500/60 shadow-lg flex flex-col min-h-[320px] overflow-hidden lg:col-span-2">
+          <div className="px-7 pt-7 pb-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                <Globe size={18} className="text-emerald-400" />
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold text-slate-100 tracking-tight">Geographic Threat Origins</h3>
+                <p className="text-sm text-slate-400 font-mono mt-0.5">{geoDistributions.length} region clusters profiled</p>
+              </div>
+            </div>
+          </div>
+          <div className="px-7 pb-7 flex-1 flex flex-col justify-center gap-5">
             {geoDistributions.map((g, i) => (
-              <div key={i} className="space-y-1">
-                <div className="flex justify-between text-xs font-mono">
-                  <div className="flex flex-col">
-                    <span className="text-slate-300">{g.region}</span>
-                    <span className="text-[9px] text-slate-500">{g.latLong} • {g.address}</span>
+              <div key={i} className="group/geo">
+                <div className="flex justify-between items-baseline mb-2">
+                  <div className="flex items-baseline gap-3">
+                    <span className="text-sm text-slate-200 font-medium">{g.region}</span>
+                    <span className="text-xs text-slate-500 font-mono">{g.latLong} · {g.address}</span>
                   </div>
-                  <span className="text-slate-400">{g.pct}% ({g.reqs})</span>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-sm font-bold font-mono text-slate-200">{g.pct}%</span>
+                    <span className="text-xs text-slate-500 font-mono">{g.reqs}</span>
+                  </div>
                 </div>
-                <div className="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
-                  <div className={`h-full ${g.color} transition-all duration-500`} style={{ width: `${g.pct}%` }} />
+                <div className="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800/60">
+                  <div
+                    className={`h-full rounded-full ${g.color} transition-all duration-700 ease-out group-hover/geo:brightness-125`}
+                    style={{ width: `${g.pct}%` }}
+                  />
                 </div>
               </div>
             ))}
-            <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-[10px] text-slate-400 font-mono mt-2">
+            <div className="mt-2 p-4 rounded-lg bg-black/30 border border-slate-800/50 text-xs text-slate-400 font-mono leading-relaxed">
               <span className="text-emerald-400 font-bold">ASN Profiler:</span> 64% of high-volume probes originate from commercial hosting datacenters (AWS, DigitalOcean, Hetzner).
             </div>
           </div>

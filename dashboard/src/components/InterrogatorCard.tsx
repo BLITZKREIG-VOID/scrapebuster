@@ -1,4 +1,4 @@
-import { Cpu, ShieldAlert, ShieldCheck, Activity, Terminal, ArrowUpRight } from 'lucide-react';
+import { ShieldAlert, ShieldCheck, Activity, Terminal, Zap, Crosshair, Layers } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export interface InterrogatorModel {
@@ -29,14 +29,20 @@ export default function InterrogatorCard({
   className,
 }: InterrogatorCardProps) {
   const isThreat = model.status === 'LEAK_DETECTED';
-  const colorScheme = model.colorScheme || (isThreat ? 'red' : 'blue');
+  const isProbing = model.status === 'PROBING';
 
-  // Conditional cyber/neon glow classes based on state
-  const glowClasses = isActive
-    ? colorScheme === 'red'
-      ? 'border-red-500 bg-red-950/30 shadow-[0_0_30px_rgba(220,38,38,0.45)] ring-1 ring-red-500/50'
-      : 'border-cyan-400 bg-cyan-950/30 shadow-[0_0_30px_rgba(14,165,233,0.45)] ring-1 ring-cyan-400/50'
-    : 'border-slate-800 bg-slate-900/90 hover:border-slate-700 hover:bg-slate-850/80 shadow-sm hover:shadow-md';
+  // Determine accent based on status
+  const accentBorderTop = isThreat
+    ? 'border-t-red-500'
+    : isProbing
+    ? 'border-t-amber-500'
+    : 'border-t-slate-700';
+
+  const glowShadow = isThreat
+    ? 'shadow-[0_8px_60px_rgba(239,68,68,0.12),0_2px_20px_rgba(239,68,68,0.08)]'
+    : isProbing
+    ? 'shadow-[0_8px_60px_rgba(245,158,11,0.08)]'
+    : 'shadow-lg';
 
   return (
     <div
@@ -50,139 +56,149 @@ export default function InterrogatorCard({
         }
       }}
       className={cn(
-        'relative rounded-2xl border p-5 transition-all duration-300 cursor-pointer overflow-hidden group select-none',
-        glowClasses,
+        // Base card: glassmorphism, generous sizing, accent top border
+        'relative rounded-2xl border border-slate-800 border-t-2 bg-slate-900/40 backdrop-blur-xl',
+        'transition-all duration-300 cursor-pointer overflow-hidden group select-none',
+        'flex flex-col min-h-[320px]',
+        accentBorderTop,
+        isActive ? cn(glowShadow, 'ring-1 ring-white/5') : 'shadow-md hover:shadow-2xl hover:bg-slate-900/60',
         className
       )}
     >
-      {/* Active Glowing Neon Accent Bar */}
-      {isActive && (
-        <div
-          className={cn(
-            'absolute top-0 left-0 right-0 h-1 animate-pulse',
-            colorScheme === 'red'
-              ? 'bg-gradient-to-r from-red-600 via-red-400 to-amber-500'
-              : 'bg-gradient-to-r from-blue-600 via-cyan-400 to-teal-400'
-          )}
-        />
-      )}
+      {/* ── Card Content ── */}
+      <div className="p-7 flex flex-col flex-1 gap-6">
 
-      {/* Top Header: Model Name & Status Pill */}
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <div className="flex items-center gap-2.5">
+        {/* Header: Icon + Model Identity */}
+        <div className="flex items-start gap-4">
           <div
             className={cn(
-              'p-2 rounded-xl border transition-colors',
-              isActive
-                ? colorScheme === 'red'
-                  ? 'bg-red-500/20 text-red-400 border-red-500/40'
-                  : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
-                : 'bg-slate-800/80 text-slate-400 border-slate-700 group-hover:text-slate-200'
-            )}
-          >
-            <Cpu size={18} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-bold text-slate-100 font-mono tracking-tight">
-                {model.name}
-              </h3>
-              <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 border border-slate-700 font-mono">
-                {model.provider}
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400 font-mono mt-0.5">
-              Target ID: <span className="text-slate-300">{model.modelId}</span>
-            </p>
-          </div>
-        </div>
-
-        {/* State / Status Badge */}
-        <div className="flex flex-col items-end gap-1">
-          <span
-            className={cn(
-              'text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border flex items-center gap-1.5 shadow-sm',
+              'w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-300',
               isThreat
-                ? 'bg-red-500/10 text-red-400 border-red-500/40'
-                : model.status === 'PROBING'
-                ? 'bg-amber-500/10 text-amber-400 border-amber-500/40'
-                : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/40'
+                ? 'bg-red-500/10 text-red-400 border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.15)]'
+                : isProbing
+                ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                : isActive
+                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                : 'bg-slate-800/60 text-slate-400 border-slate-700/50 group-hover:text-slate-200 group-hover:border-slate-600'
             )}
           >
             {isThreat ? (
-              <>
-                <ShieldAlert size={12} className="animate-pulse" />
-                <span>LEAK DETECTED</span>
-              </>
-            ) : model.status === 'PROBING' ? (
-              <>
-                <Activity size={12} className="animate-spin" />
-                <span>PROBING...</span>
-              </>
+              <ShieldAlert size={22} className={isActive ? 'animate-pulse' : ''} />
+            ) : isProbing ? (
+              <Activity size={22} className={isActive ? 'animate-spin' : ''} />
             ) : (
-              <>
-                <ShieldCheck size={12} />
-                <span>CLEAN BASELINE</span>
-              </>
+              <ShieldCheck size={22} />
             )}
-          </span>
-          <span className="text-[10px] text-slate-500 font-mono">
-            {model.lastTested}
-          </span>
-        </div>
-      </div>
-
-      {/* Metrics Row */}
-      <div className="grid grid-cols-3 gap-2 py-2.5 my-2 border-y border-slate-800/80 bg-slate-950/40 rounded-xl px-3 font-mono text-xs">
-        <div>
-          <span className="text-[10px] text-slate-500 uppercase block font-medium">Match Rate</span>
-          <span
-            className={cn(
-              'font-bold text-sm',
-              model.canaryMatchPct > 70
-                ? 'text-red-400'
-                : model.canaryMatchPct > 0
-                ? 'text-amber-400'
-                : 'text-emerald-400'
-            )}
-          >
-            {model.canaryMatchPct}%
-          </span>
-        </div>
-        <div>
-          <span className="text-[10px] text-slate-500 uppercase block font-medium">Probes Fired</span>
-          <span className="font-bold text-sm text-slate-200">{model.probesExecuted}</span>
-        </div>
-        <div>
-          <span className="text-[10px] text-slate-500 uppercase block font-medium">Latency</span>
-          <span className="font-bold text-sm text-slate-400">{model.latencyMs}ms</span>
-        </div>
-      </div>
-
-      {/* Snippet preview if leak detected */}
-      {model.verbatimSnippet && (
-        <div className="mt-2 p-2 rounded-lg bg-slate-950/80 border border-slate-800/80 font-mono text-[11px] text-slate-300">
-          <div className="flex items-center justify-between text-[10px] text-slate-500 mb-1">
-            <span className="flex items-center gap-1 font-semibold text-red-400">
-              <Terminal size={11} /> Leaked Canary Payload
-            </span>
-            <span className="text-[9px] uppercase tracking-wider text-slate-600">Verbatim Output</span>
           </div>
-          <p className="line-clamp-2 text-slate-300 font-mono text-[10px]">
-            &quot;{model.verbatimSnippet}&quot;
-          </p>
-        </div>
-      )}
 
-      {/* Bottom Hint */}
-      <div className="flex items-center justify-between mt-3 text-[11px] font-mono text-slate-400">
-        <span className="text-[10px] text-slate-500">
-          {isActive ? '● Live Telemetry Selected' : 'Click to inspect neural logs'}
-        </span>
-        <div className="flex items-center gap-1 text-slate-400 group-hover:text-slate-200 transition-colors">
-          <span>{isActive ? 'Interrogating' : 'View Stream'}</span>
-          <ArrowUpRight size={13} />
+          <div className="min-w-0 flex-1">
+            <h3 className="text-xl font-semibold text-slate-100 leading-tight truncate tracking-tight">
+              {model.name}
+            </h3>
+            <div className="flex items-center gap-2.5 mt-2">
+              <span className="text-[11px] px-2 py-0.5 rounded-md bg-slate-800/80 text-slate-400 font-mono border border-slate-700/50">
+                {model.provider}
+              </span>
+              <span className="text-sm text-slate-400 font-mono truncate">
+                {model.modelId}
+              </span>
+            </div>
+          </div>
         </div>
+
+        {/* Status Badge */}
+        <div
+          className={cn(
+            'inline-flex items-center gap-2 text-[11px] font-mono font-bold uppercase tracking-widest px-3.5 py-2 rounded-lg border w-fit',
+            isThreat
+              ? 'bg-red-950/40 text-red-400 border-red-500/20'
+              : isProbing
+              ? 'bg-amber-950/40 text-amber-400 border-amber-500/20'
+              : 'bg-emerald-950/40 text-emerald-400 border-emerald-500/20'
+          )}
+        >
+          {isThreat ? (
+            <><ShieldAlert size={13} className="animate-pulse" /> Leak Detected</>
+          ) : isProbing ? (
+            <><Activity size={13} className="animate-spin" /> Probing...</>
+          ) : (
+            <><ShieldCheck size={13} /> Clean Baseline</>
+          )}
+        </div>
+
+        {/* ── Massive Metrics Row ── */}
+        <div className="flex items-end justify-between gap-4 py-2">
+          {/* Canary Match */}
+          <div className="flex flex-col items-start">
+            <span className="text-[10px] text-slate-500 uppercase font-mono font-semibold tracking-widest flex items-center gap-1 mb-1">
+              <Crosshair size={10} /> Match
+            </span>
+            <span
+              className={cn(
+                'text-4xl lg:text-5xl font-light tracking-tight font-mono',
+                model.canaryMatchPct > 70
+                  ? 'text-red-400'
+                  : model.canaryMatchPct > 0
+                  ? 'text-amber-400'
+                  : 'text-emerald-400'
+              )}
+            >
+              {model.canaryMatchPct}<span className="text-lg text-slate-500 ml-0.5">%</span>
+            </span>
+          </div>
+
+          {/* Probes Executed */}
+          <div className="flex flex-col items-center">
+            <span className="text-[10px] text-slate-500 uppercase font-mono font-semibold tracking-widest flex items-center gap-1 mb-1">
+              <Layers size={10} /> Probes
+            </span>
+            <span className="text-4xl lg:text-5xl font-light tracking-tight font-mono text-slate-200">
+              {model.probesExecuted}
+            </span>
+          </div>
+
+          {/* Latency */}
+          <div className="flex flex-col items-end">
+            <span className="text-[10px] text-slate-500 uppercase font-mono font-semibold tracking-widest flex items-center gap-1 mb-1">
+              <Zap size={10} /> Latency
+            </span>
+            <span className="text-4xl lg:text-5xl font-light tracking-tight font-mono text-slate-400">
+              {model.latencyMs}<span className="text-lg text-slate-500 ml-0.5">ms</span>
+            </span>
+          </div>
+        </div>
+
+        {/* ── Canary Leak Terminal (only for leak-detected) ── */}
+        {model.verbatimSnippet && (
+          <div className="p-4 bg-black/50 rounded-lg border border-red-900/30">
+            <div className="flex items-center gap-2 mb-2.5">
+              <Terminal size={13} className="text-red-400" />
+              <span className="text-[10px] text-red-400 font-mono font-bold uppercase tracking-widest">
+                Intercepted Canary Payload
+              </span>
+            </div>
+            <p className="text-[13px] text-slate-300 font-mono leading-relaxed line-clamp-3">
+              &quot;{model.verbatimSnippet}&quot;
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* ── Footer ── */}
+      <div className="px-7 py-4 border-t border-slate-800/50 flex items-center justify-between bg-slate-950/20">
+        <span className="text-xs text-slate-500 font-mono">
+          {model.lastTested}
+        </span>
+        <span
+          className={cn(
+            'text-xs font-mono font-semibold tracking-wide transition-colors',
+            isActive
+              ? isThreat ? 'text-red-400' : isProbing ? 'text-amber-400' : 'text-emerald-400'
+              : 'text-slate-500 group-hover:text-slate-300'
+          )}
+        >
+          {isActive ? '● LIVE' : 'SELECT →'}
+        </span>
       </div>
     </div>
   );

@@ -10,12 +10,9 @@ export default function About() {
         </div>
         <div className="flex flex-col text-left">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold text-slate-100 tracking-tight font-display">
+            <h1 className="text-5xl font-extrabold text-slate-100 tracking-tight font-display">
               ScrapeBuster — Offensive Data Provenance
             </h1>
-            <span className="font-mono text-xs px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/30 uppercase tracking-widest font-semibold shadow-sm">
-              [POC Build - Hackathon Edition]
-            </span>
           </div>
           <span className="text-sm text-slate-400 font-mono mt-1">
             Autonomous Anti-Scraper Honeypots & LLM Training Attribution
@@ -80,13 +77,6 @@ export default function About() {
         </div>
       </div>
 
-      <div className="flex items-center justify-between pt-6 border-t border-slate-800/80 text-xs font-mono text-slate-500">
-        <span className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
-          <span>SOC Engine v1.2</span>
-        </span>
-        <span>Built for Hackathon 2026</span>
-      </div>
     </div>
   );
 }

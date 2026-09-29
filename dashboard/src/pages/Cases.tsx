@@ -8,8 +8,16 @@ import {
   Cpu,
   FileCheck,
   ArrowRight,
-  Layers
+  Layers,
+  Download
 } from 'lucide-react';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "../components/ui/sheet";
 
 export default function Cases() {
   const { data } = usePoll(getCases, 2000);
@@ -27,8 +35,8 @@ export default function Cases() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 select-none">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 mb-2">
-        <h1 className="text-2xl font-bold text-slate-100">GPS Tracker & Provenance</h1>
+      <div className="flex items-center justify-between gap-4 mb-4">
+        <h1 className="text-5xl font-extrabold text-slate-100 tracking-tight font-display">GPS Tracker <span className="font-sans not-italic font-semibold">&</span> Provenance</h1>
       </div>
 
       {/* Pipeline Tracker Overview Banner with Fluid Animation */}
@@ -172,7 +180,7 @@ export default function Cases() {
             {filteredCases.map(c => (
               <tr key={c.case_id} className="hover:bg-slate-800/40 transition-colors group">
                 <td className="p-3.5 font-bold">
-                  <Link to={`/cases/${c.case_id}`} className="text-blue-400 hover:text-blue-300 flex items-center gap-1.5">
+                  <Link to={`/dashboard/cases/${c.case_id}`} className="text-blue-400 hover:text-blue-300 flex items-center gap-1.5">
                     <span>{c.case_id}</span>
                   </Link>
                   <span className="text-[10px] text-slate-500 font-sans block mt-0.5">{new Date(c.created_at).toLocaleTimeString()}</span>
@@ -209,13 +217,77 @@ export default function Cases() {
                   <span className="text-[9px] text-slate-500">SHA-256 Validated</span>
                 </td>
                 <td className="p-3.5 text-right font-sans">
-                  <Link
-                    to={`/cases/${c.case_id}`}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 hover:text-blue-300 text-xs font-semibold border border-blue-500/30 transition-all shadow-sm"
-                  >
-                    <span>Inspect Pipeline</span>
-                    <ArrowRight size={13} />
-                  </Link>
+                  <Sheet>
+                    <SheetTrigger
+                      render={
+                        <button className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 hover:text-blue-300 text-xs font-semibold border border-blue-500/30 transition-all shadow-sm cursor-pointer" />
+                      }
+                    >
+                      <span>Inspect Pipeline</span>
+                      <ArrowRight size={13} />
+                    </SheetTrigger>
+                    <SheetContent side="right" className="w-[400px] sm:w-[540px] bg-slate-950 border-l border-slate-800">
+                      <SheetHeader className="pb-4 border-b border-slate-800">
+                        <SheetTitle className="flex items-center gap-3">
+                          <span className="font-mono text-slate-200 text-lg">Case {c.case_id}</span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-red-500/10 text-red-400 border border-red-500/30">
+                            PROVENANCE SIGNAL DETECTED
+                          </span>
+                        </SheetTitle>
+                      </SheetHeader>
+                      <div className="py-6 space-y-6">
+                        {/* Timeline of Events */}
+                        <div className="space-y-4">
+                          <h4 className="text-sm font-semibold text-slate-300">Timeline of Events</h4>
+                          <div className="relative border-l border-slate-700 ml-3 space-y-5 text-left">
+                            <div className="relative pl-6">
+                              <div className="absolute w-3 h-3 bg-slate-800 rounded-full border border-slate-500 -left-[6.5px] top-1"></div>
+                              <p className="text-xs text-slate-300 font-bold">Bait Ingested</p>
+                              <p className="text-[10px] text-slate-500 mt-1">Canary token embedded in raw scraping endpoint.</p>
+                            </div>
+                            <div className="relative pl-6">
+                              <div className="absolute w-3 h-3 bg-slate-800 rounded-full border border-slate-500 -left-[6.5px] top-1"></div>
+                              <p className="text-xs text-slate-300 font-bold">Vectorized</p>
+                              <p className="text-[10px] text-slate-500 mt-1">Token embedded into adversary knowledge base.</p>
+                            </div>
+                            <div className="relative pl-6">
+                              <div className="absolute w-3 h-3 bg-slate-800 rounded-full border border-slate-500 -left-[6.5px] top-1"></div>
+                              <p className="text-xs text-slate-300 font-bold">RAG Generation</p>
+                              <p className="text-[10px] text-slate-500 mt-1">Adversary LLM retrieved poisoned knowledge.</p>
+                            </div>
+                            <div className="relative pl-6">
+                              <div className="absolute w-3 h-3 bg-red-500/20 rounded-full border border-red-500 -left-[6.5px] top-1 flex items-center justify-center">
+                                <div className="w-1.5 h-1.5 bg-red-400 rounded-full"></div>
+                              </div>
+                              <p className="text-xs text-red-400 font-bold">Verbatim Output Detected</p>
+                              <p className="text-[10px] text-slate-500 mt-1">Provenance match triggered active alert.</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Mock JSON Terminal Block */}
+                        <div className="space-y-2 text-left">
+                          <h4 className="text-sm font-semibold text-slate-300">Intercepted Payload</h4>
+                          <div className="p-4 bg-black/60 border border-slate-800 rounded-lg overflow-x-auto text-[11px] font-mono leading-relaxed text-left">
+                            <span className="text-blue-400">{`{`}</span><br />
+                            <span className="text-blue-300 pl-4">"model_id":</span> <span className="text-emerald-400">"qwen2.5:3b"</span>,<br />
+                            <span className="text-blue-300 pl-4">"canary_token":</span> <span className="text-red-400">"SB-CAN-0003"</span>,<br />
+                            <span className="text-blue-300 pl-4">"timestamp":</span> <span className="text-emerald-400">"{c.created_at}"</span>,<br />
+                            <span className="text-blue-300 pl-4">"text":</span> <span className="text-amber-300">"The secret project code is quasar-reconcile..."</span><br />
+                            <span className="text-blue-400">{`}`}</span>
+                          </div>
+                        </div>
+
+                        {/* Export Action */}
+                        <div className="pt-4 flex justify-end">
+                          <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-colors cursor-pointer shadow-md">
+                            <Download size={14} />
+                            <span>Export Forensic Report</span>
+                          </button>
+                        </div>
+                      </div>
+                    </SheetContent>
+                  </Sheet>
                 </td>
               </tr>
             ))}

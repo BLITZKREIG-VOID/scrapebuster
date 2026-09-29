@@ -9,11 +9,16 @@ import CaseDetail from './pages/CaseDetail';
 
 import About from './pages/About';
 
+import Welcome from './pages/Welcome';
+import Login from './pages/Login';
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Layout />}>
+        <Route path="/login" element={<Login />} />
+        <Route path="/" element={<Welcome />} />
+        <Route path="/dashboard" element={<Layout />}>
           <Route index element={<Overview />} />
           <Route path="about" element={<About />} />
           <Route path="traffic" element={<Traffic />} />
@@ -21,8 +26,8 @@ export default function App() {
           <Route path="probes" element={<Probes />} />
           <Route path="cases" element={<Cases />} />
           <Route path="cases/:id" element={<CaseDetail />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
