@@ -11,7 +11,7 @@ path -> BFS over *all* ``<a href>`` (hidden ones included), same-origin, deduped
 max 20 pages, 2 s ± 0.5 s (seeded) between pages. Ignores robots.txt.
 Writes one dataset JSONL record per page: {"url","fetched_at","title","text"}.
 
-    python attacks/sophisticated_scraper.py --base http://127.0.0.1:8000 \
+    python attacks/sophisticated_scraper.py --base http://localhost:8000 \
         --out data/datasets/<run_id>_scraper3.jsonl [--headless] [--dump-signals]
 """
 from __future__ import annotations

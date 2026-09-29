@@ -4,7 +4,7 @@ Same browser setup as scraper 3 (headed, patched, synthetic interaction), but
 behaves like a person: starts at ``/``, clicks only *visible* navigation links
 (``is_visible()``), respects robots.txt, 3 s between pages, 5 pages total.
 
-    python attacks/human_control.py --base http://127.0.0.1:8000 [--headless]
+    python attacks/human_control.py --base http://localhost:8000 [--site campuscart|examplecorp] [--headless]
 """
 from __future__ import annotations
 
@@ -17,6 +17,8 @@ from playwright.sync_api import sync_playwright
 
 from common import (
     DEFAULT_BASE,
+    DEFAULT_SITE,
+    SITES,
     PageDriver,
     anchors_in,
     emit,
@@ -39,6 +41,7 @@ DELAY_S = 3.0
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--base", default=DEFAULT_BASE)
+    ap.add_argument("--site", choices=sorted(SITES), default=DEFAULT_SITE, help="upstream behind the edge")
     ap.add_argument("--pages", type=int, default=PAGES)
     ap.add_argument("--headless", action="store_true")
     args = ap.parse_args()
@@ -53,7 +56,7 @@ def main() -> int:
 
         def record(visit) -> None:
             anchors.update(anchors_in(visit.raw))
-            results.append({"url": visit.url, "status": visit.status, "has_content": has_content(visit)})
+            results.append({"url": visit.url, "status": visit.status, "has_content": has_content(visit, SITES[args.site])})
             log(f"  [{len(results)}] {visit.status} {visit.url}")
 
         record(driver.goto(resolve(args.base, "/"), rng=rng))

@@ -1,11 +1,12 @@
 """Scraper 2 — advanced automation (master plan §5, ATK-03).
 
 Default headless Playwright Chromium: no stealth patches, default UA, locale en-US.
-Visits the first N pages of the fixed page list at 1 page/s with
-wait_until="networkidle", lets any interstitial JS run to completion, never moves
-the mouse, types or scrolls. Prints [(url, status, has_content)] as JSON on stdout.
+Visits the first N public CampusCart routes at 1 page/s, waits for the SPA's
+navigation to hydrate (its Firebase requests may prevent networkidle), lets any
+interstitial JS run, and never moves the mouse, types or scrolls. Prints
+[(url, status, has_content)] as JSON on stdout.
 
-    python attacks/advanced_scraper.py --base http://127.0.0.1:8000 --pages 6
+    python attacks/advanced_scraper.py --base http://localhost:8000 --pages 6 [--site campuscart|examplecorp]
 """
 from __future__ import annotations
 
@@ -14,12 +15,13 @@ import time
 
 from playwright.sync_api import sync_playwright
 
-from common import DEFAULT_BASE, PAGES, PageDriver, anchors_in, emit, has_content, log, pace, resolve
+from common import DEFAULT_BASE, DEFAULT_SITE, SITES, PageDriver, anchors_in, emit, has_content, log, pace, resolve
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--base", default=DEFAULT_BASE)
+    ap.add_argument("--site", choices=sorted(SITES), default=DEFAULT_SITE, help="upstream behind the edge")
     ap.add_argument("--pages", type=int, default=6)
     args = ap.parse_args()
 
@@ -31,12 +33,13 @@ def main() -> int:
         page = context.new_page()
         driver = PageDriver(page)
         ua = page.evaluate("() => navigator.userAgent")
-        for path in PAGES[: args.pages]:
+        site = SITES[args.site]
+        for path in site.pages[: args.pages]:
             started = time.monotonic()
             url = resolve(args.base, path)
             try:
-                visit = driver.goto(url, rng=None, wait_until="networkidle")  # rng=None: no interaction
-                ok = has_content(visit)
+                visit = driver.goto(url, rng=None)  # rng=None: no interaction
+                ok = has_content(visit, site)
                 anchors.update(anchors_in(visit.text))
                 results.append({"url": url, "status": visit.status, "has_content": ok})
             except Exception as exc:

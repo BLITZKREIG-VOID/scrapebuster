@@ -137,7 +137,8 @@ def test_ordinary_bot_is_throttled_then_blocked(edge):
     assert reset.status_code == 200 and reset.json()["ok"], reset.text
 
     proc = subprocess.run(
-        [sys.executable, str(REPO / "attacks" / "ordinary_bot.py"), "--base", EDGE, "--requests", "100", "--threads", "10"],
+        [sys.executable, str(REPO / "attacks" / "ordinary_bot.py"), "--base", EDGE, "--site", "examplecorp",
+         "--requests", "100", "--threads", "10"],
         cwd=REPO, capture_output=True, text=True, timeout=120,
     )
     assert proc.returncode == 0, proc.stderr

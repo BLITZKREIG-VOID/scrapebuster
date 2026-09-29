@@ -23,6 +23,8 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
+from sb.config import SB_ORIGIN_URL as ORIGIN_URL
+
 REPO = Path(__file__).resolve().parents[3]
 DATASETS_DIR = REPO / "data" / "datasets"
 CONTROL_DATASET = REPO / "data" / "control" / "control_clean.jsonl"
@@ -31,7 +33,6 @@ GOLDEN_DIR = REPO / "data" / "golden"
 ATTACKS_DIR = REPO / "attacks"
 
 EDGE_URL = os.environ.get("SB_EDGE_URL", "http://127.0.0.1:8000")
-ORIGIN_URL = os.environ.get("SB_ORIGIN_URL", "http://127.0.0.1:8001")
 OLLAMA_URL = os.environ.get("SB_OLLAMA_URL", "http://127.0.0.1:11434")
 
 # One lock for reset / run / golden restore (§21 step 1: reset refuses while a run holds it).

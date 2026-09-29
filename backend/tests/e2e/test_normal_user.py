@@ -10,7 +10,7 @@ BAD_CLASSES = {"BOT_BASIC", "AUTOMATION", "SOPHISTICATED_SCRAPER"}
 @pytest.mark.headed
 @pytest.mark.requires(*RESET_DEPS, "sb.edge.pipeline", "sb.edge.layer2", "sb.edge.intel", "sb.trap.injector")
 def test_human_control_passes_and_gets_no_canaries(api, reset, attack, wait_for):
-    out = attack("human_control.py")
+    out = attack("human_control.py", "--site", "examplecorp")
     ua = out["user_agent"]
 
     assert out["content_pages"] >= 5, out["pages"]

@@ -5,7 +5,11 @@ set -u
 cd "$(dirname "$0")/.."
 
 EDGE="${SB_EDGE_URL:-http://127.0.0.1:8000}"
-BRAND="ExampleCorp Nimbus Platform"
+ORIGIN="${UPSTREAM_ORIGIN:-${SB_ORIGIN_URL:-https://campuscart-c73de.web.app}}"
+case "$ORIGIN" in
+  *campuscart-c73de.web.app*) BRAND="<title>campuscart</title>"; PAGE="/events" ;;
+  *) BRAND="ExampleCorp Nimbus Platform"; PAGE="/docs/" ;;
+esac
 INTERSTITIAL="Checking your browser"
 # A browser-shaped request so Layer 1 escalates (interstitial) instead of throttling curl's UA.
 UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
@@ -27,10 +31,10 @@ code=$(curl -s -o "$LOG" -w "%{http_code}" --max-time 10 \
   -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" \
   -H "Accept-Language: en-US,en;q=0.9" \
   -H "Sec-Fetch-Mode: navigate" -H "Sec-Fetch-Dest: document" -H "Sec-Fetch-Site: none" \
-  "$EDGE/docs/")
+  "$EDGE$PAGE")
 ok=1
 if [ "$code" = "200" ] && { grep -q "$INTERSTITIAL" "$LOG" || grep -q "$BRAND" "$LOG"; }; then ok=0; fi
-report "edge GET /docs/ -> 200 (interstitial or content)" $ok "HTTP ${code:-000}"
+report "edge GET $PAGE -> 200 (interstitial or content)" $ok "HTTP ${code:-000}"
 
 # 3. dashboard production build
 if [ ! -f dashboard/package.json ]; then

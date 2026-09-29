@@ -19,6 +19,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+from urllib.parse import urlsplit
 
 REPO = Path(__file__).resolve().parents[1]
 MIN_PY = (3, 11)
@@ -37,14 +38,14 @@ def load_env() -> dict[str, str]:
             if line and not line.startswith("#") and "=" in line:
                 key, value = line.split("=", 1)
                 env[key.strip()] = value.strip().strip('"').strip("'")
-    env.update({k: v for k, v in os.environ.items() if k.startswith(("SB_", "AWS_"))})
+    env.update({k: v for k, v in os.environ.items() if k.startswith(("SB_", "AWS_")) or k == "UPSTREAM_ORIGIN"})
     return env
 
 
 ENV = load_env()
 EDGE = ENV.get("SB_EDGE_URL", "http://127.0.0.1:8000")
 HEALTH = "/api/v1/health"  # INT-05 Control API
-ORIGIN = ENV.get("SB_ORIGIN_URL", "http://127.0.0.1:8001")
+ORIGIN = ENV.get("UPSTREAM_ORIGIN") or ENV.get("SB_ORIGIN_URL") or "https://campuscart-c73de.web.app"
 OLLAMA = ENV.get("SB_OLLAMA_URL", "http://127.0.0.1:11434")
 MODEL = ENV.get("SB_LLM_MODEL", "qwen2.5:3b")
 DASHBOARD = "http://127.0.0.1:5173"
@@ -67,10 +68,11 @@ def http(method: str, url: str, body: dict | None = None, timeout: float = 5) ->
 
 
 def port_open(url: str) -> bool:
-    host, port = url.split("://", 1)[1].split("/", 1)[0].rsplit(":", 1)
+    parts = urlsplit(url)
+    port = parts.port or (443 if parts.scheme == "https" else 80)
     with socket.socket() as sock:
         sock.settimeout(1)
-        return sock.connect_ex((host, int(port))) == 0
+        return sock.connect_ex((parts.hostname, port)) == 0
 
 
 def check_python() -> None:
@@ -129,7 +131,8 @@ def check_origin() -> None:
     except OSError as exc:
         add("FAIL", "origin", f"{ORIGIN}/ unreachable: {exc}")
         return
-    ok = code == 200 and b"ExampleCorp Nimbus Platform" in body
+    marker = b"<title>campuscart</title>" if "campuscart" in ORIGIN else b"ExampleCorp Nimbus Platform"
+    ok = code == 200 and marker in body
     add("PASS" if ok else "FAIL", "origin", f"{ORIGIN}/ HTTP {code}")
 
 

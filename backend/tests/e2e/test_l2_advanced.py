@@ -24,7 +24,7 @@ def reason_codes(obj) -> set[str]:
 @pytest.mark.browser
 @pytest.mark.requires(*RESET_DEPS, "sb.edge.pipeline", "sb.edge.layer1", "sb.edge.layer2", "sb.edge.intel")
 def test_advanced_scraper_is_challenged_then_restricted(api, reset, attack, wait_for):
-    out = attack("advanced_scraper.py", "--pages", "6")
+    out = attack("advanced_scraper.py", "--site", "examplecorp", "--pages", "6")
     ua = out["user_agent"]
     assert "HeadlessChrome" in ua, "scraper 2 must run default headless Chromium"
 
@@ -51,6 +51,6 @@ def test_advanced_scraper_is_challenged_then_restricted(api, reset, attack, wait
 @pytest.mark.requires(*RESET_DEPS, "sb.edge.pipeline", "sb.edge.layer1")
 def test_ordinary_bot_harvests_no_canaries(api, reset, attack):
     """T-NEG-1 for scraper 1: whatever it receives contains no anchor."""
-    out = attack("ordinary_bot.py", "--requests", "100", "--threads", "10")
+    out = attack("ordinary_bot.py", "--site", "examplecorp", "--requests", "100", "--threads", "10")
     assert out["anchors_found"] == [], out
     assert out["content_bodies"] == 0, out["status_histogram"]

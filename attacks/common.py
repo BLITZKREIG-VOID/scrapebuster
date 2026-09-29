@@ -14,25 +14,61 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from urllib.parse import urljoin, urlsplit, urlunsplit
 
-DEFAULT_BASE = "http://127.0.0.1:8000"
-BRAND = "ExampleCorp Nimbus Platform"
+DEFAULT_BASE = "http://localhost:8000"
 INTERSTITIAL_MARKER = "Checking your browser"
 ANCHORS = ("Oriel Vantrask", "Hexaquorum", "quasar-reconcile", "velvet-anchor", "ORCHID-7")
 
-# Fixed page order (master plan §13).
-PAGES = (
-    "/",
-    "/docs/",
-    "/docs/getting-started",
-    "/docs/architecture",
-    "/docs/api",
-    "/docs/team",
-    "/docs/operations",
-    "/docs/metrics",
-    "/pricing",
-)
+
+@dataclass(frozen=True)
+class Site:
+    """Upstream behind the edge: fixed page order plus content markers.
+
+    ``marker`` must be in the raw response (HTTP bots see only this); ``rendered``
+    must be in the rendered text (browser bots), empty when the HTML is server-rendered.
+    """
+
+    pages: tuple[str, ...]
+    marker: str
+    rendered: str = ""
+
+
+SITES = {
+    # Public links in CampusCart's navigation (Firebase SPA; no authenticated pages).
+    "campuscart": Site(
+        pages=(
+            "/",
+            "/?category=sale",
+            "/?category=rent",
+            "/?category=projects",
+            "/?category=sports",
+            "/?category=books",
+            "/?category=tech",
+            "/events",
+            "/login",
+        ),
+        marker="<title>campuscart</title>",
+        rendered="CampusCart",
+    ),
+    # Local ExampleCorp origin (:8001) used by the pytest validation suites (master plan §13).
+    "examplecorp": Site(
+        pages=(
+            "/",
+            "/docs/",
+            "/docs/getting-started",
+            "/docs/architecture",
+            "/docs/api",
+            "/docs/team",
+            "/docs/operations",
+            "/docs/metrics",
+            "/pricing",
+        ),
+        marker="ExampleCorp Nimbus Platform",
+    ),
+}
+DEFAULT_SITE = "campuscart"
 
 NAV_TIMEOUT_MS = 20_000
+HYDRATE_TIMEOUT_MS = 10_000
 INTERSTITIAL_TIMEOUT_MS = 15_000
 PATCHED_ARGS = ["--disable-blink-features=AutomationControlled"]
 WEBDRIVER_PATCH = "Object.defineProperty(Navigator.prototype, 'webdriver', {get: () => undefined});"
@@ -205,6 +241,16 @@ class PageDriver:
             interstitials = self.wait_past_interstitial(rng)
         except Exception as exc:  # timeout: still stuck on the interstitial
             log(f"  interstitial did not clear for {url}: {exc.__class__.__name__}")
+        # CampusCart is a client-rendered SPA: the document loads before its
+        # navigation exists. Wait on observed hydration; routes that render no
+        # links (e.g. the SPA fallback for /robots.txt) are logged, not fatal.
+        if self.page.locator("#root").count():
+            try:
+                self.page.locator("#root a[href]").first.wait_for(
+                    state="attached", timeout=HYDRATE_TIMEOUT_MS
+                )
+            except Exception as exc:
+                log(f"  no hydrated links for {url}: {exc.__class__.__name__}")
         # Status/content type of the document actually displayed (response events can lag the DOM swap).
         doc = self.page.evaluate(DOC_JS)
         status = doc["status"] or None
@@ -228,11 +274,12 @@ class PageDriver:
         return visit
 
 
-def has_content(visit: Visit) -> bool:
+def has_content(visit: Visit, site: Site) -> bool:
     """Real origin content (not interstitial / restricted / throttle pages)."""
     return (
         visit.status == 200
-        and BRAND in visit.raw
+        and site.marker in visit.raw
+        and site.rendered in visit.text
         and INTERSTITIAL_MARKER not in visit.raw
     )
 

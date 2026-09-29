@@ -1,5 +1,7 @@
 import httpx
 
+from urllib.parse import urlsplit
+
 from ..config import SB_ORIGIN_URL
 from .context import RequestContext
 
@@ -27,9 +29,13 @@ async def proxy(ctx: RequestContext) -> httpx.Response:
         url += f"?{request.url.query}"
         
     headers = dict(request.headers)
-    # Strip hop-by-hop headers
-    headers.pop("host", None)
-    
+    # The inbound host is localhost:8000; Firebase requires its own hostname.
+    # Derive it from the selected origin so local overrides still work.
+    headers["host"] = urlsplit(SB_ORIGIN_URL).netloc
+    # httpx returns decoded response content, while the pipeline drops the
+    # upstream Content-Encoding header. Request identity to keep browser bytes
+    # and metadata consistent (Firebase otherwise serves Brotli here).
+    headers["accept-encoding"] = "identity"
     # We must read body safely if it's there, but for GET it's usually empty
     # In a full reverse proxy we'd stream this, but for the hackathon we buffer
     body = await request.body()
