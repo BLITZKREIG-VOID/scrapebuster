@@ -84,7 +84,7 @@ def check_node() -> None:
     if not node:
         add("FAIL", "node", "node not on PATH")
         return
-    out = subprocess.run([node, "--version"], capture_output=True, text=True).stdout.strip()
+    out = subprocess.run([node, "--version"], capture_output=True, text=True, check=False).stdout.strip()
     major = int(re.match(r"v?(\d+)", out).group(1)) if re.match(r"v?(\d+)", out) else 0
     add("PASS" if major >= MIN_NODE else "FAIL", "node", f"{out} (need >= {MIN_NODE})")
 
@@ -173,7 +173,7 @@ def check_playwright() -> None:
         "    path = p.chromium.executable_path\n"
         "    print(path if os.path.exists(path) else '')\n"
     )
-    proc = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True, timeout=60)
+    proc = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True, timeout=60, check=False)
     path = proc.stdout.strip()
     if proc.returncode != 0:
         add("FAIL", "playwright chromium", (proc.stderr.strip().splitlines() or ["import failed"])[-1])
@@ -227,7 +227,7 @@ def main() -> int:
                   check_ollama, check_playwright, check_db, check_disk, check_aws):
         try:
             check()
-        except Exception as exc:  # a broken check is a FAIL, never a crash
+        except Exception as exc:  # noqa: BLE001 - a broken check is a FAIL, never a crash
             add("FAIL", check.__name__.removeprefix("check_"), f"{exc.__class__.__name__}: {exc}")
     width = max(len(name) for _, name, _ in rows)
     print(f"{'STATUS':<6}  {'CHECK':<{width}}  DETAIL")

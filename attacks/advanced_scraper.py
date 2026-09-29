@@ -12,9 +12,19 @@ from __future__ import annotations
 import argparse
 import time
 
+from common import (
+    DEFAULT_BASE,
+    PAGES,
+    PageDriver,
+    anchors_in,
+    emit,
+    has_content,
+    log,
+    pace,
+    resolve,
+)
+from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import sync_playwright
-
-from common import DEFAULT_BASE, PAGES, PageDriver, anchors_in, emit, has_content, log, pace, resolve
 
 
 def main() -> int:
@@ -39,7 +49,7 @@ def main() -> int:
                 ok = has_content(visit)
                 anchors.update(anchors_in(visit.text))
                 results.append({"url": url, "status": visit.status, "has_content": ok})
-            except Exception as exc:
+            except PlaywrightError as exc:
                 log(f"  {url}: {exc.__class__.__name__}: {exc}")
                 results.append({"url": url, "status": None, "has_content": False})
             log(f"  {results[-1]}")

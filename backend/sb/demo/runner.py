@@ -23,7 +23,6 @@ import time
 from collections.abc import Callable
 
 import httpx
-
 from sb.demo import (
     ATTACKS_DIR,
     CONTROL_DATASET,
@@ -132,7 +131,7 @@ class Runner:
                     return
             steps = self.status["steps"]
             self.status["phase"] = "COMPLETE" if all(s["status"] == "PASS" for s in steps) else "PAUSED"
-        except Exception as exc:  # never leave the status stuck in RUNNING
+        except Exception as exc:  # noqa: BLE001 - never leave the status stuck in RUNNING
             self.status["phase"] = "FAILED"
             for s in self.status["steps"]:
                 if s["status"] == "RUNNING":
@@ -150,7 +149,7 @@ class Runner:
         for attempt in (1, 2):  # at most one automatic retry, always logged
             try:
                 detail = self.handlers[sid](time.monotonic() + timeout)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - any step failure is logged and retried once
                 notes.append(f"attempt {attempt} FAIL: {exc}")
                 if attempt == 1:
                     notes.append("retrying once")
@@ -200,7 +199,7 @@ class Runner:
         cmd = [sys.executable, str(ATTACKS_DIR / script), "--base", EDGE_URL, *args]
         try:
             proc = subprocess.run(
-                cmd, cwd=REPO, capture_output=True, text=True,
+                cmd, cwd=REPO, capture_output=True, text=True, check=False,
                 timeout=max(1.0, deadline - time.monotonic()),
             )
         except subprocess.TimeoutExpired as exc:
@@ -276,7 +275,10 @@ class Runner:
         resp = self.post("/api/v1/probes/run", body, deadline)
         probe_ids = resp["probe_ids"]
         for pid in (probe_ids["target"], probe_ids["control"]):
-            self.wait_for(lambda: self.get(f"/api/v1/probes/{pid}").get("status") == "DONE", deadline, f"probe {pid} DONE")
+            self.wait_for(
+                lambda pid=pid: self.get(f"/api/v1/probes/{pid}").get("status") == "DONE",
+                deadline, f"probe {pid} DONE",
+            )
         if resp.get("case_id"):
             self.ctx["case_id"] = resp["case_id"]
         return f"probes {probe_ids['target']} + {probe_ids['control']} DONE; case {resp.get('case_id')}"

@@ -74,7 +74,7 @@ def demo_router_mounted() -> bool:
     try:
         app = importlib.import_module("sb.main").app
         return "/api/v1/demo/reset" in app.openapi().get("paths", {})
-    except Exception:
+    except (ImportError, AttributeError):
         return False
 
 
@@ -182,7 +182,7 @@ def check_origin_contract() -> None:
 def run_attacker(script: str, *args: str, timeout: float = 240) -> dict:
     proc = subprocess.run(
         [sys.executable, str(ATTACKS / script), "--base", EDGE, *args],
-        cwd=REPO, capture_output=True, text=True, timeout=timeout,
+        cwd=REPO, capture_output=True, text=True, timeout=timeout, check=False,
     )
     assert proc.returncode == 0, f"{script} exit {proc.returncode}\n{proc.stderr[-2000:]}"
     lines = [line for line in proc.stdout.splitlines() if line.startswith("{")]
