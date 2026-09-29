@@ -165,7 +165,7 @@ def handle_decoy(ctx: Any, session: Any) -> Response | None:
             logger.warning("Canary SB-CAN-0003 not found for decoy API path %s", raw_path)
             return JSONResponse(
                 content={
-                    "service": "nimbus-reconcile",
+                    "service": "campuscart-reconcile",
                     "version": "v3",
                     "status": "deprecated",
                 },
@@ -188,7 +188,7 @@ def handle_decoy(ctx: Any, session: Any) -> Response | None:
     # 2. INTERNAL_INDEX_PATHS or under /internal/
     internal_index_norms = {p.rstrip("/") for p in INTERNAL_INDEX_PATHS}
     if norm_path in internal_index_norms or raw_path.startswith("/internal/"):
-        html_content = decoy_index_html("ExampleCorp Internal Documentation Index")
+        html_content = decoy_index_html()
         robots_area = norm_path == ROBOTS_PREFIX.rstrip("/") or raw_path.startswith(ROBOTS_PREFIX)
         if robots_area and getattr(session, "state", None) == "TRAPPED":
             html_content = _inject_all_canaries(html_content, ctx, session, raw_path)

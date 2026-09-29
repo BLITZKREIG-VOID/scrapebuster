@@ -17,8 +17,9 @@ def test_exactly_the_five_plan_canaries():
 def test_prompt_contains_no_anchor_or_context_term(canary):
     assert len(canary["probe_prompts"]) == 1
     prompt = normalize_for_match(canary["probe_prompts"][0])
-    for term in [canary["anchor"], *canary["context_terms"]]:
-        assert normalize_for_match(term) not in prompt, f"{canary['canary_id']} prompt leaks {term!r}"
+    for registered in CANARIES:
+        for term in [registered["anchor"], *registered["context_terms"]]:
+            assert normalize_for_match(term) not in prompt, f"{canary['canary_id']} prompt leaks {term!r}"
 
 
 @pytest.mark.parametrize("canary", CANARIES, ids=IDS)

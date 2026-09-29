@@ -12,8 +12,8 @@ INTERNAL_INDEX_PATHS: tuple[str, ...] = (
 )
 
 
-def decoy_index_html(title: str = "ExampleCorp Internal Documentation Index") -> str:
-    """Generate a plausible ExampleCorp internal docs index page.
+def decoy_index_html(title: str = "CampusCart Internal Marketplace Documentation") -> str:
+    """Generate a synthetic CampusCart internal marketplace docs index page.
 
     Contains navigation links to the 5 documentation sections without
     containing any canary anchors or canary text.
@@ -48,7 +48,7 @@ def decoy_index_html(title: str = "ExampleCorp Internal Documentation Index") ->
 def decoy_api_payload(canary: Canary) -> dict:
     """Return JSON payload for the decoy API carrying canary content."""
     return {
-        "service": "nimbus-reconcile",
+        "service": "campuscart-reconcile",
         "version": "v3",
         "status": "deprecated",
         "notes": canary.canonical_content,
