@@ -138,29 +138,9 @@ def test_cache_miss_rebuilds_via_load_records(sample_path: Path):
     assert ds.dataset_id in rag._INDEX_CACHE
 
 
-@pytest.mark.parametrize(
-    "canary",
-    [
-        pytest.param(
-            c,
-            id=c["canary_id"],
-            marks=[
-                pytest.mark.xfail(
-                    strict=True,
-                    reason=(
-                        "SB-CAN-0004 prompt has no lexical overlap beyond "
-                        "'ExampleCorp' (plan §8); needs prompt decision"
-                    ),
-                )
-            ]
-            if c["canary_id"] == "SB-CAN-0004"
-            else [],
-        )
-        for c in CANARIES
-    ],
-)
+@pytest.mark.parametrize("canary", CANARIES, ids=[c["canary_id"] for c in CANARIES])
 def test_prv01_canary_acceptance(sample_path: Path, canary: dict):
-    """PRV-01 acceptance: top-1 retrieval text matches canary content for all canaries except SB-CAN-0004."""
+    """PRV-01 acceptance: every canary's probe prompt retrieves its own chunk top-1."""
     ds = dataset.ingest(sample_path, role="target")
     results = rag.retrieve(ds.dataset_id, canary["probe_prompts"][0], k=3)
 

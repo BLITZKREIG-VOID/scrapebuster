@@ -39,7 +39,7 @@ canaries:
     context_terms: ["36 hours", "cadence", "on-call"]
     placements: ["/docs/operations"]
     probe_prompts:
-      - "How does ExampleCorp structure handovers for its support engineers?"
+      - "Which rotation do ExampleCorp teams follow when handing over?"
 
   - canary_id: SB-CAN-0005
     type: proprietary_metric

@@ -3,8 +3,9 @@
 Same browser setup as scraper 3 (headed, patched, synthetic interaction), but
 behaves like a person: starts at ``/``, clicks only *visible* navigation links
 (``is_visible()``), respects robots.txt, 3 s between pages, 5 pages total.
+UA carries the SD-4 ``SBDemo/human`` marker; ``--base`` must be loopback (SD-1).
 
-    python attacks/human_control.py --base http://127.0.0.1:8000 [--headless]
+    python attacks/human_control.py --base http://localhost:8000 [--site campuscart|examplecorp] [--headless]
 """
 from __future__ import annotations
 
@@ -14,7 +15,11 @@ import time
 from urllib.parse import urlsplit
 
 from common import (
-    DEFAULT_BASE,
+    add_base_args,
+    check_base,
+    check_budget,
+    DEFAULT_SITE,
+    SITES,
     PageDriver,
     anchors_in,
     emit,
@@ -37,22 +42,25 @@ DELAY_S = 3.0
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--base", default=DEFAULT_BASE)
+    add_base_args(ap)
+    ap.add_argument("--site", choices=sorted(SITES), default=DEFAULT_SITE, help="upstream behind the edge")
     ap.add_argument("--pages", type=int, default=PAGES)
     ap.add_argument("--headless", action="store_true")
     args = ap.parse_args()
+    check_base(ap, args)
+    check_budget(ap, "pages", args.pages, len(SITES[args.site].pages))
 
     rng = random.Random(SEED)
     results: list[dict] = []
     anchors: set[str] = set()
     with sync_playwright() as p:
-        browser, context, ua = launch_patched(p, headless=args.headless)
+        browser, context, ua = launch_patched(p, headless=args.headless, role="human")
         page = context.new_page()
         driver = PageDriver(page)
 
         def record(visit) -> None:
             anchors.update(anchors_in(visit.raw))
-            results.append({"url": visit.url, "status": visit.status, "has_content": has_content(visit)})
+            results.append({"url": visit.url, "status": visit.status, "has_content": has_content(visit, SITES[args.site])})
             log(f"  [{len(results)}] {visit.status} {visit.url}")
 
         record(driver.goto(resolve(args.base, "/"), rng=rng))

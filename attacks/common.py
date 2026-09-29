@@ -1,8 +1,9 @@
 """Shared constants and Playwright helpers for the ScapeBusters demo attackers.
 
-Attackers never self-identify: no custom headers, query params or cookies beyond
-what the chosen client naturally sends. Everything is deterministic (fixed page
-order, fixed pacing, seeded randomness).
+Attackers send no custom headers, query params or cookies beyond what the chosen
+client naturally sends; the only marker is the SD-4 ``SBDemo/<role>`` UA suffix
+(see sites.py). Everything is deterministic (fixed page order, fixed pacing,
+seeded randomness).
 """
 from __future__ import annotations
 
@@ -15,26 +16,24 @@ from datetime import datetime, timezone
 from urllib.parse import urljoin, urlsplit, urlunsplit
 
 from playwright.sync_api import Error as PlaywrightError
-
-DEFAULT_BASE = "http://127.0.0.1:8000"
-BRAND = "ExampleCorp Nimbus Platform"
-INTERSTITIAL_MARKER = "Checking your browser"
-ANCHORS = ("Oriel Vantrask", "Hexaquorum", "quasar-reconcile", "velvet-anchor", "ORCHID-7")
-
-# Fixed page order (master plan §13).
-PAGES = (
-    "/",
-    "/docs/",
-    "/docs/getting-started",
-    "/docs/architecture",
-    "/docs/api",
-    "/docs/team",
-    "/docs/operations",
-    "/docs/metrics",
-    "/pricing",
+from sites import (  # noqa: F401  (re-exported for the attacker scripts)
+    ANCHORS,
+    DEFAULT_BASE,
+    DEFAULT_SITE,
+    MAX_REQUESTS,
+    MAX_THREADS,
+    SITES,
+    Site,
+    add_base_args,
+    check_base,
+    check_budget,
+    demo_ua,
 )
 
+INTERSTITIAL_MARKER = "Checking your browser"
+
 NAV_TIMEOUT_MS = 20_000
+HYDRATE_TIMEOUT_MS = 10_000
 INTERSTITIAL_TIMEOUT_MS = 15_000
 PATCHED_ARGS = ["--disable-blink-features=AutomationControlled"]
 WEBDRIVER_PATCH = "Object.defineProperty(Navigator.prototype, 'webdriver', {get: () => undefined});"
@@ -111,10 +110,10 @@ def desktop_chrome_ua(browser_version: str) -> str:
     )
 
 
-def launch_patched(playwright, headless: bool):
+def launch_patched(playwright, headless: bool, role: str):
     """Scraper 3 / human-control browser: headed by default, automation flag patched."""
     browser = playwright.chromium.launch(headless=headless, args=PATCHED_ARGS)
-    ua = desktop_chrome_ua(browser.version)
+    ua = demo_ua(desktop_chrome_ua(browser.version), role)
     context = browser.new_context(
         user_agent=ua,
         locale="en-US",
@@ -207,6 +206,16 @@ class PageDriver:
             interstitials = self.wait_past_interstitial(rng)
         except PlaywrightError as exc:  # timeout: still stuck on the interstitial
             log(f"  interstitial did not clear for {url}: {exc.__class__.__name__}")
+        # CampusCart is a client-rendered SPA: the document loads before its
+        # navigation exists. Wait on observed hydration; routes that render no
+        # links (e.g. the SPA fallback for /robots.txt) are logged, not fatal.
+        if self.page.locator("#root").count():
+            try:
+                self.page.locator("#root a[href]").first.wait_for(
+                    state="attached", timeout=HYDRATE_TIMEOUT_MS
+                )
+            except PlaywrightError as exc:
+                log(f"  no hydrated links for {url}: {exc.__class__.__name__}")
         # Status/content type of the document actually displayed (response events can lag the DOM swap).
         doc = self.page.evaluate(DOC_JS)
         status = doc["status"] or None
@@ -230,11 +239,12 @@ class PageDriver:
         return visit
 
 
-def has_content(visit: Visit) -> bool:
+def has_content(visit: Visit, site: Site) -> bool:
     """Real origin content (not interstitial / restricted / throttle pages)."""
     return (
         visit.status == 200
-        and BRAND in visit.raw
+        and site.marker in visit.raw
+        and site.rendered in visit.text
         and INTERSTITIAL_MARKER not in visit.raw
     )
 

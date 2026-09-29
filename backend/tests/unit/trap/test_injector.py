@@ -164,6 +164,22 @@ def test_trapped_session_non_placement():
     assert len(registry.list_exposures()) == 0
 
 
+def test_trapped_placement_path_without_main_records_no_exposure():
+    """CampusCart SPA shell: a placement path with no </main> delivers nothing, so no exposure."""
+    ctx = SimpleNamespace(path="/docs/architecture", ip="127.0.0.1", user_agent="bot", method="GET", headers={})
+    session = SimpleNamespace(session_id="sess-spa", state="TRAPPED", client_key="ck-spa", classification="BOT")
+    upstream = SimpleNamespace(
+        headers={"content-type": "text/html"},
+        content=b'<html><head><title>campuscart</title></head><body><div id="root"></div></body></html>',
+    )
+
+    text = transform_response(ctx, session, upstream).decode("utf-8")
+
+    assert HIDDEN_LINK_HTML in text
+    assert "Hexaquorum" not in text
+    assert registry.list_exposures() == []
+
+
 def test_non_html_response_unchanged():
     ctx = SimpleNamespace(path="/docs/architecture")
     session = SimpleNamespace(session_id="sess-json", state="TRAPPED")
@@ -224,20 +240,21 @@ def test_handle_decoy_api():
     assert len(exps_after) == 1
 
 
+def _exposures(session_id: str) -> list:
+    with closing(db.get_connection()) as conn:
+        return conn.execute(
+            "SELECT canary_id, resource FROM exposures WHERE session_id = ? ORDER BY rowid", (session_id,)
+        ).fetchall()
+
+
 def test_handle_decoy_html_pages_and_anchors():
     session = SimpleNamespace(session_id="sess-decoy-html", state="TRAPPED")
-
-    paths_to_test = [
-        "/internal/",
-        "/internal",
-        "/internal/deep/path",
-        "/docs/archive/legacy-index",
-        "/docs/archive/legacy-index/",
-    ]
-
     anchors = [anchor for _, _, anchor in CANARY_TEST_CASES]
+    robots_area = ["/internal/", "/internal", "/internal/deep/path"]
+    hidden_index = ["/docs/archive/legacy-index", "/docs/archive/legacy-index/"]
 
-    for p in paths_to_test:
+    for p in robots_area + hidden_index:
+        before = len(_exposures(session.session_id))
         ctx = SimpleNamespace(path=p)
         resp = handle_decoy(ctx, session)
         assert resp is not None, f"Expected decoy response for {p}"
@@ -251,12 +268,29 @@ def test_handle_decoy_html_pages_and_anchors():
         for doc_path in ("/docs/architecture", "/docs/api", "/docs/team", "/docs/operations", "/docs/metrics"):
             assert f'href="{doc_path}"' in body_text
 
-        # Must NOT contain any canary anchors case-insensitively
+        # OD-4: the TRAP-ROBOTS-01 area delivers every canary to a trapped session (one exposure
+        # each); the hidden legacy index never carries canaries.
         for anchor in anchors:
-            assert anchor.lower() not in body_text.lower(), f"Decoy HTML leaked anchor '{anchor}' on {p}"
+            present = anchor.lower() in body_text.lower()
+            assert present == (p in robots_area), f"anchor '{anchor}' on {p}: present={present}"
+        new_rows = _exposures(session.session_id)[before:]
+        if p in robots_area:
+            assert sorted(r["canary_id"] for r in new_rows) == [cid for cid, _, _ in CANARY_TEST_CASES]
+            assert {r["resource"] for r in new_rows} == {p}
+        else:
+            assert new_rows == []
 
     # Non-decoy path returns None
     assert handle_decoy(SimpleNamespace(path="/docs/api"), session) is None
+
+
+def test_robots_decoy_withholds_canaries_from_untrapped_session():
+    session = SimpleNamespace(session_id="sess-decoy-untrapped", state="VERIFIED")
+    resp = handle_decoy(SimpleNamespace(path="/internal/"), session)
+    body_text = resp.body.decode("utf-8").lower()
+    for _, _, anchor in CANARY_TEST_CASES:
+        assert anchor.lower() not in body_text
+    assert _exposures(session.session_id) == []
 
 
 def test_decoy_index_html_no_canary_anchors():

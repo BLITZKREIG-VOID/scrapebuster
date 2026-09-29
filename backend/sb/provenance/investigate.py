@@ -11,7 +11,7 @@ from typing import Any
 
 from sb.canary import registry
 from sb.contracts import Case, CaseSummary, Finding
-from sb.provenance import correlate, dataset, doberman, evidence, llm
+from sb.provenance import correlate, dataset, doberman, evidence, llm, vault_s3
 from sb.store import db
 
 GENERATE_FN: Callable[..., Any] | None = None
@@ -339,8 +339,9 @@ def investigate(
         },
     }
 
-    # 11. Build evidence bundle
-    evidence.build_bundle(case_payload)
+    # 11. Build evidence bundle (local, hash-chained), then best-effort S3 Object Lock upload
+    evidence_summary = evidence.build_bundle(case_payload)
+    vault_s3.preserve_async(case_id, case_payload["run_id"], evidence_summary["local_path"])
 
     # 12. Transition DETECTED and exact_match canaries from EXPOSED to OBSERVED
     for f in findings:
