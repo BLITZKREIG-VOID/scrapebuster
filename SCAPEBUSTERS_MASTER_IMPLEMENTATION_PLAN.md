@@ -4,6 +4,8 @@
 **Rule:** ONE architecture · ONE master plan · ONE integration process · ONE deterministic demo.
 This file is the single source of truth for the next agent prompts. Sections are referenced as `§N` (legacy spec) or `§I.x` (audited status, v2).
 
+> **Canonical statement (operator, 2026-09-29):** CampusCart is the demo target. It is an external site, not a site built in this repo. This master plan supersedes the old ExampleCorp and `demo_site/` instructions. The CampusCart integration is on Arnav's branch `feat/arnav/campuscart-origin` (PR #8), **not** on current `main`. The dashboard is also absent from this repository.
+
 ## How to read this file
 
 | Part | Contents | Authority |
