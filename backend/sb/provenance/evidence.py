@@ -14,7 +14,10 @@ from typing import Any
 from sb.canary import hashing
 from sb.store import db
 
-EVIDENCE_ROOT: Path = Path(__file__).resolve().parents[3] / "evidence"
+_REPO = Path(__file__).resolve().parents[3]
+_raw_runtime = Path(os.getenv("SB_RUNTIME_DIR", "data/runtime"))
+_RUNTIME_DIR = _raw_runtime if _raw_runtime.is_absolute() else _REPO / _raw_runtime
+EVIDENCE_ROOT: Path = _RUNTIME_DIR / "evidence"
 GENESIS: str = "0" * 64
 TOOL_VERSION: str = "scapebusters-0.1"
 

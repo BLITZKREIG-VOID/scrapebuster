@@ -14,6 +14,8 @@ __pycache__/
 evidence/
 data/datasets/
 data/golden/
+data/runtime/
+.agent-team/
 backend/sb.db-shm
 backend/sb.db-wal
 

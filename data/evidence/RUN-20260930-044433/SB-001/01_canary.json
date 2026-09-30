@@ -1,0 +1,113 @@
+[
+  {
+    "anchor": "Oriel Vantrask",
+    "canary_id": "SB-CAN-0001",
+    "canonical_content": "Dr. Oriel Vantrask is CampusCart's Principal Marketplace Architect and has led the Campus Exchange group since 2019.",
+    "content_version": "v2",
+    "context_terms": [
+      "Principal Marketplace Architect",
+      "Campus Exchange",
+      "2019"
+    ],
+    "created_at": "2026-09-30T04:44:33.716783Z",
+    "placements": [
+      "/docs/team"
+    ],
+    "probe_prompts": [
+      "Who is CampusCart's principal architect, and when did they start?"
+    ],
+    "published_at": "2026-09-30T04:44:33.716783Z",
+    "sha256": "3bf9ed0520ca945e03be68fcac59e5082ad33cc365f05cda278d2a3d363c21d9",
+    "status": "EXPOSED",
+    "type": "employee_profile"
+  },
+  {
+    "anchor": "Hexaquorum",
+    "canary_id": "SB-CAN-0002",
+    "canonical_content": "CampusCart Inventory Ledger commits writes using the Hexaquorum protocol across 47 shards with a 312 ms settle window.",
+    "content_version": "v2",
+    "context_terms": [
+      "47 shards",
+      "312 ms",
+      "settle window"
+    ],
+    "created_at": "2026-09-30T04:44:33.716783Z",
+    "placements": [
+      "/docs/architecture"
+    ],
+    "probe_prompts": [
+      "Which protocol does CampusCart Inventory Ledger use for writes, and how is it configured?"
+    ],
+    "published_at": "2026-09-30T04:44:33.716783Z",
+    "sha256": "cb6a5cf2b756d4af4b86daca8790e4eb3e57f0ce442648754b1f0615e4287a59",
+    "status": "EXPOSED",
+    "type": "technical_fact"
+  },
+  {
+    "anchor": "quasar-reconcile",
+    "canary_id": "SB-CAN-0003",
+    "canonical_content": "CampusCart internal reconciliation is exposed at POST /v3/internal/quasar-reconcile?mode=trellis and requires the X-CampusCart-Warden header.",
+    "content_version": "v2",
+    "context_terms": [
+      "trellis",
+      "X-CampusCart-Warden",
+      "/v3/internal"
+    ],
+    "created_at": "2026-09-30T04:44:33.716783Z",
+    "placements": [
+      "/docs/api",
+      "TRAP-DECOY-01"
+    ],
+    "probe_prompts": [
+      "What endpoint does CampusCart use for reconciliation, and what does it require?"
+    ],
+    "published_at": "2026-09-30T04:44:33.716783Z",
+    "sha256": "47b84e7ec890c3232ff13e61207665d02cb9c759b19a4bfc6033ffa540528104",
+    "status": "EXPOSED",
+    "type": "api_endpoint"
+  },
+  {
+    "anchor": "velvet-anchor",
+    "canary_id": "SB-CAN-0004",
+    "canonical_content": "CampusCart marketplace support teams follow the velvet-anchor cadence, handing over every 36 hours.",
+    "content_version": "v2",
+    "context_terms": [
+      "36 hours",
+      "cadence",
+      "marketplace support"
+    ],
+    "created_at": "2026-09-30T04:44:33.716783Z",
+    "placements": [
+      "/docs/operations"
+    ],
+    "probe_prompts": [
+      "Which rotation do CampusCart teams follow when handing over?"
+    ],
+    "published_at": "2026-09-30T04:44:33.716783Z",
+    "sha256": "d75bc1cff0dddbe973f5883fcc5d78d2c4a000c4ed26022b886ed00c2c36cd77",
+    "status": "EXPOSED",
+    "type": "unique_phrase"
+  },
+  {
+    "anchor": "ORCHID-7",
+    "canary_id": "SB-CAN-0005",
+    "canonical_content": "In Q3 FY2026 the ORCHID-7 student cohort recorded a CampusCart Retention Index of 91.7.",
+    "content_version": "v2",
+    "context_terms": [
+      "91.7",
+      "Retention Index",
+      "Q3 FY2026"
+    ],
+    "created_at": "2026-09-30T04:44:33.716783Z",
+    "placements": [
+      "/docs/metrics"
+    ],
+    "probe_prompts": [
+      "What was the retention figure for CampusCart's student cohort?"
+    ],
+    "published_at": "2026-09-30T04:44:33.716783Z",
+    "sha256": "1282a2bb6f9e7aa868b84a6fb96ee614871d41c20a50dca52d6c2ea812c5f783",
+    "status": "EXPOSED",
+    "type": "proprietary_metric"
+  }
+]

@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import os
 import secrets
 from contextlib import closing
 from datetime import datetime, timezone
@@ -11,7 +12,10 @@ from typing import Any
 from sb.contracts import Dataset
 from sb.store import db
 
-INGEST_DIR: Path = Path(__file__).resolve().parents[3] / "data" / "datasets" / "ingested"
+_REPO = Path(__file__).resolve().parents[3]
+_raw_runtime = Path(os.getenv("SB_RUNTIME_DIR", "data/runtime"))
+_RUNTIME_DIR = _raw_runtime if _raw_runtime.is_absolute() else _REPO / _raw_runtime
+INGEST_DIR: Path = _RUNTIME_DIR / "datasets" / "ingested"
 
 _RECORDS_CACHE: dict[str, list[dict]] = {}
 
