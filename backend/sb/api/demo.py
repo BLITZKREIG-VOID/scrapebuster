@@ -8,6 +8,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, HTTPException
 from pydantic import BaseModel, Field
+
 from sb.contracts import DemoResetResponse, DemoStatus
 from sb.demo import DemoBusy, golden, runner
 from sb.demo.reset import reset_demo

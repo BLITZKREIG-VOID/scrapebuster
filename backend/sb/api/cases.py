@@ -5,10 +5,16 @@ from __future__ import annotations
 import json
 from contextlib import closing
 from pathlib import Path
+
 from fastapi import APIRouter, HTTPException
 
-from ..contracts import (Case, CaseEvidenceResponse, CaseSummaries, EvidenceObject,
-                         EvidenceVerification)
+from ..contracts import (
+    Case,
+    CaseEvidenceResponse,
+    CaseSummaries,
+    EvidenceObject,
+    EvidenceVerification,
+)
 from ..provenance import evidence, investigate
 from ..store import db
 
