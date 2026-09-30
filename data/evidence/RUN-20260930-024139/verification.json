@@ -1,0 +1,115 @@
+{
+  "result": "VALID",
+  "checks": [
+    {
+      "name": "file:01_canary.json",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "name": "file:02_publication_record.json",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "name": "file:03_exposure_events.json",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "name": "file:04_scraper_profile.json",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "name": "file:05_probe_request.json",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "name": "file:06_model_response.json",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "name": "file:07_control_response.json",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "name": "file:08_match_analysis.json",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "name": "file:09_finding.json",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "name": "manifest_self_hash",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "name": "chain_link",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "name": "canary_hashes",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "name": "db:01_canary.json",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "name": "db:02_publication_record.json",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "name": "db:03_exposure_events.json",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "name": "db:04_scraper_profile.json",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "name": "db:05_probe_request.json",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "name": "db:06_model_response.json",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "name": "db:07_control_response.json",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "name": "db:08_match_analysis.json",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "name": "db:09_finding.json",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "name": "db:manifest.json",
+      "ok": true,
+      "detail": "ok"
+    }
+  ]
+}

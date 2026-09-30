@@ -1,0 +1,86 @@
+{
+  "run_id": "RUN-20260930-024139",
+  "started_at": "2026-09-30T02:41:39.981150Z",
+  "executed_commit": "8f0db2f9ac8f6424d312eb83d669b1146b020eb3",
+  "supersedes_incomplete_run": "RUN-20260930-014414",
+  "reason": "missing run-scoped exposure snapshots; original dataset preserved",
+  "target": {
+    "path": "data/datasets/RUN-20260930-024139_scraper3.jsonl",
+    "sha256": "2c46ecbbc24a1fc78557286ae9deea347f6ab8249f141ad130a9c3eb571e7301",
+    "records": 20
+  },
+  "control": {
+    "path": "data/control/control_clean.jsonl",
+    "sha256": "db149b52de047c9f635a2983166645cf37b3191770b3a57220bbf945086ba151",
+    "records": 14,
+    "registered_anchors": 0
+  },
+  "sessions": {
+    "human_control": {
+      "session_id": "ck-c2bfe0676df0409f",
+      "classification": "HUMAN_LIKELY",
+      "state": "VERIFIED",
+      "request_count": 8,
+      "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 SBDemo/human"
+    },
+    "ordinary_bot": {
+      "session_id": "ck-cc3eef81dce199f4",
+      "classification": "BOT_BASIC",
+      "state": "BLOCKED",
+      "request_count": 10,
+      "user_agent": "python-requests/2.34.2 SBDemo/scraper1"
+    },
+    "advanced_scraper": {
+      "session_id": "ck-cdf6d1c3128bbb7a",
+      "classification": "AUTOMATION",
+      "state": "RESTRICTED",
+      "request_count": 6,
+      "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36 SBDemo/scraper2"
+    },
+    "sophisticated_scraper": {
+      "session_id": "ck-4489f36ec6963a87",
+      "classification": "SOPHISTICATED_SCRAPER",
+      "state": "TRAPPED",
+      "request_count": 28,
+      "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 SBDemo/scraper3"
+    }
+  },
+  "snapshots": {
+    "sessions": {
+      "path": "data/evidence/RUN-20260930-024139/sessions_raw.json",
+      "sha256": "a9780f724494de7d3b8fdc1c3007ca8fe48bb8642ac01dbfa52c03108c8779aa",
+      "rows": 4
+    },
+    "traffic_events": {
+      "path": "data/evidence/RUN-20260930-024139/traffic_events_raw.json",
+      "sha256": "d96859e2526a875a0097f5ec80ee40761ebd381b3e003850fd15c88fb9b33f46",
+      "rows": 87
+    },
+    "trap_hits": {
+      "path": "data/evidence/RUN-20260930-024139/trap_hits_raw.json",
+      "sha256": "39ed39eddb4a8ea579166a412e58a4f1c3bcb2a80af85fc60fada6153f24de1a",
+      "rows": 2
+    },
+    "exposures": {
+      "path": "data/evidence/RUN-20260930-024139/exposures_raw.json",
+      "sha256": "9b388660f254560fab67197af633476e881b9f368cea5b4273a4c14ac68ddca4",
+      "rows": 5
+    },
+    "publications": {
+      "path": "data/evidence/RUN-20260930-024139/publications_raw.json",
+      "sha256": "fbd572edc22cabfbff8e382ef19dd62d409dce3a6abeda045a859e92bb93dbcf",
+      "rows": 5
+    },
+    "canaries": {
+      "path": "data/evidence/RUN-20260930-024139/canaries_raw.json",
+      "sha256": "fff0c5ab483f6eb3c96972b1a6974ceb762b6b74b4e0c4ed818fd72a537ba327",
+      "rows": 5
+    }
+  },
+  "acceptance": "PASS",
+  "limitations": [
+    "Human control is seeded Playwright simulation, not a manual human",
+    "Ordinary bot stopped conservatively after one concurrent ten-request batch, 3 edge throttles/7 blocks",
+    "Earlier unseeded attempt rejected; not a provenance input"
+  ]
+}

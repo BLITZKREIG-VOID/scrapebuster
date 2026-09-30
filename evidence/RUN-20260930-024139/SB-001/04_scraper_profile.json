@@ -1,0 +1,328 @@
+[
+  {
+    "block_until": "",
+    "canaries_exposed": [
+      "SB-CAN-0001",
+      "SB-CAN-0002",
+      "SB-CAN-0003",
+      "SB-CAN-0004",
+      "SB-CAN-0005"
+    ],
+    "classification": "SOPHISTICATED_SCRAPER",
+    "client_key": "4489f36ec6963a87",
+    "first_seen": "2026-09-30T02:42:20.397526+00:00",
+    "header_fp": "f06fa34bad07c64a",
+    "ip": "127.0.0.1",
+    "l1_reasons": [
+      "L1_UNVERIFIED_SESSION"
+    ],
+    "l1_score": 0,
+    "l2_score": 0,
+    "l2_signals": [],
+    "last_seen": "2026-09-30T02:43:36.149055+00:00",
+    "layer_path": [
+      {
+        "decision": "ESCALATE",
+        "layer": "L1",
+        "ts": "2026-09-30T02:42:20.398455+00:00"
+      },
+      {
+        "decision": "CHALLENGE",
+        "layer": "L2",
+        "ts": "2026-09-30T02:42:20.400133+00:00"
+      },
+      {
+        "decision": "CHALLENGE",
+        "layer": "L1",
+        "ts": "2026-09-30T02:42:22.344103+00:00"
+      },
+      {
+        "decision": "CHALLENGE",
+        "layer": "L2",
+        "ts": "2026-09-30T02:42:22.344429+00:00"
+      },
+      {
+        "decision": "PASS",
+        "layer": "L2",
+        "ts": "2026-09-30T02:42:23.845595+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "L1",
+        "ts": "2026-09-30T02:42:23.851708+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "ORIGIN",
+        "ts": "2026-09-30T02:42:23.910720+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "L1",
+        "ts": "2026-09-30T02:42:23.926148+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "L1",
+        "ts": "2026-09-30T02:42:23.929978+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "ORIGIN",
+        "ts": "2026-09-30T02:42:24.027096+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "ORIGIN",
+        "ts": "2026-09-30T02:42:24.031169+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "L1",
+        "ts": "2026-09-30T02:42:24.208203+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "ORIGIN",
+        "ts": "2026-09-30T02:42:24.223858+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "L1",
+        "ts": "2026-09-30T02:42:24.351379+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "ORIGIN",
+        "ts": "2026-09-30T02:42:24.352023+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "L1",
+        "ts": "2026-09-30T02:42:24.369135+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "ORIGIN",
+        "ts": "2026-09-30T02:42:24.383397+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "L1",
+        "ts": "2026-09-30T02:42:26.769441+00:00"
+      },
+      {
+        "decision": "TRAP",
+        "layer": "L3",
+        "ts": "2026-09-30T02:42:26.770192+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "L1",
+        "ts": "2026-09-30T02:42:29.054273+00:00"
+      },
+      {
+        "decision": "TRAP",
+        "layer": "L3",
+        "ts": "2026-09-30T02:42:29.054927+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "L1",
+        "ts": "2026-09-30T02:42:30.904527+00:00"
+      },
+      {
+        "decision": "TRAP",
+        "layer": "ORIGIN",
+        "ts": "2026-09-30T02:42:30.973963+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "L1",
+        "ts": "2026-09-30T02:42:33.245925+00:00"
+      },
+      {
+        "decision": "TRAP",
+        "layer": "ORIGIN",
+        "ts": "2026-09-30T02:42:33.271084+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "L1",
+        "ts": "2026-09-30T02:42:35.346881+00:00"
+      },
+      {
+        "decision": "TRAP",
+        "layer": "ORIGIN",
+        "ts": "2026-09-30T02:42:35.373457+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "L1",
+        "ts": "2026-09-30T02:42:37.485979+00:00"
+      },
+      {
+        "decision": "TRAP",
+        "layer": "ORIGIN",
+        "ts": "2026-09-30T02:42:37.508920+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "L1",
+        "ts": "2026-09-30T02:42:39.379738+00:00"
+      },
+      {
+        "decision": "TRAP",
+        "layer": "ORIGIN",
+        "ts": "2026-09-30T02:42:39.402136+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "L1",
+        "ts": "2026-09-30T02:42:41.892951+00:00"
+      },
+      {
+        "decision": "TRAP",
+        "layer": "ORIGIN",
+        "ts": "2026-09-30T02:42:41.915187+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "L1",
+        "ts": "2026-09-30T02:42:44.465160+00:00"
+      },
+      {
+        "decision": "TRAP",
+        "layer": "ORIGIN",
+        "ts": "2026-09-30T02:42:44.486676+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "L1",
+        "ts": "2026-09-30T02:42:47.066633+00:00"
+      },
+      {
+        "decision": "TRAP",
+        "layer": "ORIGIN",
+        "ts": "2026-09-30T02:42:47.090513+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "L1",
+        "ts": "2026-09-30T02:42:49.203173+00:00"
+      },
+      {
+        "decision": "TRAP",
+        "layer": "ORIGIN",
+        "ts": "2026-09-30T02:42:49.227658+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "L1",
+        "ts": "2026-09-30T02:42:51.627134+00:00"
+      },
+      {
+        "decision": "TRAP",
+        "layer": "ORIGIN",
+        "ts": "2026-09-30T02:42:51.651182+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "L1",
+        "ts": "2026-09-30T02:42:53.251767+00:00"
+      },
+      {
+        "decision": "TRAP",
+        "layer": "ORIGIN",
+        "ts": "2026-09-30T02:42:53.273775+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "L1",
+        "ts": "2026-09-30T02:42:55.578461+00:00"
+      },
+      {
+        "decision": "TRAP",
+        "layer": "ORIGIN",
+        "ts": "2026-09-30T02:42:55.605303+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "L1",
+        "ts": "2026-09-30T02:42:57.327814+00:00"
+      },
+      {
+        "decision": "TRAP",
+        "layer": "ORIGIN",
+        "ts": "2026-09-30T02:42:57.350260+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "L1",
+        "ts": "2026-09-30T02:42:59.910156+00:00"
+      },
+      {
+        "decision": "TRAP",
+        "layer": "ORIGIN",
+        "ts": "2026-09-30T02:42:59.935866+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "L1",
+        "ts": "2026-09-30T02:43:11.773797+00:00"
+      },
+      {
+        "decision": "TRAP",
+        "layer": "ORIGIN",
+        "ts": "2026-09-30T02:43:11.831049+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "L1",
+        "ts": "2026-09-30T02:43:23.557169+00:00"
+      },
+      {
+        "decision": "TRAP",
+        "layer": "ORIGIN",
+        "ts": "2026-09-30T02:43:23.628709+00:00"
+      },
+      {
+        "decision": "ALLOW",
+        "layer": "L1",
+        "ts": "2026-09-30T02:43:36.150659+00:00"
+      },
+      {
+        "decision": "TRAP",
+        "layer": "ORIGIN",
+        "ts": "2026-09-30T02:43:36.221494+00:00"
+      }
+    ],
+    "pages": [
+      "/",
+      "/favicon.ico",
+      "/_sb/verify",
+      "/assets/index-_QVnNMh1.js",
+      "/assets/index-sKSqYRn0.css",
+      "/favicon.svg",
+      "/robots.txt",
+      "/internal/",
+      "/docs/archive/legacy-index",
+      "/login",
+      "/requests",
+      "/messages",
+      "/events",
+      "/docs/architecture",
+      "/docs/api",
+      "/docs/team",
+      "/docs/operations"
+    ],
+    "request_count": 28,
+    "session_id": "ck-4489f36ec6963a87",
+    "state": "TRAPPED",
+    "traps_triggered": [
+      "TRAP-ROBOTS-01",
+      "TRAP-LINK-01"
+    ],
+    "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 SBDemo/scraper3"
+  }
+]

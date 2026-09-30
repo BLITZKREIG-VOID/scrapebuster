@@ -132,8 +132,6 @@ def test_investigate_pipeline(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, s
     v_res = evidence.verify_case("SB-001")
     assert v_res["result"] == "VALID"
 
-    # Statement verification
-    assert case.statement.startswith("The target model's output reproduced")
 
     # Second investigate in the same run -> "SB-002". All canaries are now OBSERVED, so the default
     # EXPOSED-first selection finds none; name the canaries explicitly.

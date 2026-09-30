@@ -1,0 +1,150 @@
+{
+  "manifest": {
+    "case_id": "SB-001",
+    "run_id": "RUN-20260930-024139",
+    "created_at": "2026-09-30T02:47:09.189758Z",
+    "files": [
+      {
+        "name": "01_canary.json",
+        "sha256": "71b1b0b6be2fbe4a055e2fc145a713742e72dbfbe4073ec9611255ffb4cac622",
+        "bytes": 3685
+      },
+      {
+        "name": "02_publication_record.json",
+        "sha256": "7f28fb4dd8a41aa9df0ae7cd9c3fabdb3f7b29a24dfefbb44a1106db43a19a1d",
+        "bytes": 1282
+      },
+      {
+        "name": "03_exposure_events.json",
+        "sha256": "4fc9a5d892812d93bd5be227ab53326c00a31dfc7e25b7e33d340eddb1dae91d",
+        "bytes": 3558
+      },
+      {
+        "name": "04_scraper_profile.json",
+        "sha256": "3984e88b31ee0605808dae3c434c2d980219ed3e95aa4016f821b42d5e5333b4",
+        "bytes": 7858
+      },
+      {
+        "name": "05_probe_request.json",
+        "sha256": "0920e53a34f7e3e8afe69142fe0f35a54a3c9a19f59e0b56e815022ccd1c5f92",
+        "bytes": 6078
+      },
+      {
+        "name": "06_model_response.json",
+        "sha256": "c348276fcbefe0e6982023a87134ed97b77d9eb9177c0a13b84e8089b05d4842",
+        "bytes": 1399
+      },
+      {
+        "name": "07_control_response.json",
+        "sha256": "52b5bf1a97bf6fc2493cf3ce34a82c45bb7fce8a52fc17f39f42ecba647f20cb",
+        "bytes": 2674
+      },
+      {
+        "name": "08_match_analysis.json",
+        "sha256": "3fa0e0dbbd6f0033dea961153c5908ebeadae460626fafe78b5299d9954dd88c",
+        "bytes": 3204
+      },
+      {
+        "name": "09_finding.json",
+        "sha256": "3f4349d7e295c41f24bed32c10ea6ec68cae48e3f20652e8d7a91ffd11b0c800",
+        "bytes": 4325
+      }
+    ],
+    "prev_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "tool_version": "scapebusters-0.1",
+    "manifest_sha256": "f3fa67a799a2d3a0a3efcbc9f2ef9fefb2d62493509e7cbbbf129b261275e950"
+  },
+  "objects": [
+    {
+      "name": "01_canary.json",
+      "sha256": "71b1b0b6be2fbe4a055e2fc145a713742e72dbfbe4073ec9611255ffb4cac622",
+      "bytes": 3685,
+      "local_path": "/home/rosso/Projects/scrapebuster/evidence/RUN-20260930-024139/SB-001/01_canary.json",
+      "s3_key": null,
+      "s3_version_id": null,
+      "retain_until": null
+    },
+    {
+      "name": "02_publication_record.json",
+      "sha256": "7f28fb4dd8a41aa9df0ae7cd9c3fabdb3f7b29a24dfefbb44a1106db43a19a1d",
+      "bytes": 1282,
+      "local_path": "/home/rosso/Projects/scrapebuster/evidence/RUN-20260930-024139/SB-001/02_publication_record.json",
+      "s3_key": null,
+      "s3_version_id": null,
+      "retain_until": null
+    },
+    {
+      "name": "03_exposure_events.json",
+      "sha256": "4fc9a5d892812d93bd5be227ab53326c00a31dfc7e25b7e33d340eddb1dae91d",
+      "bytes": 3558,
+      "local_path": "/home/rosso/Projects/scrapebuster/evidence/RUN-20260930-024139/SB-001/03_exposure_events.json",
+      "s3_key": null,
+      "s3_version_id": null,
+      "retain_until": null
+    },
+    {
+      "name": "04_scraper_profile.json",
+      "sha256": "3984e88b31ee0605808dae3c434c2d980219ed3e95aa4016f821b42d5e5333b4",
+      "bytes": 7858,
+      "local_path": "/home/rosso/Projects/scrapebuster/evidence/RUN-20260930-024139/SB-001/04_scraper_profile.json",
+      "s3_key": null,
+      "s3_version_id": null,
+      "retain_until": null
+    },
+    {
+      "name": "05_probe_request.json",
+      "sha256": "0920e53a34f7e3e8afe69142fe0f35a54a3c9a19f59e0b56e815022ccd1c5f92",
+      "bytes": 6078,
+      "local_path": "/home/rosso/Projects/scrapebuster/evidence/RUN-20260930-024139/SB-001/05_probe_request.json",
+      "s3_key": null,
+      "s3_version_id": null,
+      "retain_until": null
+    },
+    {
+      "name": "06_model_response.json",
+      "sha256": "c348276fcbefe0e6982023a87134ed97b77d9eb9177c0a13b84e8089b05d4842",
+      "bytes": 1399,
+      "local_path": "/home/rosso/Projects/scrapebuster/evidence/RUN-20260930-024139/SB-001/06_model_response.json",
+      "s3_key": null,
+      "s3_version_id": null,
+      "retain_until": null
+    },
+    {
+      "name": "07_control_response.json",
+      "sha256": "52b5bf1a97bf6fc2493cf3ce34a82c45bb7fce8a52fc17f39f42ecba647f20cb",
+      "bytes": 2674,
+      "local_path": "/home/rosso/Projects/scrapebuster/evidence/RUN-20260930-024139/SB-001/07_control_response.json",
+      "s3_key": null,
+      "s3_version_id": null,
+      "retain_until": null
+    },
+    {
+      "name": "08_match_analysis.json",
+      "sha256": "3fa0e0dbbd6f0033dea961153c5908ebeadae460626fafe78b5299d9954dd88c",
+      "bytes": 3204,
+      "local_path": "/home/rosso/Projects/scrapebuster/evidence/RUN-20260930-024139/SB-001/08_match_analysis.json",
+      "s3_key": null,
+      "s3_version_id": null,
+      "retain_until": null
+    },
+    {
+      "name": "09_finding.json",
+      "sha256": "3f4349d7e295c41f24bed32c10ea6ec68cae48e3f20652e8d7a91ffd11b0c800",
+      "bytes": 4325,
+      "local_path": "/home/rosso/Projects/scrapebuster/evidence/RUN-20260930-024139/SB-001/09_finding.json",
+      "s3_key": null,
+      "s3_version_id": null,
+      "retain_until": null
+    },
+    {
+      "name": "manifest.json",
+      "sha256": "e3e35bc2916489bc1bf9dcd0ac1d9c3909f56e9262eea9cec5741497d5f3c6e8",
+      "bytes": 1751,
+      "local_path": "/home/rosso/Projects/scrapebuster/evidence/RUN-20260930-024139/SB-001/manifest.json",
+      "s3_key": null,
+      "s3_version_id": null,
+      "retain_until": null
+    }
+  ],
+  "receipt": null
+}

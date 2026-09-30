@@ -1,0 +1,18 @@
+[
+  {
+    "hit_id": "HIT-69e6204c",
+    "ts": "2026-09-30T02:42:26.769510Z",
+    "session_id": "ck-4489f36ec6963a87",
+    "trap_id": "TRAP-ROBOTS-01",
+    "trap_type": "robots_disallowed",
+    "path": "/internal/"
+  },
+  {
+    "hit_id": "HIT-631b43e2",
+    "ts": "2026-09-30T02:42:29.054324Z",
+    "session_id": "ck-4489f36ec6963a87",
+    "trap_id": "TRAP-LINK-01",
+    "trap_type": "hidden_link",
+    "path": "/docs/archive/legacy-index"
+  }
+]

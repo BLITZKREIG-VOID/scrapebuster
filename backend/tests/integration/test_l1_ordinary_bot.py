@@ -2,8 +2,8 @@
 
 Targets the CampusCart profile in ``attacks/sites.py`` through the local edge
 (``SB_E2E_SITE=examplecorp`` selects the LOCAL TEST FIXTURE on :8001, started as a
-subprocess if it is not already up). The backend runs as a subprocess with
-``UPSTREAM_ORIGIN`` = the profile's origin unless one is already healthy on :8000.
+subprocess if it is not already up). The test always owns a separate backend
+with a temporary DB/dataset directory; reset must never touch a demo runtime.
 Scraper 1 runs as a real subprocess.
 """
 from __future__ import annotations
@@ -11,6 +11,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import socket
 import subprocess
 import sys
 import time
@@ -21,7 +22,6 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[3]
 BACKEND = REPO / "backend"
-EDGE = os.environ.get("SB_EDGE_URL", "http://127.0.0.1:8000")
 sys.path.insert(0, str(REPO / "attacks"))
 from sites import SITES
 
@@ -91,8 +91,13 @@ def _wait(predicate, timeout: float, what: str):
 
 
 @pytest.fixture(scope="module")
-def edge():
+def edge(tmp_path_factory):
     procs: list[subprocess.Popen] = []
+    scratch = tmp_path_factory.mktemp("ordinary-bot-edge")
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        port = listener.getsockname()[1]
+    base = f"http://127.0.0.1:{port}"
 
     def spawn(app: str, port: str, cwd: Path) -> None:
         procs.append(subprocess.Popen(
@@ -105,12 +110,22 @@ def edge():
         if SITE_NAME == LOCAL_FIXTURE_SITE and not _ok(ORIGIN + "/"):
             spawn("demo_site.app:app", ORIGIN.rsplit(":", 1)[1], REPO)
             _wait(lambda: _ok(ORIGIN + "/"), 20, "local fixture origin")
-        if not _ok(EDGE + HEALTH):
-            if MISSING:
-                pytest.fail("backend cannot start, missing dependency: " + MISSING[0])
-            spawn("sb.main:app", EDGE.rsplit(":", 1)[1], BACKEND)
-            _wait(lambda: _ok(EDGE + HEALTH), 20, "backend " + HEALTH)
-        with httpx.Client(base_url=EDGE, timeout=30) as client:
+        if MISSING:
+            pytest.fail("backend cannot start, missing dependency: " + MISSING[0])
+        bootstrap = (
+            "from pathlib import Path; from sb.demo import reset; "
+            f"reset.DATASETS_DIR = Path({str(scratch / 'datasets')!r}); "
+            "import uvicorn; "
+            f"uvicorn.run('sb.main:app', host='127.0.0.1', port={port})"
+        )
+        procs.append(subprocess.Popen(
+            [sys.executable, "-c", bootstrap],
+            cwd=BACKEND,
+            env={**os.environ, "UPSTREAM_ORIGIN": ORIGIN, "SB_DB_PATH": str(scratch / "sb.db")},
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        ))
+        _wait(lambda: _ok(base + HEALTH), 20, "isolated backend " + HEALTH)
+        with httpx.Client(base_url=base, timeout=30) as client:
             yield client
     finally:
         for proc in procs:
@@ -142,7 +157,7 @@ def test_ordinary_bot_is_throttled_then_blocked(edge):
     assert reset.status_code == 200 and reset.json()["ok"], reset.text
 
     proc = subprocess.run(
-        [sys.executable, str(REPO / "attacks" / "ordinary_bot.py"), "--base", EDGE, "--site", SITE_NAME,
+        [sys.executable, str(REPO / "attacks" / "ordinary_bot.py"), "--base", str(edge.base_url).rstrip("/"), "--site", SITE_NAME,
          "--requests", "100", "--threads", "10"],
         cwd=REPO, capture_output=True, text=True, timeout=120, check=False,
     )

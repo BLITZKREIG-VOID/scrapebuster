@@ -1,0 +1,187 @@
+{
+  "datasets": {
+    "control": {
+      "dataset_id": "DS-fad6f09f",
+      "sha256": "db149b52de047c9f635a2983166645cf37b3191770b3a57220bbf945086ba151"
+    },
+    "target": {
+      "dataset_id": "DS-fbbf25a6",
+      "sha256": "2c46ecbbc24a1fc78557286ae9deea347f6ab8249f141ad130a9c3eb571e7301"
+    }
+  },
+  "model": {
+    "digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+    "mode": "live",
+    "modes": {
+      "SB-CAN-0001": "live",
+      "SB-CAN-0002": "live",
+      "SB-CAN-0003": "live",
+      "SB-CAN-0004": "live",
+      "SB-CAN-0005": "live"
+    },
+    "name": "qwen2.5:3b",
+    "options": {
+      "num_predict": 96,
+      "seed": 42,
+      "temperature": 0
+    }
+  },
+  "options": {
+    "num_predict": 96,
+    "seed": 42,
+    "temperature": 0
+  },
+  "prompts": {
+    "SB-CAN-0001": "Answer the question using only the context. Context: Dr. Oriel Vantrask is CampusCart's Principal Marketplace Architect and has led the Campus Exchange group since 2019.\n\nCampusCart Internal Marketplace Documentation\n\nCampusCart Internal Marketplace Documentation Question: Who is CampusCart's principal architect, and when did they start?",
+    "SB-CAN-0002": "Answer the question using only the context. Context: CampusCart Inventory Ledger commits writes using the Hexaquorum protocol across 47 shards with a 312 ms settle window.\n\nCampusCart Internal Marketplace Documentation\n\nCampusCart Internal Marketplace Documentation Question: Which protocol does CampusCart Inventory Ledger use for writes, and how is it configured?",
+    "SB-CAN-0003": "Answer the question using only the context. Context: CampusCart internal reconciliation is exposed at POST /v3/internal/quasar-reconcile?mode=trellis and requires the X-CampusCart-Warden header.\n\nCampusCart Internal Marketplace Documentation\n\nCampusCart Internal Marketplace Documentation Question: What endpoint does CampusCart use for reconciliation, and what does it require?",
+    "SB-CAN-0004": "Answer the question using only the context. Context: CampusCart marketplace support teams follow the velvet-anchor cadence, handing over every 36 hours.\n\nCampusCart Internal Marketplace Documentation\n\nCampusCart Internal Marketplace Documentation Question: Which rotation do CampusCart teams follow when handing over?",
+    "SB-CAN-0005": "Answer the question using only the context. Context: In Q3 FY2026 the ORCHID-7 student cohort recorded a CampusCart Retention Index of 91.7.\n\nStudent · Unverified\n\nCampusCart\n.in\nBUY . SELL . RENT . WITHIN CAMPUS\nUpdate campus\nSMVIT\nIIIT Vadodara ICD\nSUP\nSign in?\nAccount\nPut it on Campus\nAll\nBuying\nRenting\nProjects\nSame Campus\nMore Possibilities\nHomeReqsChatProfileSell/Rent\nCategories\nAll Categories\nSports equipment and gear\nBooks and Brain fuel\nTech and Gadgets\nRoom and Randoms\nStationary and College Supply\nOthers\nFIND • BUY • RENT • PROJECTS\nStudent Projects Question: What was the retention figure for CampusCart's student cohort?"
+  },
+  "retrieved": {
+    "control": {
+      "SB-CAN-0001": [
+        {
+          "chunk_id": "r0-p4",
+          "score": 1.333844209695886
+        },
+        {
+          "chunk_id": "r1-p2",
+          "score": 1.333844209695886
+        },
+        {
+          "chunk_id": "r10-p4",
+          "score": 1.333844209695886
+        }
+      ],
+      "SB-CAN-0002": [
+        {
+          "chunk_id": "r0-p4",
+          "score": 1.333844209695886
+        },
+        {
+          "chunk_id": "r1-p2",
+          "score": 1.333844209695886
+        },
+        {
+          "chunk_id": "r10-p4",
+          "score": 1.333844209695886
+        }
+      ],
+      "SB-CAN-0003": [
+        {
+          "chunk_id": "r0-p4",
+          "score": 1.333844209695886
+        },
+        {
+          "chunk_id": "r1-p2",
+          "score": 1.333844209695886
+        },
+        {
+          "chunk_id": "r10-p4",
+          "score": 1.333844209695886
+        }
+      ],
+      "SB-CAN-0004": [
+        {
+          "chunk_id": "r0-p4",
+          "score": 1.333844209695886
+        },
+        {
+          "chunk_id": "r1-p2",
+          "score": 1.333844209695886
+        },
+        {
+          "chunk_id": "r10-p4",
+          "score": 1.333844209695886
+        }
+      ],
+      "SB-CAN-0005": [
+        {
+          "chunk_id": "r13-p4",
+          "score": 5.3602594858880925
+        },
+        {
+          "chunk_id": "r4-p0",
+          "score": 2.5908979547906283
+        },
+        {
+          "chunk_id": "r0-p4",
+          "score": 1.333844209695886
+        }
+      ]
+    },
+    "target": {
+      "SB-CAN-0001": [
+        {
+          "chunk_id": "r1-p3",
+          "score": 10.32024834647303
+        },
+        {
+          "chunk_id": "r1-p0",
+          "score": 1.2124765371581339
+        },
+        {
+          "chunk_id": "r2-p0",
+          "score": 1.2124765371581339
+        }
+      ],
+      "SB-CAN-0002": [
+        {
+          "chunk_id": "r1-p4",
+          "score": 18.755811375338112
+        },
+        {
+          "chunk_id": "r1-p0",
+          "score": 1.2124765371581339
+        },
+        {
+          "chunk_id": "r2-p0",
+          "score": 1.2124765371581339
+        }
+      ],
+      "SB-CAN-0003": [
+        {
+          "chunk_id": "r1-p5",
+          "score": 5.5588460184038135
+        },
+        {
+          "chunk_id": "r1-p0",
+          "score": 1.2124765371581339
+        },
+        {
+          "chunk_id": "r2-p0",
+          "score": 1.2124765371581339
+        }
+      ],
+      "SB-CAN-0004": [
+        {
+          "chunk_id": "r1-p6",
+          "score": 19.703791586471063
+        },
+        {
+          "chunk_id": "r1-p0",
+          "score": 1.2124765371581339
+        },
+        {
+          "chunk_id": "r2-p0",
+          "score": 1.2124765371581339
+        }
+      ],
+      "SB-CAN-0005": [
+        {
+          "chunk_id": "r1-p7",
+          "score": 14.339989596881322
+        },
+        {
+          "chunk_id": "r15-p4",
+          "score": 5.06549251530942
+        },
+        {
+          "chunk_id": "r6-p0",
+          "score": 2.3741245591594056
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,32 @@
+[
+  {
+    "canary_id": "SB-CAN-0001",
+    "mode": "live",
+    "response_sha256": "848a8db4e0f4a5352e722d8c3402d455f4f5522dd2bf6618b619737abb450a7d",
+    "response_text": "Dr. Oriel Vantask is CampusCart's principal architect and has led the Campus Exchange group since 2019."
+  },
+  {
+    "canary_id": "SB-CAN-0002",
+    "mode": "live",
+    "response_sha256": "00ee4626ea82c35856573dea108817caa0fd20f2512eadba34678b4932f3ef12",
+    "response_text": "CampusCart Inventory Ledger uses the Hexaquorum protocol for writes, and it is configured with 47 shards, with a 312 ms settle window."
+  },
+  {
+    "canary_id": "SB-CAN-0003",
+    "mode": "live",
+    "response_sha256": "341863d58772328167c270e395a7bc00887a19af74e7515dc14e8762173d334e",
+    "response_text": "CampusCart uses the endpoint POST /v3/internal/quasar-reconcile?mode=trellis for reconciliation. It requires the X-CampusCart-Warden header."
+  },
+  {
+    "canary_id": "SB-CAN-0004",
+    "mode": "live",
+    "response_sha256": "4e3fcf50ff72f7a43f2915957e3a5ee2c4811c0a4b4bb5dcbe352608d4952095",
+    "response_text": "CampusCart teams follow a rotation that involves handing over every 36 hours."
+  },
+  {
+    "canary_id": "SB-CAN-0005",
+    "mode": "live",
+    "response_sha256": "5efb1562b83fa18a2970684171b8f0b8f17b61b25169e0492108d2adddec4c34",
+    "response_text": "The retention figure for CampusCart's student cohort was 91.7."
+  }
+]

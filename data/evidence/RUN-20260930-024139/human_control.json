@@ -1,0 +1,15 @@
+{
+  "command": [
+    "/tmp/sb-venv/bin/python",
+    "attacks/human_control.py",
+    "--base",
+    "http://127.0.0.1:8002",
+    "--pages",
+    "5",
+    "--screenshot",
+    "/home/rosso/Projects/scrapebuster/data/evidence/RUN-20260930-024139/human_rendered_campuscart.png"
+  ],
+  "returncode": 0,
+  "stdout": "{\"anchors_found\": [], \"content_pages\": 5, \"pages\": [{\"has_content\": true, \"status\": 200, \"url\": \"http://127.0.0.1:8002/\"}, {\"has_content\": true, \"status\": 200, \"url\": \"http://127.0.0.1:8002/login\"}, {\"has_content\": true, \"status\": 200, \"url\": \"http://127.0.0.1:8002/?category=sale\"}, {\"has_content\": true, \"status\": 200, \"url\": \"http://127.0.0.1:8002/?category=rent\"}, {\"has_content\": true, \"status\": 200, \"url\": \"http://127.0.0.1:8002/?category=projects\"}], \"scraper\": \"human_control\", \"user_agent\": \"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 SBDemo/human\"}\n",
+  "stderr": "  [1] 200 http://127.0.0.1:8002/\n  saved rendered screenshot to /home/rosso/Projects/scrapebuster/data/evidence/RUN-20260930-024139/human_rendered_campuscart.png\n  robots Disallow (respected): ['/internal/']\n  [2] 200 http://127.0.0.1:8002/login\n  [3] 200 http://127.0.0.1:8002/?category=sale\n  [4] 200 http://127.0.0.1:8002/?category=rent\n  [5] 200 http://127.0.0.1:8002/?category=projects\n"
+}
