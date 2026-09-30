@@ -33,12 +33,19 @@ def test_sophisticated_scraper_passes_l2_then_is_trapped(api, reset, attack, wai
     assert pass_seqs, f"scraper 3 never passed L2: {[(e['seq'], e['decision'], e['reasons']) for e in events]}"
     assert trap_seqs and min(pass_seqs) < min(trap_seqs), "expected PASS before TRAP"
 
+    def matching_session():
+        for summary in api.sessions():
+            detail = api.session(summary["session_id"])
+            if detail.get("user_agent") == ua and detail.get("classification") == "SOPHISTICATED_SCRAPER":
+                return detail
+        return None
+
     session = wait_for(
-        lambda: next((s for s in api.sessions()
-                      if s.get("user_agent") == ua and s.get("classification") == "SOPHISTICATED_SCRAPER"), None),
-        15, what="scraper 3 session classified SOPHISTICATED_SCRAPER",
+        matching_session,
+        15,
+        what="scraper 3 session classified SOPHISTICATED_SCRAPER",
     )
-    detail = api.session(session["session_id"])
+    detail = session
     assert detail.get("state") == "TRAPPED", detail.get("state")
     hit = trap_ids(detail) | trap_ids([e for e in events if e["decision"] == "TRAP"])
     assert hit & EXPECTED_TRAPS, f"trap ids seen: {sorted(hit)}"

@@ -1,0 +1,120 @@
+{
+  "run_id": "RUN-20260930-005102",
+  "dataset": {
+    "path": "data/datasets/RUN-20260930-005102_scraper3.jsonl",
+    "sha256": "ea35015cd10b010b4116051fa8fbdf54534349fa21c270809780ff1de1bbbb82",
+    "record_count": 20,
+    "fields": ["url", "fetched_at", "title", "text"]
+  },
+  "sessions": {
+    "human_control": {
+      "session_id": "ck-0c60ff3b109b8080",
+      "simulation_mode": "seeded_browser_simulation",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 SBDemo/human",
+      "classification": "HUMAN_LIKELY",
+      "final_state": "VERIFIED",
+      "request_count": 6,
+      "content_pages": 5,
+      "traps_hit": [],
+      "canaries_exposed": [],
+      "notes": "Synthetic human-like browser control executing seeded Playwright interactions; not a genuine manual human."
+    },
+    "ordinary_bot": {
+      "session_id": "ck-03cddd096800988f",
+      "user_agent": "python-requests/2.32.5 SBDemo/scraper1",
+      "classification": "BOT_BASIC",
+      "final_state": "BLOCKED",
+      "request_count": 10,
+      "status_histogram": {
+        "403": 7,
+        "429": 3
+      },
+      "content_bodies": 0,
+      "traps_hit": [],
+      "canaries_exposed": []
+    },
+    "advanced_scraper": {
+      "session_id": "ck-0f1c52575532c52d",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36 SBDemo/scraper2",
+      "classification": "AUTOMATION",
+      "final_state": "RESTRICTED",
+      "request_count": 7,
+      "l2_signals": ["L2_WEBDRIVER", "L2_HEADLESS_UA", "L2_SOFTWARE_GL", "L2_NO_INTERACTION"],
+      "content_pages": 0,
+      "traps_hit": [],
+      "canaries_exposed": []
+    },
+    "sophisticated_scraper": {
+      "session_id": "ck-5a8b7691783481b9",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 SBDemo/scraper3",
+      "classification": "SOPHISTICATED_SCRAPER",
+      "final_state": "TRAPPED",
+      "request_count": 25,
+      "traps_hit": ["TRAP-ROBOTS-01", "TRAP-LINK-01"],
+      "canaries_exposed": [
+        "SB-CAN-0001",
+        "SB-CAN-0002",
+        "SB-CAN-0003",
+        "SB-CAN-0004",
+        "SB-CAN-0005"
+      ],
+      "anchors_found": [
+        "Hexaquorum",
+        "ORCHID-7",
+        "Oriel Vantrask",
+        "quasar-reconcile",
+        "velvet-anchor"
+      ]
+    }
+  },
+  "canaries": [
+    {
+      "canary_id": "SB-CAN-0001",
+      "anchor": "Oriel Vantrask",
+      "exposure_count": 1,
+      "sessions_exposed": ["ck-5a8b7691783481b9"]
+    },
+    {
+      "canary_id": "SB-CAN-0002",
+      "anchor": "Hexaquorum",
+      "exposure_count": 1,
+      "sessions_exposed": ["ck-5a8b7691783481b9"]
+    },
+    {
+      "canary_id": "SB-CAN-0003",
+      "anchor": "quasar-reconcile",
+      "exposure_count": 1,
+      "sessions_exposed": ["ck-5a8b7691783481b9"]
+    },
+    {
+      "canary_id": "SB-CAN-0004",
+      "anchor": "velvet-anchor",
+      "exposure_count": 1,
+      "sessions_exposed": ["ck-5a8b7691783481b9"]
+    },
+    {
+      "canary_id": "SB-CAN-0005",
+      "anchor": "ORCHID-7",
+      "exposure_count": 1,
+      "sessions_exposed": ["ck-5a8b7691783481b9"]
+    }
+  ],
+  "commits": {
+    "base_commit_sha": "adac543b4bc4554eb5c98416d6631aca9dc7f900",
+    "branch": "phase/10-arnav-live-attack-validation",
+    "backend_commit_sha": "adac543b4bc4554eb5c98416d6631aca9dc7f900",
+    "harness_commit_sha": "adac543b4bc4554eb5c98416d6631aca9dc7f900",
+    "working_tree_modifications": [
+      "attacks/human_control.py: added --screenshot CLI argument for rendered page capture",
+      "backend/tests/e2e/conftest.py: permitted SAFETY_STOP_EXIT_CODE (returncode 3) in run_attacker fixture"
+    ]
+  },
+  "evidence": {
+    "raw_traffic_events": "data/evidence/traffic_events_raw.json",
+    "raw_sessions": "data/evidence/sessions_raw.json",
+    "raw_canary_exposures": "data/evidence/canary_exposures_raw.json",
+    "human_screenshot": "data/evidence/human_rendered_campuscart.png",
+    "total_traffic_events": 78
+  },
+  "timestamp": "2026-09-30T00:56:00Z"
+}

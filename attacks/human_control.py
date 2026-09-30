@@ -49,6 +49,7 @@ def main() -> int:
     ap.add_argument("--site", choices=sorted(SITES), default=DEFAULT_SITE, help="upstream behind the edge")
     ap.add_argument("--pages", type=int, default=PAGES)
     ap.add_argument("--headless", action="store_true")
+    ap.add_argument("--screenshot", type=str, default="", help="path to save screenshot of rendered page")
     args = ap.parse_args()
     check_base(ap, args)
     check_budget(ap, "pages", args.pages, len(SITES[args.site].pages))
@@ -72,6 +73,12 @@ def main() -> int:
         try:
             first_visit = driver.goto(home_url, rng=rng)
             record(first_visit)
+            if args.screenshot:
+                try:
+                    page.screenshot(path=args.screenshot)
+                    log(f"  saved rendered screenshot to {args.screenshot}")
+                except Exception as exc:  # noqa: BLE001
+                    log(f"  screenshot failed: {exc}")
             if is_safety_stop_status(first_visit.status):
                 safety_stop = (first_visit.status, home_url)
         except PlaywrightError as exc:
