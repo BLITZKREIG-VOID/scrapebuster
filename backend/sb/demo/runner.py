@@ -58,6 +58,10 @@ class StepFailed(Exception):
 class SafetyStop(StepFailed):
     """Raised when an attacker step exits with a safety stop (HTTP 429/5xx)."""
 
+    def __init__(self, message: str, summary: dict | None = None):
+        super().__init__(message)
+        self.summary = summary or {}
+
 
 def fresh_status(run_id: str | None, mode: str = "live") -> dict:
     return {
@@ -218,7 +222,8 @@ class Runner:
             stderr_diag = proc.stderr.strip()[-400:]
             lines = [line for line in proc.stdout.splitlines() if line.startswith("{")]
             partial = f" | partial: {lines[-1]}" if lines else ""
-            raise SafetyStop(f"{script} safety stop (exit {proc.returncode}): {stderr_diag}{partial}")
+            summary = json.loads(lines[-1]) if lines else {}
+            raise SafetyStop(f"{script} safety stop (exit {proc.returncode}): {stderr_diag}{partial}", summary)
         if proc.returncode != 0:
             raise StepFailed(f"{script} exit {proc.returncode}: {proc.stderr.strip()[-400:]}")
         lines = [line for line in proc.stdout.splitlines() if line.startswith("{")]
@@ -245,9 +250,36 @@ class Runner:
 
     # ── steps (§20) ──────────────────────────────────────────────────
     def step_ordinary_bot(self, deadline: float) -> str:
-        out = self.attacker("ordinary_bot.py", ["--requests", "100", "--threads", "10"], deadline)
+        stopped = None
+        try:
+            out = self.attacker("ordinary_bot.py", ["--requests", "100", "--threads", "10"], deadline)
+        except SafetyStop as exc:
+            stopped = exc
+            out = exc.summary
+            histogram = out.get("status_histogram", {})
+            if (
+                out.get("content_bodies") != 0
+                or set(histogram) != {"403", "429"}
+                or not all(histogram.values())
+            ):
+                raise
         s = self.wait_for(self.session_with("BOT_BASIC", "BLOCKED"), deadline, "session BOT_BASIC/BLOCKED")
-        return f"session {s.get('session_id')} BOT_BASIC/BLOCKED; statuses {out.get('status_histogram')}"
+        if stopped is not None:
+            # A client-side 429 is ambiguous. Accept only the expected stopped
+            # batch when persisted L1 events prove every response was enforcement.
+            detail = self.get(f"/api/v1/sessions/{s['session_id']}")
+            events = self.items(self.get("/api/v1/traffic/events", limit=200), "events")
+            events = [e for e in events if e["session_id"] == s["session_id"]]
+            actual = {code: sum(str(e["status_code"]) == code for e in events) for code in ("403", "429")}
+            if (
+                detail.get("user_agent") != out.get("user_agent")
+                or actual != out["status_histogram"]
+                or len(events) != out.get("requests")
+                or any(e["layer"] != "L1" or e["decision"] not in ("THROTTLE", "BLOCK") for e in events)
+            ):
+                raise stopped
+        note = "; bounded client stopped on proven L1 enforcement, no retry" if stopped else ""
+        return f"session {s.get('session_id')} BOT_BASIC/BLOCKED; statuses {out.get('status_histogram')}{note}"
 
     def step_advanced_scraper(self, deadline: float) -> str:
         out = self.attacker("advanced_scraper.py", ["--pages", "6"], deadline)

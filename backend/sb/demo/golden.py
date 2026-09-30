@@ -77,6 +77,10 @@ def capture() -> dict:
     dataset = Path((get_state("demo_context") or {}).get("dataset_path") or DATASETS_DIR / f"{run_id}_scraper3.jsonl")
     if not dataset.is_file():
         raise GoldenError(f"dataset missing: {dataset}")
+    ingested = DATASETS_DIR / "ingested"
+    chain = EVIDENCE_DIR / "chain.json"
+    if not ingested.is_dir() or not chain.is_file():
+        raise GoldenError("capture requires ingested datasets and the evidence chain")
 
     GOLDEN_DIR.mkdir(parents=True, exist_ok=True)
     tmp_db = GOLDEN_DIR / (GOLDEN_DB + ".tmp")
@@ -86,9 +90,11 @@ def capture() -> dict:
 
     _rmtree(GOLDEN_DIR / "evidence")
     shutil.copytree(evidence, GOLDEN_DIR / "evidence" / run_id)
+    shutil.copy2(chain, GOLDEN_DIR / "evidence" / chain.name)
     _rmtree(GOLDEN_DIR / "datasets")
     (GOLDEN_DIR / "datasets").mkdir()
     shutil.copy2(dataset, GOLDEN_DIR / "datasets" / dataset.name)
+    shutil.copytree(ingested, GOLDEN_DIR / "datasets" / "ingested")
 
     manifest = {
         "run_id": run_id,
@@ -96,6 +102,8 @@ def capture() -> dict:
         "db": GOLDEN_DB,
         "evidence": f"evidence/{run_id}",
         "dataset": f"datasets/{dataset.name}",
+        "ingested": "datasets/ingested",
+        "chain": "evidence/chain.json",
     }
     (GOLDEN_DIR / MANIFEST).write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     return manifest
@@ -112,6 +120,8 @@ def restore() -> dict:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         run_id = manifest["run_id"]
 
+        if "ingested" not in manifest or "chain" not in manifest:
+            raise GoldenError("golden snapshot lacks ingested datasets/chain; capture a complete live run")
         _backup(GOLDEN_DIR / manifest["db"], db_path())
 
         evidence = EVIDENCE_DIR / run_id
@@ -120,6 +130,10 @@ def restore() -> dict:
         DATASETS_DIR.mkdir(parents=True, exist_ok=True)
         dataset = GOLDEN_DIR / manifest["dataset"]
         shutil.copy2(dataset, DATASETS_DIR / dataset.name)
+        shutil.copytree(GOLDEN_DIR / manifest["ingested"], DATASETS_DIR / "ingested", dirs_exist_ok=True)
+        chain = EVIDENCE_DIR / "chain.json"
+        if not chain.exists():  # preserve existing live evidence and expose corruption
+            shutil.copy2(GOLDEN_DIR / manifest["chain"], chain)
 
         status = get_status()
         status.update(run_id=run_id, mode="golden", phase="COMPLETE")

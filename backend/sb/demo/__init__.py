@@ -28,10 +28,12 @@ from pathlib import Path
 from sb.config import SB_ORIGIN_URL
 
 REPO = Path(__file__).resolve().parents[3]
-DATASETS_DIR = REPO / "data" / "datasets"
+_raw_runtime = Path(os.environ.get("SB_RUNTIME_DIR", "data/runtime"))
+RUNTIME_DIR = _raw_runtime if _raw_runtime.is_absolute() else REPO / _raw_runtime
+DATASETS_DIR = RUNTIME_DIR / "datasets"
 CONTROL_DATASET = REPO / "data" / "control" / "control_clean.jsonl"
-EVIDENCE_DIR = REPO / "evidence"
-GOLDEN_DIR = REPO / "data" / "golden"
+EVIDENCE_DIR = RUNTIME_DIR / "evidence"
+GOLDEN_DIR = RUNTIME_DIR / "golden"
 ATTACKS_DIR = REPO / "attacks"
 ORIGIN_URL = SB_ORIGIN_URL
 

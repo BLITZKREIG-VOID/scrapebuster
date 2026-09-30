@@ -122,11 +122,25 @@ def check_backend_health() -> None:
         # INT-05 Health is {status} only; origin/db/ollama are checked directly below.
         add("WARN", "health components", "not reported by backend (plan §16 db/origin/llm/s3)")
         return
-    for comp, good, warn in (("db", {"ok"}, set()), ("origin", {"ok"}, set()),
-                             ("llm", {"ok"}, {"fallback"}), ("s3", {"ok"}, {"disabled"})):
+    for comp, good, warn in (
+        ("db", {"ok"}, set()),
+        ("upstream", {"ok"}, {"not_checked"}),
+        ("llm", {"ok"}, {"fallback", "not_checked"}),
+        ("s3", {"ok"}, {"disabled", "not_checked"}),
+    ):
         value = comps.get(comp)
-        status = "PASS" if value in good else "WARN" if value in warn else "FAIL"
-        add(status, f"health.{comp}", str(value))
+        if value is None:
+            status = "WARN"
+            detail = "not reported by backend"
+        else:
+            status = "PASS" if value in good else "WARN" if value in warn else "FAIL"
+            if value == "not_checked" and comp in ("upstream", "llm"):
+                detail = f"{value} (relying on direct {('origin' if comp == 'upstream' else 'ollama')} check)"
+            elif value in ("disabled", "not_checked") and comp == "s3":
+                detail = f"{value} (local evidence mode)"
+            else:
+                detail = str(value)
+        add(status, f"health.{comp}", detail)
 
 
 def check_origin() -> None:
@@ -195,6 +209,10 @@ def check_playwright() -> None:
 def check_db() -> None:
     raw = Path(ENV.get("SB_DB_PATH", "backend/sb.db"))
     path = raw if raw.is_absolute() else REPO / raw
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass
     if not path.parent.is_dir():
         add("FAIL", "db writable", f"directory missing: {path.parent}")
         return
@@ -255,16 +273,20 @@ def check_canary_config() -> None:
 
 
 def check_datasets_dir() -> None:
-    """Ensure data/datasets directory exists and is writable for scraper outputs."""
-    ds_dir = REPO / "data" / "datasets"
+    """Ensure runtime datasets directory exists and is writable for scraper outputs."""
+    raw_runtime = Path(ENV.get("SB_RUNTIME_DIR", "data/runtime"))
+    runtime_dir = raw_runtime if raw_runtime.is_absolute() else REPO / raw_runtime
+    ds_dir = runtime_dir / "datasets"
     try:
         ds_dir.mkdir(parents=True, exist_ok=True)
         probe = ds_dir / ".preflight_probe"
         probe.write_bytes(b"")
         probe.unlink()
-        add("PASS", "datasets dir", "data/datasets writable")
+        rel = ds_dir.relative_to(REPO) if ds_dir.is_relative_to(REPO) else ds_dir
+        add("PASS", "datasets dir", f"{rel} writable")
     except OSError as exc:
-        add("FAIL", "datasets dir", f"data/datasets not writable: {exc}")
+        rel = ds_dir.relative_to(REPO) if ds_dir.is_relative_to(REPO) else ds_dir
+        add("FAIL", "datasets dir", f"{rel} not writable: {exc}")
 
 
 def check_disk() -> None:

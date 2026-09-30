@@ -16,7 +16,6 @@ import threading
 from pathlib import Path
 
 import pytest
-
 from sb.demo.runner import Runner, SafetyStop, StepFailed, fresh_status
 
 REPO = Path(__file__).resolve().parents[4]
@@ -204,3 +203,46 @@ def test_crawler_ignores_absolute_robots_disallow(tmp_path):
     finally:
         server.shutdown()
         server.server_close()
+
+
+@pytest.mark.parametrize("scenario", ["edge_enforcement", "upstream_429", "missing_event", "protected_body", "server_error"])
+def test_stopped_basic_batch_requires_persisted_enforcement(monkeypatch, scenario):
+    """A stopped batch is demo success only with complete, matching L1 proof."""
+    runner = Runner(fresh_status("RUN-enforcement"))
+    summary = {
+        "status_histogram": {"403": 1, "429": 1},
+        "content_bodies": 0, "requests": 2, "user_agent": "test-basic",
+    }
+    events = [
+        {"session_id": "basic", "status_code": 429, "layer": "L1", "decision": "THROTTLE"},
+        {"session_id": "basic", "status_code": 403, "layer": "L1", "decision": "BLOCK"},
+    ]
+    if scenario == "upstream_429":
+        events[0].update(layer="ORIGIN", decision="ALLOW")
+    elif scenario == "missing_event":
+        events.pop()
+    elif scenario == "protected_body":
+        summary["content_bodies"] = 1
+    elif scenario == "server_error":
+        summary["status_histogram"] = {"403": 1, "503": 1}
+    calls = 0
+
+    def stopped_attacker(*args):
+        nonlocal calls
+        calls += 1
+        raise SafetyStop("client stopped", summary)
+
+    def backend(path, **params):
+        if path == "/api/v1/sessions":
+            return {"sessions": [{"session_id": "basic", "classification": "BOT_BASIC", "state": "BLOCKED"}]}
+        if path == "/api/v1/sessions/basic":
+            return {"user_agent": "test-basic"}
+        return {"events": events}
+
+    monkeypatch.setattr(runner, "attacker", stopped_attacker)
+    monkeypatch.setattr(runner, "get", backend)
+    try:
+        assert runner.run_step(1) is (scenario == "edge_enforcement")
+        assert calls == 1
+    finally:
+        runner.api.close()
