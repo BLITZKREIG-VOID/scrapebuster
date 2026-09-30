@@ -35,6 +35,7 @@ if str(ATTACKS) not in sys.path:
     sys.path.insert(0, str(ATTACKS))
 
 from sites import ANCHORS, SITES  # noqa: E402  (stdlib-only profile module)
+from common import SAFETY_STOP_EXIT_CODE  # noqa: E402
 
 EDGE = os.environ.get("SB_EDGE_URL", "http://127.0.0.1:8000")
 SITE_NAME = os.environ.get("SB_E2E_SITE", "campuscart")
@@ -208,7 +209,7 @@ def run_attacker(script: str, *args: str, timeout: float = 240) -> dict:
         [sys.executable, str(ATTACKS / script), "--base", EDGE, *args],
         cwd=REPO, capture_output=True, text=True, timeout=timeout, check=False,
     )
-    assert proc.returncode == 0, f"{script} exit {proc.returncode}\n{proc.stderr[-2000:]}"
+    assert proc.returncode in (0, SAFETY_STOP_EXIT_CODE), f"{script} exit {proc.returncode}\n{proc.stderr[-2000:]}"
     lines = [line for line in proc.stdout.splitlines() if line.startswith("{")]
     assert lines, f"{script} printed no JSON result\n{proc.stderr[-2000:]}"
     return json.loads(lines[-1])

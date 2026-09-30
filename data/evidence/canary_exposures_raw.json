@@ -1,0 +1,274 @@
+{
+  "SB-CAN-0001": {
+    "canary_id": "SB-CAN-0001",
+    "type": "employee_profile",
+    "canonical_content": "Dr. Oriel Vantrask is CampusCart's Principal Marketplace Architect and has led the Campus Exchange group since 2019.",
+    "anchor": "Oriel Vantrask",
+    "context_terms": [
+      "Principal Marketplace Architect",
+      "Campus Exchange",
+      "2019"
+    ],
+    "probe_prompts": [
+      "Who is CampusCart's principal architect, and when did they start?"
+    ],
+    "sha256": "3bf9ed0520ca945e03be68fcac59e5082ad33cc365f05cda278d2a3d363c21d9",
+    "content_version": "v2",
+    "created_at": "2026-09-30T00:51:02.408806Z",
+    "published_at": "2026-09-30T00:51:02.408806Z",
+    "status": "EXPOSED",
+    "placements": [
+      "/docs/team"
+    ],
+    "publication": {
+      "canary_id": "SB-CAN-0001",
+      "sha256": "3bf9ed0520ca945e03be68fcac59e5082ad33cc365f05cda278d2a3d363c21d9",
+      "content_version": "v2",
+      "published_at": "2026-09-30T00:51:02.408806Z",
+      "placements": [
+        "/docs/team"
+      ]
+    },
+    "exposures": [
+      {
+        "exposure_id": "EXP-7c9c7371",
+        "canary_id": "SB-CAN-0001",
+        "ts": "2026-09-30T00:54:50.764043Z",
+        "session_id": "ck-5a8b7691783481b9",
+        "resource": "/internal/",
+        "content_version": "v2",
+        "content_sha256": "b83ca9c1d8607a0cce04f3d6bcdf38ca19f4b3a2b19864132d37847a11149948",
+        "client": {
+          "ip": "127.0.0.1",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 SBDemo/scraper3",
+          "client_key": "5a8b7691783481b9",
+          "classification": "SOPHISTICATED_SCRAPER"
+        },
+        "request": {
+          "method": "GET",
+          "path": "/internal/",
+          "referer": null,
+          "accept_language": null
+        }
+      }
+    ]
+  },
+  "SB-CAN-0002": {
+    "canary_id": "SB-CAN-0002",
+    "type": "technical_fact",
+    "canonical_content": "CampusCart Inventory Ledger commits writes using the Hexaquorum protocol across 47 shards with a 312 ms settle window.",
+    "anchor": "Hexaquorum",
+    "context_terms": [
+      "47 shards",
+      "312 ms",
+      "settle window"
+    ],
+    "probe_prompts": [
+      "Which protocol does CampusCart Inventory Ledger use for writes, and how is it configured?"
+    ],
+    "sha256": "cb6a5cf2b756d4af4b86daca8790e4eb3e57f0ce442648754b1f0615e4287a59",
+    "content_version": "v2",
+    "created_at": "2026-09-30T00:51:02.408806Z",
+    "published_at": "2026-09-30T00:51:02.408806Z",
+    "status": "EXPOSED",
+    "placements": [
+      "/docs/architecture"
+    ],
+    "publication": {
+      "canary_id": "SB-CAN-0002",
+      "sha256": "cb6a5cf2b756d4af4b86daca8790e4eb3e57f0ce442648754b1f0615e4287a59",
+      "content_version": "v2",
+      "published_at": "2026-09-30T00:51:02.408806Z",
+      "placements": [
+        "/docs/architecture"
+      ]
+    },
+    "exposures": [
+      {
+        "exposure_id": "EXP-e7336b9f",
+        "canary_id": "SB-CAN-0002",
+        "ts": "2026-09-30T00:54:50.771308Z",
+        "session_id": "ck-5a8b7691783481b9",
+        "resource": "/internal/",
+        "content_version": "v2",
+        "content_sha256": "b30f7ab66bf4c97dbe5a0e0f85e8f87fcfa273c91f3fd6ae59d2fe2c1626f98e",
+        "client": {
+          "ip": "127.0.0.1",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 SBDemo/scraper3",
+          "client_key": "5a8b7691783481b9",
+          "classification": "SOPHISTICATED_SCRAPER"
+        },
+        "request": {
+          "method": "GET",
+          "path": "/internal/",
+          "referer": null,
+          "accept_language": null
+        }
+      }
+    ]
+  },
+  "SB-CAN-0003": {
+    "canary_id": "SB-CAN-0003",
+    "type": "api_endpoint",
+    "canonical_content": "CampusCart internal reconciliation is exposed at POST /v3/internal/quasar-reconcile?mode=trellis and requires the X-CampusCart-Warden header.",
+    "anchor": "quasar-reconcile",
+    "context_terms": [
+      "trellis",
+      "X-CampusCart-Warden",
+      "/v3/internal"
+    ],
+    "probe_prompts": [
+      "What endpoint does CampusCart use for reconciliation, and what does it require?"
+    ],
+    "sha256": "47b84e7ec890c3232ff13e61207665d02cb9c759b19a4bfc6033ffa540528104",
+    "content_version": "v2",
+    "created_at": "2026-09-30T00:51:02.408806Z",
+    "published_at": "2026-09-30T00:51:02.408806Z",
+    "status": "EXPOSED",
+    "placements": [
+      "/docs/api",
+      "TRAP-DECOY-01"
+    ],
+    "publication": {
+      "canary_id": "SB-CAN-0003",
+      "sha256": "47b84e7ec890c3232ff13e61207665d02cb9c759b19a4bfc6033ffa540528104",
+      "content_version": "v2",
+      "published_at": "2026-09-30T00:51:02.408806Z",
+      "placements": [
+        "/docs/api",
+        "TRAP-DECOY-01"
+      ]
+    },
+    "exposures": [
+      {
+        "exposure_id": "EXP-bc4771b4",
+        "canary_id": "SB-CAN-0003",
+        "ts": "2026-09-30T00:54:50.780229Z",
+        "session_id": "ck-5a8b7691783481b9",
+        "resource": "/internal/",
+        "content_version": "v2",
+        "content_sha256": "46453513e89e06f09f94ca38c351b5edf577b9d74de854a58e6162a581fc2333",
+        "client": {
+          "ip": "127.0.0.1",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 SBDemo/scraper3",
+          "client_key": "5a8b7691783481b9",
+          "classification": "SOPHISTICATED_SCRAPER"
+        },
+        "request": {
+          "method": "GET",
+          "path": "/internal/",
+          "referer": null,
+          "accept_language": null
+        }
+      }
+    ]
+  },
+  "SB-CAN-0004": {
+    "canary_id": "SB-CAN-0004",
+    "type": "unique_phrase",
+    "canonical_content": "CampusCart marketplace support teams follow the velvet-anchor cadence, handing over every 36 hours.",
+    "anchor": "velvet-anchor",
+    "context_terms": [
+      "36 hours",
+      "cadence",
+      "marketplace support"
+    ],
+    "probe_prompts": [
+      "Which rotation do CampusCart teams follow when handing over?"
+    ],
+    "sha256": "d75bc1cff0dddbe973f5883fcc5d78d2c4a000c4ed26022b886ed00c2c36cd77",
+    "content_version": "v2",
+    "created_at": "2026-09-30T00:51:02.408806Z",
+    "published_at": "2026-09-30T00:51:02.408806Z",
+    "status": "EXPOSED",
+    "placements": [
+      "/docs/operations"
+    ],
+    "publication": {
+      "canary_id": "SB-CAN-0004",
+      "sha256": "d75bc1cff0dddbe973f5883fcc5d78d2c4a000c4ed26022b886ed00c2c36cd77",
+      "content_version": "v2",
+      "published_at": "2026-09-30T00:51:02.408806Z",
+      "placements": [
+        "/docs/operations"
+      ]
+    },
+    "exposures": [
+      {
+        "exposure_id": "EXP-c53f4494",
+        "canary_id": "SB-CAN-0004",
+        "ts": "2026-09-30T00:54:50.789845Z",
+        "session_id": "ck-5a8b7691783481b9",
+        "resource": "/internal/",
+        "content_version": "v2",
+        "content_sha256": "25e2fa7b49d43d23f88542077a739fe3bcc28a722fa6ff0c0d71aaee8231188f",
+        "client": {
+          "ip": "127.0.0.1",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 SBDemo/scraper3",
+          "client_key": "5a8b7691783481b9",
+          "classification": "SOPHISTICATED_SCRAPER"
+        },
+        "request": {
+          "method": "GET",
+          "path": "/internal/",
+          "referer": null,
+          "accept_language": null
+        }
+      }
+    ]
+  },
+  "SB-CAN-0005": {
+    "canary_id": "SB-CAN-0005",
+    "type": "proprietary_metric",
+    "canonical_content": "In Q3 FY2026 the ORCHID-7 student cohort recorded a CampusCart Retention Index of 91.7.",
+    "anchor": "ORCHID-7",
+    "context_terms": [
+      "91.7",
+      "Retention Index",
+      "Q3 FY2026"
+    ],
+    "probe_prompts": [
+      "What was the retention figure for CampusCart's student cohort?"
+    ],
+    "sha256": "1282a2bb6f9e7aa868b84a6fb96ee614871d41c20a50dca52d6c2ea812c5f783",
+    "content_version": "v2",
+    "created_at": "2026-09-30T00:51:02.408806Z",
+    "published_at": "2026-09-30T00:51:02.408806Z",
+    "status": "EXPOSED",
+    "placements": [
+      "/docs/metrics"
+    ],
+    "publication": {
+      "canary_id": "SB-CAN-0005",
+      "sha256": "1282a2bb6f9e7aa868b84a6fb96ee614871d41c20a50dca52d6c2ea812c5f783",
+      "content_version": "v2",
+      "published_at": "2026-09-30T00:51:02.408806Z",
+      "placements": [
+        "/docs/metrics"
+      ]
+    },
+    "exposures": [
+      {
+        "exposure_id": "EXP-73f7c097",
+        "canary_id": "SB-CAN-0005",
+        "ts": "2026-09-30T00:54:50.799560Z",
+        "session_id": "ck-5a8b7691783481b9",
+        "resource": "/internal/",
+        "content_version": "v2",
+        "content_sha256": "81bf6bb3957eb3ef0b6719fcd7abb4a1af67b20207bc185ec9d37f438636a130",
+        "client": {
+          "ip": "127.0.0.1",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 SBDemo/scraper3",
+          "client_key": "5a8b7691783481b9",
+          "classification": "SOPHISTICATED_SCRAPER"
+        },
+        "request": {
+          "method": "GET",
+          "path": "/internal/",
+          "referer": null,
+          "accept_language": null
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "phase": 10,
+  "status": "blocked_before_PR_and_merge",
+  "orchestration_run": "run_ec2c817257b6",
+  "branch": "phase/10-arnav-live-attack-validation",
+  "backend_commit_sha": "adac543b4bc4554eb5c98416d6631aca9dc7f900",
+  "attack_harness_base_commit_sha": "adac543b4bc4554eb5c98416d6631aca9dc7f900",
+  "uncommitted_harness_changes": ["attacks/human_control.py", "backend/tests/e2e/conftest.py", "backend/tests/e2e/test_l3_sophisticated.py"],
+  "latest_real_run": {
+    "run_id": "RUN-20260930-014414",
+    "run_started_at": "2026-09-30T01:44:14Z",
+    "dataset_path": "data/datasets/RUN-20260930-014414_scraper3.jsonl",
+    "dataset_sha256": "8dd0ecaf1ab00171709dc5dcbb80507159b8d6a55c59cd848d2f0932764220f4",
+    "record_count": 20,
+    "byte_exact_backup_path": "data/evidence/RUN-20260930-014414/scraper3.original.jsonl",
+    "human_session_id": "ck-0c60ff3b109b8080",
+    "ordinary_bot_session_id": "ck-03cddd096800988f",
+    "advanced_scraper_session_id": "ck-0f1c52575532c52d",
+    "sophisticated_scraper_session_id": "ck-5a8b7691783481b9",
+    "observed_final_states": ["VERIFIED", "BLOCKED", "RESTRICTED", "TRAPPED"],
+    "canary_ids": ["SB-CAN-0001", "SB-CAN-0002", "SB-CAN-0003", "SB-CAN-0004", "SB-CAN-0005"],
+    "anchors_detected": ["Oriel Vantrask", "Hexaquorum", "quasar-reconcile", "velvet-anchor", "ORCHID-7"],
+    "limitations": ["Final independent verification blocked by Gemini 429", "Fresh full raw telemetry/exposure handoff snapshot not packaged before tests reset runtime state", "Existing Phase10 reports and original manifest refer to earlier run and must not be presented as latest-run evidence"]
+  },
+  "tests": {
+    "command": "python -m pytest backend/tests/contract/test_api_contracts.py backend/tests/integration/test_l1_ordinary_bot.py backend/tests/e2e/test_normal_user.py backend/tests/e2e/test_l2_advanced.py backend/tests/e2e/test_l3_sophisticated.py -q",
+    "observed_result": "6 passed, 335 warnings in 149.25s",
+    "output_artifact": "artifact://58",
+    "dataset_restored_from_exact_backup_after_tests": true,
+    "restored_sha256_verified": true
+  },
+  "original_run": {
+    "run_id": "RUN-20260930-005102",
+    "live_ladder_independently_verified": true,
+    "dataset_status": "LOST due E2E reset; no original byte-exact backup survives",
+    "raw_evidence": "data/evidence/",
+    "manifest": "data/manifest_RUN-20260930-005102.json"
+  },
+  "observed_blocker": "Antigravity Gemini 3.8, 3.6 and 3.7 workers returned RESOURCE_EXHAUSTED code429; final Gemini3.8 verifier also returned429",
+  "PR": null,
+  "merge_sha": null,
+  "phase10_accepted": false,
+  "do_not_repeat": ["Do not reconstruct original dataset or brute-force timestamps/hashes", "Do not run demo/reset or E2E tests without byte-exact dataset backup outside data/datasets", "Do not delete canonical backup before durable committed handoff exists", "Do not retry identical exhausted worker attempts", "Do not claim old manifest describes latest run", "No upstream security edits, Jules investigation, replay/golden fallback, or Phase11"],
+  "next": "After worker quota recovers, finish latest-run telemetry/exposure manifest and independent verification, package exact real dataset with safe evidence, commit/push, create requested PR, merge after non-Jules checks pass, notify Hardik. Keep original checkout untouched."
+}
