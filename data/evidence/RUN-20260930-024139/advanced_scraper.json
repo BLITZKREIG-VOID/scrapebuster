@@ -1,0 +1,13 @@
+{
+  "command": [
+    "/tmp/sb-venv/bin/python",
+    "attacks/advanced_scraper.py",
+    "--base",
+    "http://127.0.0.1:8002",
+    "--pages",
+    "5"
+  ],
+  "returncode": 0,
+  "stdout": "{\"anchors_found\": [], \"content_pages\": 0, \"pages\": [{\"has_content\": false, \"status\": 200, \"url\": \"http://127.0.0.1:8002/\"}, {\"has_content\": false, \"status\": 403, \"url\": \"http://127.0.0.1:8002/?category=sale\"}, {\"has_content\": false, \"status\": 403, \"url\": \"http://127.0.0.1:8002/?category=rent\"}, {\"has_content\": false, \"status\": 403, \"url\": \"http://127.0.0.1:8002/?category=projects\"}, {\"has_content\": false, \"status\": 403, \"url\": \"http://127.0.0.1:8002/?category=sports\"}], \"scraper\": \"advanced_scraper\", \"user_agent\": \"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36 SBDemo/scraper2\"}\n",
+  "stderr": "  interstitial did not clear for http://127.0.0.1:8002/: TimeoutError\n  {'url': 'http://127.0.0.1:8002/', 'status': 200, 'has_content': False}\n  {'url': 'http://127.0.0.1:8002/?category=sale', 'status': 403, 'has_content': False}\n  {'url': 'http://127.0.0.1:8002/?category=rent', 'status': 403, 'has_content': False}\n  {'url': 'http://127.0.0.1:8002/?category=projects', 'status': 403, 'has_content': False}\n  {'url': 'http://127.0.0.1:8002/?category=sports', 'status': 403, 'has_content': False}\n"
+}

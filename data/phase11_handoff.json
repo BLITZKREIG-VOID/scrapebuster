@@ -1,0 +1,135 @@
+{
+  "run_id": "RUN-20260930-024139",
+  "phase10_manifest": "data/manifest_RUN-20260930-024139.json",
+  "target_dataset": {
+    "dataset_id": "DS-fbbf25a6",
+    "role": "target",
+    "path": "/home/rosso/Projects/scrapebuster/data/datasets/ingested/DS-fbbf25a6.jsonl",
+    "sha256": "2c46ecbbc24a1fc78557286ae9deea347f6ab8249f141ad130a9c3eb571e7301",
+    "records": 20,
+    "ingested_at": "2026-09-30T02:47:03.420056Z"
+  },
+  "control_dataset": {
+    "dataset_id": "DS-fad6f09f",
+    "role": "control",
+    "path": "/home/rosso/Projects/scrapebuster/data/datasets/ingested/DS-fad6f09f.jsonl",
+    "sha256": "db149b52de047c9f635a2983166645cf37b3191770b3a57220bbf945086ba151",
+    "records": 14,
+    "ingested_at": "2026-09-30T02:47:03.426129Z"
+  },
+  "probe_ids": {
+    "target": "PRB-fc1bb6e7",
+    "control": "PRB-ae27606f"
+  },
+  "model": {
+    "name": "qwen2.5:3b",
+    "digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+    "mode": "live",
+    "options": {
+      "temperature": 0,
+      "seed": 42,
+      "num_predict": 96
+    },
+    "modes": {
+      "SB-CAN-0001": "live",
+      "SB-CAN-0002": "live",
+      "SB-CAN-0003": "live",
+      "SB-CAN-0004": "live",
+      "SB-CAN-0005": "live"
+    }
+  },
+  "case_id": "SB-001",
+  "session_ids": [
+    "ck-4489f36ec6963a87"
+  ],
+  "target_outcome": "PROVENANCE_SIGNAL_DETECTED",
+  "control_outcome": "NO_SIGNAL",
+  "evidence_manifest": "evidence/RUN-20260930-024139/SB-001/manifest.json",
+  "evidence_chain": "evidence/chain.json",
+  "manifest_sha256": "f3fa67a799a2d3a0a3efcbc9f2ef9fefb2d62493509e7cbbbf129b261275e950",
+  "manifest_file_sha256": "e3e35bc2916489bc1bf9dcd0ac1d9c3909f56e9262eea9cec5741497d5f3c6e8",
+  "verification": "VALID",
+  "tamper_test": "TAMPERED",
+  "findings": [
+    {
+      "canary_id": "SB-CAN-0001",
+      "status": "NO_SIGNAL",
+      "confidence": "NONE",
+      "exact_match": false,
+      "context_match": {
+        "matched": [
+          "Campus Exchange",
+          "2019"
+        ],
+        "required": 2,
+        "ok": true
+      }
+    },
+    {
+      "canary_id": "SB-CAN-0002",
+      "status": "PROVENANCE_SIGNAL_DETECTED",
+      "confidence": "HIGH",
+      "exact_match": true,
+      "context_match": {
+        "matched": [
+          "47 shards",
+          "312 ms",
+          "settle window"
+        ],
+        "required": 2,
+        "ok": true
+      }
+    },
+    {
+      "canary_id": "SB-CAN-0003",
+      "status": "PROVENANCE_SIGNAL_DETECTED",
+      "confidence": "HIGH",
+      "exact_match": true,
+      "context_match": {
+        "matched": [
+          "trellis",
+          "X-CampusCart-Warden",
+          "/v3/internal"
+        ],
+        "required": 2,
+        "ok": true
+      }
+    },
+    {
+      "canary_id": "SB-CAN-0004",
+      "status": "NO_SIGNAL",
+      "confidence": "NONE",
+      "exact_match": false,
+      "context_match": {
+        "matched": [
+          "36 hours"
+        ],
+        "required": 2,
+        "ok": false
+      }
+    },
+    {
+      "canary_id": "SB-CAN-0005",
+      "status": "NO_SIGNAL",
+      "confidence": "NONE",
+      "exact_match": false,
+      "context_match": {
+        "matched": [
+          "91.7"
+        ],
+        "required": 2,
+        "ok": false
+      }
+    }
+  ],
+  "probe_snapshots": {
+    "target": "data/evidence/RUN-20260930-024139/target_probe.json",
+    "control": "data/evidence/RUN-20260930-024139/control_probe.json"
+  },
+  "limitations": [
+    "LIVE output omitted registered anchors for SB-CAN-0001, SB-CAN-0004, SB-CAN-0005; no tuning or threshold changes; Phase 16 owns stability",
+    "New accepted recovery run replaces incomplete Phase 10 snapshot linkage, not the original captured bytes",
+    "Dataset API contract lacks run/session fields; association preserved in handoff and canonical case/evidence",
+    "Local only; AWS and dashboard not validated"
+  ]
+}

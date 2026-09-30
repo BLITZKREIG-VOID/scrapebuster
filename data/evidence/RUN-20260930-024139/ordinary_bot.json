@@ -1,0 +1,15 @@
+{
+  "command": [
+    "/tmp/sb-venv/bin/python",
+    "attacks/ordinary_bot.py",
+    "--base",
+    "http://127.0.0.1:8002",
+    "--requests",
+    "10",
+    "--threads",
+    "10"
+  ],
+  "returncode": 3,
+  "stdout": "{\"anchors_found\": [], \"content_bodies\": 0, \"requests\": 10, \"scraper\": \"ordinary_bot\", \"status_histogram\": {\"403\": 7, \"429\": 3}, \"user_agent\": \"python-requests/2.34.2 SBDemo/scraper1\"}\n",
+  "stderr": "ordinary_bot: 10 requests -> http://127.0.0.1:8002 as 'python-requests/2.34.2 SBDemo/scraper1'\n  status 403: 7\n  status 429: 3\n  bodies containing '<title>campuscart</title>': 0\nSAFETY STOP: observed HTTP 429 on http://127.0.0.1:8002/ (Phase 10 tradeoff: conservative stop on 429/5xx - edge may emit 429 due to L1, no reliable provenance in attack response). Dispatched no further batches.\n"
+}

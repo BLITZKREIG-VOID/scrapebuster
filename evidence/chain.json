@@ -1,0 +1,12 @@
+{
+  "entries": [
+    {
+      "case_id": "SB-001",
+      "manifest_sha256": "f3fa67a799a2d3a0a3efcbc9f2ef9fefb2d62493509e7cbbbf129b261275e950",
+      "path": "/home/rosso/Projects/scrapebuster/evidence/RUN-20260930-024139/SB-001",
+      "prev_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "run_id": "RUN-20260930-024139"
+    }
+  ],
+  "head": "f3fa67a799a2d3a0a3efcbc9f2ef9fefb2d62493509e7cbbbf129b261275e950"
+}

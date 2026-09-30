@@ -1,0 +1,48 @@
+[
+  {
+    "canary_id": "SB-CAN-0001",
+    "content_version": "v2",
+    "placements": [
+      "/docs/team"
+    ],
+    "published_at": "2026-09-30T02:41:15.580650Z",
+    "sha256": "3bf9ed0520ca945e03be68fcac59e5082ad33cc365f05cda278d2a3d363c21d9"
+  },
+  {
+    "canary_id": "SB-CAN-0002",
+    "content_version": "v2",
+    "placements": [
+      "/docs/architecture"
+    ],
+    "published_at": "2026-09-30T02:41:15.580650Z",
+    "sha256": "cb6a5cf2b756d4af4b86daca8790e4eb3e57f0ce442648754b1f0615e4287a59"
+  },
+  {
+    "canary_id": "SB-CAN-0003",
+    "content_version": "v2",
+    "placements": [
+      "/docs/api",
+      "TRAP-DECOY-01"
+    ],
+    "published_at": "2026-09-30T02:41:15.580650Z",
+    "sha256": "47b84e7ec890c3232ff13e61207665d02cb9c759b19a4bfc6033ffa540528104"
+  },
+  {
+    "canary_id": "SB-CAN-0004",
+    "content_version": "v2",
+    "placements": [
+      "/docs/operations"
+    ],
+    "published_at": "2026-09-30T02:41:15.580650Z",
+    "sha256": "d75bc1cff0dddbe973f5883fcc5d78d2c4a000c4ed26022b886ed00c2c36cd77"
+  },
+  {
+    "canary_id": "SB-CAN-0005",
+    "content_version": "v2",
+    "placements": [
+      "/docs/metrics"
+    ],
+    "published_at": "2026-09-30T02:41:15.580650Z",
+    "sha256": "1282a2bb6f9e7aa868b84a6fb96ee614871d41c20a50dca52d6c2ea812c5f783"
+  }
+]

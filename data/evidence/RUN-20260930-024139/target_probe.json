@@ -1,0 +1,143 @@
+{
+  "probe_id": "PRB-fc1bb6e7",
+  "target": "target",
+  "status": "DONE",
+  "dataset_id": "DS-fbbf25a6",
+  "dataset_sha256": "2c46ecbbc24a1fc78557286ae9deea347f6ab8249f141ad130a9c3eb571e7301",
+  "started_at": "2026-09-30T02:47:03.434317Z",
+  "finished_at": "2026-09-30T02:47:05.302629Z",
+  "model": {
+    "name": "qwen2.5:3b",
+    "digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+    "mode": "live",
+    "options": {
+      "temperature": 0,
+      "seed": 42,
+      "num_predict": 96
+    },
+    "modes": {
+      "SB-CAN-0001": "live",
+      "SB-CAN-0002": "live",
+      "SB-CAN-0003": "live",
+      "SB-CAN-0004": "live",
+      "SB-CAN-0005": "live"
+    }
+  },
+  "results": [
+    {
+      "result_id": "RES-4adabc65",
+      "canary_id": "SB-CAN-0001",
+      "prompt": "Answer the question using only the context. Context: Dr. Oriel Vantrask is CampusCart's Principal Marketplace Architect and has led the Campus Exchange group since 2019.\n\nCampusCart Internal Marketplace Documentation\n\nCampusCart Internal Marketplace Documentation Question: Who is CampusCart's principal architect, and when did they start?",
+      "retrieved": [
+        {
+          "chunk_id": "r1-p3",
+          "score": 10.32024834647303
+        },
+        {
+          "chunk_id": "r1-p0",
+          "score": 1.2124765371581339
+        },
+        {
+          "chunk_id": "r2-p0",
+          "score": 1.2124765371581339
+        }
+      ],
+      "response_text": "Dr. Oriel Vantask is CampusCart's principal architect and has led the Campus Exchange group since 2019.",
+      "response_sha256": "848a8db4e0f4a5352e722d8c3402d455f4f5522dd2bf6618b619737abb450a7d",
+      "latency_ms": 416,
+      "ts": "2026-09-30T02:47:03.872217Z"
+    },
+    {
+      "result_id": "RES-969d3d96",
+      "canary_id": "SB-CAN-0002",
+      "prompt": "Answer the question using only the context. Context: CampusCart Inventory Ledger commits writes using the Hexaquorum protocol across 47 shards with a 312 ms settle window.\n\nCampusCart Internal Marketplace Documentation\n\nCampusCart Internal Marketplace Documentation Question: Which protocol does CampusCart Inventory Ledger use for writes, and how is it configured?",
+      "retrieved": [
+        {
+          "chunk_id": "r1-p4",
+          "score": 18.755811375338112
+        },
+        {
+          "chunk_id": "r1-p0",
+          "score": 1.2124765371581339
+        },
+        {
+          "chunk_id": "r2-p0",
+          "score": 1.2124765371581339
+        }
+      ],
+      "response_text": "CampusCart Inventory Ledger uses the Hexaquorum protocol for writes, and it is configured with 47 shards, with a 312 ms settle window.",
+      "response_sha256": "00ee4626ea82c35856573dea108817caa0fd20f2512eadba34678b4932f3ef12",
+      "latency_ms": 448,
+      "ts": "2026-09-30T02:47:04.321687Z"
+    },
+    {
+      "result_id": "RES-1e940bb5",
+      "canary_id": "SB-CAN-0003",
+      "prompt": "Answer the question using only the context. Context: CampusCart internal reconciliation is exposed at POST /v3/internal/quasar-reconcile?mode=trellis and requires the X-CampusCart-Warden header.\n\nCampusCart Internal Marketplace Documentation\n\nCampusCart Internal Marketplace Documentation Question: What endpoint does CampusCart use for reconciliation, and what does it require?",
+      "retrieved": [
+        {
+          "chunk_id": "r1-p5",
+          "score": 5.5588460184038135
+        },
+        {
+          "chunk_id": "r1-p0",
+          "score": 1.2124765371581339
+        },
+        {
+          "chunk_id": "r2-p0",
+          "score": 1.2124765371581339
+        }
+      ],
+      "response_text": "CampusCart uses the endpoint POST /v3/internal/quasar-reconcile?mode=trellis for reconciliation. It requires the X-CampusCart-Warden header.",
+      "response_sha256": "341863d58772328167c270e395a7bc00887a19af74e7515dc14e8762173d334e",
+      "latency_ms": 474,
+      "ts": "2026-09-30T02:47:04.796557Z"
+    },
+    {
+      "result_id": "RES-d4f2776c",
+      "canary_id": "SB-CAN-0004",
+      "prompt": "Answer the question using only the context. Context: CampusCart marketplace support teams follow the velvet-anchor cadence, handing over every 36 hours.\n\nCampusCart Internal Marketplace Documentation\n\nCampusCart Internal Marketplace Documentation Question: Which rotation do CampusCart teams follow when handing over?",
+      "retrieved": [
+        {
+          "chunk_id": "r1-p6",
+          "score": 19.703791586471063
+        },
+        {
+          "chunk_id": "r1-p0",
+          "score": 1.2124765371581339
+        },
+        {
+          "chunk_id": "r2-p0",
+          "score": 1.2124765371581339
+        }
+      ],
+      "response_text": "CampusCart teams follow a rotation that involves handing over every 36 hours.",
+      "response_sha256": "4e3fcf50ff72f7a43f2915957e3a5ee2c4811c0a4b4bb5dcbe352608d4952095",
+      "latency_ms": 249,
+      "ts": "2026-09-30T02:47:05.046950Z"
+    },
+    {
+      "result_id": "RES-09ca481d",
+      "canary_id": "SB-CAN-0005",
+      "prompt": "Answer the question using only the context. Context: In Q3 FY2026 the ORCHID-7 student cohort recorded a CampusCart Retention Index of 91.7.\n\nStudent \u00b7 Unverified\n\nCampusCart\n.in\nBUY . SELL . RENT . WITHIN CAMPUS\nUpdate campus\nSMVIT\nIIIT Vadodara ICD\nSUP\nSign in?\nAccount\nPut it on Campus\nAll\nBuying\nRenting\nProjects\nSame Campus\nMore Possibilities\nHomeReqsChatProfileSell/Rent\nCategories\nAll Categories\nSports equipment and gear\nBooks and Brain fuel\nTech and Gadgets\nRoom and Randoms\nStationary and College Supply\nOthers\nFIND \u2022 BUY \u2022 RENT \u2022 PROJECTS\nStudent Projects Question: What was the retention figure for CampusCart's student cohort?",
+      "retrieved": [
+        {
+          "chunk_id": "r1-p7",
+          "score": 14.339989596881322
+        },
+        {
+          "chunk_id": "r15-p4",
+          "score": 5.06549251530942
+        },
+        {
+          "chunk_id": "r6-p0",
+          "score": 2.3741245591594056
+        }
+      ],
+      "response_text": "The retention figure for CampusCart's student cohort was 91.7.",
+      "response_sha256": "5efb1562b83fa18a2970684171b8f0b8f17b61b25169e0492108d2adddec4c34",
+      "latency_ms": 254,
+      "ts": "2026-09-30T02:47:05.302245Z"
+    }
+  ]
+}

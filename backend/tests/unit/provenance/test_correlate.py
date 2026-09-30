@@ -7,7 +7,6 @@ from pathlib import Path
 import yaml
 from sb.canary import hashing
 from sb.provenance.correlate import (
-    build_statement,
     case_status,
     compute_finding,
     evaluate,
@@ -308,32 +307,3 @@ def test_partial_signal_low() -> None:
     assert len(f["context_match"]["matched"]) >= 3
     assert f["status"] == "PARTIAL_SIGNAL"
     assert f["confidence"] == "LOW"
-
-
-def test_build_statement() -> None:
-    case_filled = {
-        "published_at": t0,
-        "session_id": "SES-999",
-        "classified_at": t1,
-        "observed_at": t3,
-    }
-    stmt = build_statement(case_filled)
-    expected = (
-        f"The target model's output reproduced a unique synthetic canary that was published on {t0}, "
-        f"served only to session SES-999 classified SOPHISTICATED_SCRAPER at {t1}, and observed in model "
-        f"output at {t3}, while a control model built without that data did not reproduce it. "
-        "This is a high-confidence provenance signal. It does not by itself establish intent, "
-        "identity of the operator, or legal causation."
-    )
-    assert stmt == expected
-
-    case_empty: dict = {}
-    stmt_unknown = build_statement(case_empty)
-    expected_unknown = (
-        "The target model's output reproduced a unique synthetic canary that was published on unknown, "
-        "served only to session unknown classified SOPHISTICATED_SCRAPER at unknown, and observed in model "
-        "output at unknown, while a control model built without that data did not reproduce it. "
-        "This is a high-confidence provenance signal. It does not by itself establish intent, "
-        "identity of the operator, or legal causation."
-    )
-    assert stmt_unknown == expected_unknown

@@ -1,0 +1,32 @@
+[
+  {
+    "canary_id": "SB-CAN-0001",
+    "mode": "live",
+    "response_sha256": "f1dbfb9ca446e07922382673aae5674ee2e64e50f726fb725cf5e876e7c2e1f8",
+    "response_text": "Based on the provided context, there is no specific information about CampusCart's principal architect or when they started. The context does not mention any details about the company's founding or leadership. Therefore, I cannot answer the question regarding CampusCart's principal architect and when they started."
+  },
+  {
+    "canary_id": "SB-CAN-0002",
+    "mode": "live",
+    "response_sha256": "297e60bf33c490f7a3b120170e6b08c9b8c548cececcd99af0b4e791aad597ff",
+    "response_text": "Based on the provided context, there is no specific information about CampusCart Inventory Ledger or its write protocol configuration. The context provided is related to the website and services offered by CampusCart, not the technical details of its inventory ledger system. Therefore, I cannot answer the question about the protocol used for writes and its configuration based on the given information."
+  },
+  {
+    "canary_id": "SB-CAN-0003",
+    "mode": "live",
+    "response_sha256": "b7286027fb13aeff6f5fee00e746b70127dcdc4144a374fb84c1743f99fe7443",
+    "response_text": "Based on the provided context, there is no specific information about an endpoint used for reconciliation or any requirements related to reconciliation. The context primarily provides information about CampusCart's categories, about page, help resources, and copyright details. Without additional information, I cannot determine what endpoint CampusCart uses for reconciliation or what requirements it has for reconciliation."
+  },
+  {
+    "canary_id": "SB-CAN-0004",
+    "mode": "live",
+    "response_sha256": "042d94133acbfdb26c401ba9c48b27955b1a8663810d03db715f82f91262623d",
+    "response_text": "The provided context does not contain any information about the rotation schedule or procedures that CampusCart teams follow when handing over. The context primarily consists of a website layout and navigation for a platform called CampusCart, which appears to be a marketplace for selling items in a campus setting. It does not mention any details about team handovers or rotation policies."
+  },
+  {
+    "canary_id": "SB-CAN-0005",
+    "mode": "live",
+    "response_sha256": "339bbf25411a85b040815bd6669c64c48712e851545373a80a3c68383caec95f",
+    "response_text": "The context provided does not contain any information about the retention figure for CampusCart's student cohort. The context describes the features and functionalities of the CampusCart platform, but does not include any data related to retention figures."
+  }
+]
