@@ -74,14 +74,56 @@ async def test_live_dashboard_get_contracts(tmp_path, monkeypatch, origin_server
             ("/api/v1/cases/CASE-DEMO-001/evidence", contracts.CaseEvidenceResponse),
             ("/api/v1/demo/status", contracts.DemoStatus),
         ]
+        live = {}
         for path, model in cases:
             response = await client.get(path)
             assert response.status_code == 200, f"{path}: {response.text}"
             # RootModel validates the raw cases array without wrapping its JSON shape.
-            model.model_validate(response.json())
+            live[path] = response.json()
+            model.model_validate(live[path])
             if path.endswith("/cases"):
-                assert isinstance(response.json(), list)
+                assert isinstance(live[path], list)
 
         verify = await client.post("/api/v1/cases/CASE-DEMO-001/verify")
         assert verify.status_code == 200, verify.text
         contracts.EvidenceVerification.model_validate(verify.json())
+
+    # Dashboard handshake: compare the exact live GET values with their durable
+    # SQLite sources for this controlled run, rather than just validating shape.
+    with db.get_connection() as conn:
+        sql_decisions = {
+            row["decision"]: row["count"]
+            for row in conn.execute(
+                "SELECT decision, COUNT(*) AS count FROM traffic_events GROUP BY decision"
+            ).fetchall()
+        }
+        assert live["/api/v1/overview"]["counts"] == {
+            name: sql_decisions.get(name, 0) for name in contracts.Decision.__args__
+        }
+        assert len(live["/api/v1/traffic/events"]["events"]) == conn.execute(
+            "SELECT COUNT(*) FROM traffic_events"
+        ).fetchone()[0]
+        assert len(live["/api/v1/sessions"]["sessions"]) == conn.execute(
+            "SELECT COUNT(*) FROM sessions"
+        ).fetchone()[0]
+        assert len(live["/api/v1/canaries"]["canaries"]) == conn.execute(
+            "SELECT COUNT(*) FROM canaries"
+        ).fetchone()[0]
+        assert len(live["/api/v1/datasets"]["datasets"]) == conn.execute(
+            "SELECT COUNT(*) FROM datasets"
+        ).fetchone()[0]
+        assert len(live["/api/v1/probes"]["probes"]) == conn.execute(
+            "SELECT COUNT(*) FROM probe_runs"
+        ).fetchone()[0]
+        assert len(live["/api/v1/cases"]) == conn.execute(
+            "SELECT COUNT(*) FROM cases"
+        ).fetchone()[0]
+        assert len(live[f"/api/v1/canaries/{canary.canary_id}"]["exposures"]) == conn.execute(
+            "SELECT COUNT(*) FROM exposures WHERE canary_id = ?", (canary.canary_id,)
+        ).fetchone()[0]
+        assert len(live["/api/v1/probes/PROBE-DEMO-001"]["results"]) == conn.execute(
+            "SELECT COUNT(*) FROM probe_results WHERE probe_id = 'PROBE-DEMO-001'"
+        ).fetchone()[0]
+        assert len(live["/api/v1/cases/CASE-DEMO-001/evidence"]["objects"]) == conn.execute(
+            "SELECT COUNT(*) FROM evidence_objects WHERE case_id = 'CASE-DEMO-001'"
+        ).fetchone()[0]

@@ -11,21 +11,17 @@ interface Props {
 }
 
 export default function SessionDrawer({ sessionId, onClose, reasonMap }: Props) {
-  const [detail, setDetail] = useState<SessionDetail | null>(null);
-  const [error, setError] = useState('');
+  const [response, setResponse] = useState<{ sessionId: string; detail: SessionDetail | null; error: string | null } | null>(null);
 
   useEffect(() => {
     if (!sessionId) return;
     let active = true;
     getSession(sessionId)
       .then(data => {
-        if (active) {
-          setDetail(data);
-          setError('');
-        }
+        if (active) setResponse({ sessionId, detail: data, error: null });
       })
-      .catch(e => {
-        if (active) setError(e.message || 'Failed to load session details');
+      .catch((e: unknown) => {
+        if (active) setResponse({ sessionId, detail: null, error: e instanceof Error ? e.message : 'Failed to load session details' });
       });
 
     return () => {
@@ -35,7 +31,10 @@ export default function SessionDrawer({ sessionId, onClose, reasonMap }: Props) 
 
   if (!sessionId) return null;
 
-  const loading = !error && detail?.session_id !== sessionId;
+  const currentResponse = response?.sessionId === sessionId ? response : null;
+  const detail = currentResponse?.detail ?? null;
+  const error = currentResponse?.error ?? '';
+  const loading = !currentResponse;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/50 backdrop-blur-sm">
@@ -159,7 +158,7 @@ export default function SessionDrawer({ sessionId, onClose, reasonMap }: Props) 
                         event.decision === 'TRAP' ? 'bg-purple-500' :
                         'bg-amber-500'
                       }`}></div>
-                      <div className="text-xs font-mono text-slate-500 mb-0.5">{new Date(event.ts).toLocaleTimeString()}</div>
+          <div className="text-xs font-mono text-slate-500 mb-0.5">{event.ts ? new Date(event.ts).toLocaleTimeString() : 'Time unavailable'}</div>
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold uppercase tracking-wider bg-slate-700 px-1.5 py-0.5 rounded text-slate-300">{event.layer}</span>
                         <span className={`text-xs font-bold ${

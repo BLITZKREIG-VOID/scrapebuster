@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { usePoll } from '../api/poll';
 import { getCanaries, getCanary } from '../api/client';
-import type { CanaryDetail } from '../types/contracts';
+import type { Canary } from '../types/contracts';
 import { Copy, Check, ChevronDown, ChevronUp, FileText, Calendar, Crosshair, MapPin, Shield, Activity } from 'lucide-react';
+import ApiStateNotice from '../components/ApiStateNotice';
 
 export default function Canaries() {
-  const { data } = usePoll(getCanaries, 2000);
+  const { data, isLoading, error, lastUpdated } = usePoll(getCanaries, 3000);
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12 select-none">
@@ -14,15 +15,17 @@ export default function Canaries() {
 
         <div className="text-xs font-mono text-indigo-800 bg-indigo-100 dark:bg-indigo-900 dark:text-indigo-200 px-3 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-800 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.8)]" />
-          <span>Tracking {data?.canaries.length || 0} synthetic tokens</span>
+          <span>Tracking {data ? data.canaries.length : '—'} synthetic tokens</span>
         </div>
       </div>
+
+      <ApiStateNotice isLoading={isLoading} error={error} hasData={Boolean(data)} lastUpdated={lastUpdated} />
 
       <div className="flex flex-col gap-4">
         {data?.canaries.map(canary => (
           <CanaryCard key={canary.canary_id} canaryId={canary.canary_id} basicData={canary} />
         ))}
-        {(!data?.canaries || data.canaries.length === 0) && (
+        {data && data.canaries.length === 0 && (
           <div className="text-center p-12 border border-dashed border-border bg-card rounded-xl text-muted-foreground">
             <Shield size={28} className="mx-auto mb-2 text-muted-foreground" />
             No canaries registered in the current active run.
@@ -33,17 +36,17 @@ export default function Canaries() {
   );
 }
 
-function CanaryCard({ canaryId, basicData }: { canaryId: string, basicData: any }) {
+function CanaryCard({ canaryId, basicData }: { canaryId: string, basicData: Canary }) {
   const [expanded, setExpanded] = useState(false);
   const [copiedPayload, setCopiedPayload] = useState(false);
   const [copiedHash, setCopiedHash] = useState(false);
 
-  const { data: detail } = usePoll(
+  const { data: detail, isLoading, error, lastUpdated } = usePoll(
     () => getCanary(canaryId),
-    expanded ? 2000 : 10000000
+    5000
   );
 
-  const displayData: CanaryDetail = detail || { ...basicData, exposures: [] };
+  const displayData: Canary = detail ?? basicData;
 
   const handleCopyPayload = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -120,7 +123,7 @@ function CanaryCard({ canaryId, basicData }: { canaryId: string, basicData: any 
             </div>
           </div>
           <div className="text-xs text-muted-foreground flex items-center gap-1 font-mono">
-            <span className="font-bold text-foreground">{displayData.exposures.length}</span> exposures
+            <span className="font-bold text-foreground">{detail ? detail.exposures.length : error ? 'Unavailable' : isLoading ? 'Loading…' : 'Open'}</span> {detail ? 'exposures' : 'exposure data'}
           </div>
         </div>
       </div>
@@ -128,6 +131,7 @@ function CanaryCard({ canaryId, basicData }: { canaryId: string, basicData: any 
       {/* Expanded Detail */}
       {expanded && (
         <div className="border-t border-gray-200 dark:border-gray-800 p-5 bg-gray-50 dark:bg-gray-900/30 rounded-b-xl text-gray-800 dark:text-gray-200">
+          <ApiStateNotice isLoading={isLoading} error={error} hasData={Boolean(detail)} lastUpdated={lastUpdated} />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
             {/* Meta */}
@@ -177,9 +181,9 @@ function CanaryCard({ canaryId, basicData }: { canaryId: string, basicData: any 
                 <Activity size={14} /> Adversary Exposure Events
               </h3>
 
-              {displayData.exposures.length > 0 ? (
+              {detail && detail.exposures.length > 0 ? (
                 <div className="border-l-2 border-border ml-2 pl-4 relative space-y-6">
-                  {displayData.exposures.map(exp => (
+                  {detail.exposures.map(exp => (
                     <div key={exp.exposure_id} className="relative">
                       {/* Radar node */}
                       <div className="absolute -left-[21px] top-1.5 w-2 h-2 rounded-full bg-red-500 ring-4 ring-red-500/20"></div>
@@ -207,12 +211,12 @@ function CanaryCard({ canaryId, basicData }: { canaryId: string, basicData: any 
                     </div>
                   ))}
                 </div>
-              ) : (
+              ) : detail ? (
                 <div className="h-32 flex flex-col items-center justify-center bg-muted/50 rounded-lg border border-dashed border-border text-muted-foreground text-sm italic gap-2">
                   <Shield size={24} className="opacity-50" />
                   No exposures recorded yet.
                 </div>
-              )}
+              ) : <div className="text-xs text-muted-foreground">Exposure data is unavailable until the detail endpoint responds.</div>}
             </div>
 
           </div>

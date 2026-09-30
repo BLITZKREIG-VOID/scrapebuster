@@ -3,9 +3,10 @@ import { usePoll } from '../api/poll';
 import { getDemoStatus, runDemo, resetDemo, restoreGolden } from '../api/client';
 import { Play, CheckCircle, XCircle, Loader2, AlertCircle, Flame } from 'lucide-react';
 import HoldToConfirmButton from './HoldToConfirmButton';
+import ApiStateNotice from './ApiStateNotice';
 
 export default function DemoPanel() {
-  const { data: demo } = usePoll(getDemoStatus, { cacheKey: 'getDemoStatus', intervalMs: 1000 });
+  const { data: demo, isLoading, error, lastUpdated } = usePoll(getDemoStatus, { cacheKey: 'getDemoStatus', intervalMs: 2000 });
   const [actionError, setActionError] = useState<string | null>(null);
 
   const handleRunNext = async () => {
@@ -53,6 +54,7 @@ export default function DemoPanel() {
 
   return (
     <section className="bg-slate-900 rounded-xl border border-slate-800 p-6 space-y-6">
+      <ApiStateNotice isLoading={isLoading} error={error} hasData={Boolean(demo)} lastUpdated={lastUpdated} />
       {actionError && (
         <div className="p-3 rounded-lg bg-red-950/60 border border-red-500/40 text-red-300 text-xs font-mono flex items-center gap-2">
           <AlertCircle size={14} className="text-red-400 shrink-0" />

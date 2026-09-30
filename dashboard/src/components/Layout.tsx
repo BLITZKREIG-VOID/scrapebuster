@@ -1,6 +1,6 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { usePoll, subscribeNetworkStatus } from '../api/poll';
-import { getHealth, getDemoStatus } from '../api/client';
+import { getHealth, getDemoStatus, getEvents, getOverview, getSessions, getCases } from '../api/client';
 import {
   Activity,
   Search,
@@ -29,6 +29,7 @@ import { Toaster } from 'sonner';
 export default function Layout() {
   const { data: healthData, error: healthError, lastUpdated } = usePoll(getHealth, 1000);
   const { data: demo } = usePoll(getDemoStatus, 1000);
+  const { data: traffic } = usePoll(getEvents, { cacheKey: 'shellTraffic', intervalMs: 5000 });
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -72,7 +73,8 @@ export default function Layout() {
   const [exportOpen, setExportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportDone, setExportDone] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(3);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [dismissedSignals, setDismissedSignals] = useState<string[]>([]);
 
   // Determine current active page for dynamic logo and navbar state
   const getCurrentPage = (): 'overview' | 'traffic' | 'canaries' | 'probes' | 'cases' => {
@@ -146,37 +148,21 @@ export default function Layout() {
     },
   ];
 
-  const [alerts, setAlerts] = useState([
-    {
-      id: 'notif-1',
-      title: 'Provenance Signal Confirmed',
-      desc: 'Target model output matched canary SB-CAN-0003 verbatim.',
-      time: '2m ago',
-      type: 'threat',
-      link: '/cases/SB-001',
-    },
-    {
-      id: 'notif-2',
-      title: 'Decoy Honeytoken Tripped',
-      desc: 'Session sb-soph3scrpr01 accessed hidden route /docs/api.',
-      time: '14m ago',
-      type: 'warning',
-      link: '/canaries',
-    },
-    {
-      id: 'notif-3',
-      title: 'Automated Rate-Limit Imposed',
-      desc: 'IP 192.168.1.44 throttled under L1 anti-scraper heuristic.',
-      time: '28m ago',
-      type: 'info',
-      link: '/traffic',
-    },
-  ]);
+  const alerts = (traffic?.events ?? [])
+    .filter((event) => ['TRAP', 'BLOCK', 'THROTTLE', 'RESTRICT'].includes(event.decision))
+    .filter((event) => !dismissedSignals.includes(event.event_id))
+    .slice(0, 5)
+    .map((event) => ({
+      id: event.event_id,
+      title: `${event.decision} · ${event.layer}`,
+      desc: `Session ${event.session_id} · ${event.method} ${event.path} · risk ${event.risk_score}`,
+      time: new Date(event.ts).toLocaleTimeString(),
+      type: event.decision === 'TRAP' ? 'warning' : 'threat',
+      link: '/dashboard/traffic',
+    }));
 
   const handleDismissAlert = (idToRemove: string) => {
-    setAlerts((prev) => prev.filter(alert => alert.id !== idToRemove));
-    // Also decrease unread count if applicable, safely bounded at 0
-    setUnreadCount((prev) => Math.max(0, prev - 1));
+    setDismissedSignals((prev) => [...new Set([...prev, idToRemove])]);
   };
 
   useEffect(() => {
@@ -195,20 +181,30 @@ export default function Layout() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const handleExport = () => {
+  const handleExport = async () => {
     setExporting(true);
-    setTimeout(() => {
-      setExporting(false);
+    setExportError(null);
+    setExportDone(false);
+    try {
+      const [overview, events, sessions, cases] = await Promise.all([getOverview(), getEvents(), getSessions(), getCases()]);
+      const snapshot = { exported_at: new Date().toISOString(), run_id: overview.run_id, overview, traffic: events, sessions, cases };
+      const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `scrapebuster-${overview.run_id}-api-snapshot.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
       setExportDone(true);
-      setTimeout(() => {
-        setExportDone(false);
-        setExportOpen(false);
-      }, 1500);
-    }, 1200);
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setExporting(false);
+    }
   };
 
   const isUnreachable = Boolean(healthError) || networkUnreachable;
-  const isDegraded = !isUnreachable && (healthData?.status === 'degraded' || healthData?.components?.llm === 'fallback');
+  const isDegraded = !isUnreachable && healthData?.status === 'degraded';
 
   return (
     <TooltipProvider delayDuration={150}>
@@ -233,9 +229,9 @@ export default function Layout() {
             <div className="flex items-center gap-2 mx-auto">
               <WifiOff size={14} className="text-amber-400 animate-pulse" />
               <span>
-                API unreachable — showing cached snapshot from{' '}
+                Backend API unreachable; views show their last successful backend response where available{' '}
                 <strong className="text-amber-100">
-                  {lastSnapshotTime ? lastSnapshotTime.toLocaleTimeString() : (lastUpdated?.toLocaleTimeString() ?? 'offline cache')}
+                  {lastSnapshotTime ? `(${lastSnapshotTime.toLocaleTimeString()})` : (lastUpdated ? `(${lastUpdated.toLocaleTimeString()})` : '')}
                 </strong>
               </span>
             </div>
@@ -245,13 +241,13 @@ export default function Layout() {
           </div>
         )}
 
-        {/* API Degradation Banner (extractive_fallback or replay mode) */}
+        {/* API-reported degraded health */}
         {isDegraded && (
           <div className="bg-amber-950/80 text-amber-300 px-4 py-1.5 text-center text-xs font-mono flex items-center justify-between shrink-0 border-b border-amber-500/40">
             <div className="flex items-center gap-2 mx-auto">
               <AlertTriangle size={14} className="text-amber-400" />
               <span>
-                OPERATOR WARNING: LLM Engine in Extractive Fallback Mode — Neural provenance degraded to static token extraction.
+                OPERATOR WARNING: Backend health reports degraded components.
               </span>
             </div>
             <span className="text-[10px] uppercase tracking-wider bg-amber-900/40 px-2 py-0.5 rounded border border-amber-600/30 hidden sm:inline">
@@ -304,7 +300,7 @@ export default function Layout() {
             <button
               onClick={() => setExportOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 rounded-md border border-slate-800 transition-colors cursor-pointer"
-              title="Export SOC Report"
+              title="Download live API snapshot"
             >
               <Download size={15} className="text-slate-400" />
               <span className="hidden sm:inline">Export</span>
@@ -313,12 +309,12 @@ export default function Layout() {
             {/* Notifications Bell */}
             <div className="relative">
               <button
-                onClick={() => { setNotifOpen(!notifOpen); setUnreadCount(0); }}
+                onClick={() => setNotifOpen(!notifOpen)}
                 className="w-10 h-10 rounded-full bg-slate-900/60 backdrop-blur-md border border-slate-700/50 flex items-center justify-center text-slate-400 hover:text-slate-200 hover:border-slate-500 transition-all relative cursor-pointer"
                 title="Notification Center"
               >
                 <Bell size={18} />
-                {unreadCount > 0 && (
+                {alerts.length > 0 && (
                   <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />
                 )}
               </button>
@@ -327,11 +323,12 @@ export default function Layout() {
               {notifOpen && (
                 <div className="absolute right-0 mt-2 w-80 bg-slate-900 border border-slate-800 rounded-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
 
+                  <div className="border-b border-slate-800 px-3 py-2 text-[10px] font-mono uppercase text-slate-500">Recent persisted backend events</div>
                   <div className="divide-y divide-slate-800/60 max-h-80 overflow-y-auto custom-scrollbar">
                     {alerts.length === 0 ? (
                       <div className="p-8 text-center text-sm text-slate-500 italic flex flex-col items-center gap-2">
                         <CheckCircle size={20} className="text-emerald-500/50" />
-                        No new notifications
+                        No recent block, restrict, or trap events.
                       </div>
                     ) : (
                       alerts.map(n => (
@@ -530,33 +527,15 @@ export default function Layout() {
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <div className="flex items-center gap-2">
                   <FileText className="text-blue-400" size={18} />
-                  <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider">Export Forensic SOC Report</h3>
+                  <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider">Download live API snapshot</h3>
                 </div>
                 <button onClick={() => setExportOpen(false)} className="text-slate-500 hover:text-slate-300">
                   <X size={16} />
                 </button>
               </div>
 
-              <div className="space-y-3 text-xs">
-                <label className="block text-slate-400 font-medium">Export Package Format</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="p-3 rounded-lg border border-blue-500/40 bg-blue-500/10 cursor-pointer">
-                    <div className="font-bold text-slate-200">PDF + Cryptographic Seal</div>
-                    <div className="text-[10px] text-slate-400 mt-1">Court-admissible provenance report with SHA-256 evidence chain.</div>
-                  </div>
-                  <div className="p-3 rounded-lg border border-slate-800 bg-slate-950/50 hover:border-slate-700 cursor-pointer">
-                    <div className="font-bold text-slate-200">STIX 2.1 Threat Intel</div>
-                    <div className="text-[10px] text-slate-400 mt-1">Structured IOCs, adversary actor profiles, and honeytoken signals.</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2 text-xs">
-                <label className="block text-slate-400 font-medium">Incident Scope</label>
-                <div className="p-2.5 rounded bg-slate-950 border border-slate-800 font-mono text-slate-300">
-                  Incident SB-001 (Canary SB-CAN-0003, Model qwen2.5:3b)
-                </div>
-              </div>
+              <p className="text-xs leading-relaxed text-slate-400">Downloads a JSON snapshot assembled from live overview, traffic, session, and case API responses. If any request fails, the download is cancelled and the backend error is shown.</p>
+              {exportError && <div role="alert" className="rounded border border-red-500/30 bg-red-950/30 p-3 text-xs text-red-300">{exportError}</div>}
 
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button
@@ -572,7 +551,7 @@ export default function Layout() {
                 >
                   {exporting && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
                   {exportDone && <CheckCircle size={14} className="text-emerald-300" />}
-                  {exportDone ? 'Report Generated' : exporting ? 'Compiling Manifest...' : 'Generate & Download'}
+                  {exportDone ? 'Snapshot Downloaded' : exporting ? 'Loading API responses…' : 'Download JSON snapshot'}
                 </button>
               </div>
             </div>

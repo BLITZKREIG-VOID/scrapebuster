@@ -1,166 +1,100 @@
-// ScapeBusters API client — mock / live switching via VITE_API_MODE
+// All dashboard runtime reads and writes use the Phase 6 live backend API.
 import type {
-  Health,
-  Overview,
-  TrafficEventsResponse,
-  SessionSummary,
-  SessionDetail,
   Canary,
   CanaryDetail,
-  Dataset,
-  ProbeRun,
-  CaseSummary,
   Case,
   CaseEvidence,
-  VerifyResult,
+  CaseSummary,
+  Dataset,
+  DemoResetResponse,
   DemoStatus,
+  Health,
+  Overview,
+  ProbeRun,
+  ProbeRunResponse,
+  SessionDetail,
+  SessionSummary,
+  TrafficEventsResponse,
+  VerifyResult,
 } from '../types/contracts';
 
-import * as mock from './mock';
+export const API_MODE = 'live' as const;
 
-const API_MODE = import.meta.env.VITE_API_MODE ?? 'mock';
-const isMock = API_MODE === 'mock';
+export class ApiError extends Error {
+  readonly status: number;
+  readonly path: string;
 
-// ─── Helpers ──────────────────────────────────────────────────────────
-
-async function delay(ms = 400): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
+  constructor(
+    message: string,
+    status: number,
+    path: string,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.path = path;
+  }
 }
 
-async function get<T>(path: string): Promise<T> {
-  const res = await fetch(path);
-  if (!res.ok) throw new Error(`GET ${path} → ${res.status}`);
-  return res.json() as Promise<T>;
-}
-
-async function post<T>(path: string, body?: unknown): Promise<T> {
-  const res = await fetch(path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: body ? JSON.stringify(body) : undefined,
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(path, {
+    ...init,
+    headers: {
+      ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+      ...init?.headers,
+    },
   });
-  if (!res.ok) throw new Error(`POST ${path} → ${res.status}`);
-  return res.json() as Promise<T>;
-}
-
-// ─── API Functions ────────────────────────────────────────────────────
-
-export async function getHealth(): Promise<Health> {
-  if (isMock) { await delay(); return mock.mockHealth; }
-  return get('/api/v1/health');
-}
-
-export async function getOverview(): Promise<Overview> {
-  if (isMock) { await delay(); return mock.mockOverview; }
-  return get('/api/v1/overview');
-}
-
-export async function getEvents(after = 0): Promise<TrafficEventsResponse> {
-  if (isMock) {
-    await delay();
-    const events = mock.mockTrafficEvents.filter((e) => e.seq > after);
-    return { events, last_seq: events.length ? events[events.length - 1].seq : after };
+  const body = await response.text();
+  if (!response.ok) {
+    let detail = body;
+    try {
+      const parsed = JSON.parse(body) as { detail?: unknown };
+      if (typeof parsed.detail === 'string') detail = parsed.detail;
+    } catch {
+      // Keep the response text for non-JSON proxy and server errors.
+    }
+    throw new ApiError(
+      `${init?.method ?? 'GET'} ${path} failed (${response.status})${detail ? `: ${detail}` : ''}`,
+      response.status,
+      path,
+    );
   }
-  return get(`/api/v1/traffic/events?after=${after}&limit=200`);
+  if (!body) return undefined as T;
+  return JSON.parse(body) as T;
 }
 
-export async function getSessions(): Promise<{ sessions: SessionSummary[] }> {
-  if (isMock) { await delay(); return { sessions: mock.mockSessions }; }
-  return get('/api/v1/sessions');
+function get<T>(path: string): Promise<T> {
+  return request<T>(path);
 }
 
-export async function getSession(id: string): Promise<SessionDetail> {
-  if (isMock) {
-    await delay();
-    if (id === mock.mockSessionDetail.session_id) return mock.mockSessionDetail;
-    throw new Error('Session not found');
-  }
-  return get(`/api/v1/sessions/${id}`);
+function post<T>(path: string, body?: unknown): Promise<T> {
+  return request<T>(path, {
+    method: 'POST',
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
 }
 
-export async function getCanaries(): Promise<{ canaries: Canary[] }> {
-  if (isMock) { await delay(); return { canaries: mock.mockCanaries }; }
-  return get('/api/v1/canaries');
-}
-
-export async function getCanary(id: string): Promise<CanaryDetail> {
-  if (isMock) {
-    await delay();
-    const detail = mock.mockCanaryDetails[id];
-    if (!detail) throw new Error('Canary not found');
-    return detail;
-  }
-  return get(`/api/v1/canaries/${id}`);
-}
-
-export async function getDatasets(): Promise<{ datasets: Dataset[] }> {
-  if (isMock) { await delay(); return { datasets: mock.mockDatasets }; }
-  return get('/api/v1/datasets');
-}
-
-export async function runProbe(body: Record<string, unknown> = {}): Promise<{ probe_ids: { target: string; control: string }; case_id: string | null }> {
-  if (isMock) {
-    await delay(2000);
-    return { probe_ids: { target: 'PRB-TARGET-01', control: 'PRB-CONTROL-01' }, case_id: 'SB-001' };
-  }
-  return post('/api/v1/probes/run', body);
-}
-
-export async function getProbes(): Promise<{ probes: ProbeRun[] }> {
-  if (isMock) { await delay(); return { probes: mock.mockProbes }; }
-  return get('/api/v1/probes');
-}
-
-export async function getProbe(id: string): Promise<ProbeRun> {
-  if (isMock) {
-    await delay();
-    const p = mock.mockProbes.find((pr) => pr.probe_id === id);
-    if (!p) throw new Error('Probe not found');
-    return p;
-  }
-  return get(`/api/v1/probes/${id}`);
-}
-
-export async function getCases(): Promise<{ cases: CaseSummary[] }> {
-  if (isMock) { await delay(); return { cases: mock.mockCases }; }
-  return get('/api/v1/cases');
-}
-
-export async function getCase(id: string): Promise<Case> {
-  if (isMock) {
-    await delay();
-    if (id === mock.mockCase.case_id) return mock.mockCase;
-    throw new Error('Case not found');
-  }
-  return get(`/api/v1/cases/${id}`);
-}
-
-export async function getCaseEvidence(id: string): Promise<CaseEvidence> {
-  if (isMock) { await delay(); return mock.mockCaseEvidence; }
-  return get(`/api/v1/cases/${id}/evidence`);
-}
-
-export async function verifyCase(id: string): Promise<VerifyResult> {
-  if (isMock) { await delay(1500); return mock.mockVerifyResult; }
-  return post(`/api/v1/cases/${id}/verify`);
-}
-
-export async function resetDemo(): Promise<{ ok: boolean; run_id: string }> {
-  if (isMock) { await delay(1000); return { ok: true, run_id: 'RUN-20260929-130000' }; }
-  return post('/api/v1/demo/reset');
-}
-
-export async function runDemo(step?: number): Promise<DemoStatus> {
-  if (isMock) { await delay(2000); return mock.mockDemoStatus; }
-  return post('/api/v1/demo/run', step ? { step } : {});
-}
-
-export async function getDemoStatus(): Promise<DemoStatus> {
-  if (isMock) { await delay(); return mock.mockDemoStatus; }
-  return get('/api/v1/demo/status');
-}
-
-export async function restoreGolden(): Promise<DemoStatus> {
-  if (isMock) { await delay(1000); return { ...mock.mockDemoStatus, mode: 'golden' }; }
-  return post('/api/v1/demo/restore-golden');
-}
+export const getHealth = () => get<Health>('/api/v1/health');
+export const getOverview = () => get<Overview>('/api/v1/overview');
+export const getEvents = (after = 0) =>
+  get<TrafficEventsResponse>(`/api/v1/traffic/events?after=${after}&limit=200`);
+export const getSessions = () => get<{ sessions: SessionSummary[] }>('/api/v1/sessions');
+export const getSession = (id: string) => get<SessionDetail>(`/api/v1/sessions/${encodeURIComponent(id)}`);
+export const getCanaries = () => get<{ canaries: Canary[] }>('/api/v1/canaries');
+export const getCanary = (id: string) => get<CanaryDetail>(`/api/v1/canaries/${encodeURIComponent(id)}`);
+export const getDatasets = () => get<{ datasets: Dataset[] }>('/api/v1/datasets');
+export const runProbe = (body: Record<string, unknown> = {}) =>
+  post<ProbeRunResponse>('/api/v1/probes/run', body);
+export const getProbes = () => get<{ probes: ProbeRun[] }>('/api/v1/probes');
+export const getProbe = (id: string) => get<ProbeRun>(`/api/v1/probes/${encodeURIComponent(id)}`);
+// Phase 6 deliberately defines the cases collection as a raw array.
+export const getCases = () => get<CaseSummary[]>('/api/v1/cases');
+export const getCase = (id: string) => get<Case>(`/api/v1/cases/${encodeURIComponent(id)}`);
+export const getCaseEvidence = (id: string) =>
+  get<CaseEvidence>(`/api/v1/cases/${encodeURIComponent(id)}/evidence`);
+export const verifyCase = (id: string) =>
+  post<VerifyResult>(`/api/v1/cases/${encodeURIComponent(id)}/verify`);
+export const resetDemo = () => post<DemoResetResponse>('/api/v1/demo/reset');
+export const runDemo = (step?: number) => post<DemoStatus>('/api/v1/demo/run', step ? { step } : {});
+export const getDemoStatus = () => get<DemoStatus>('/api/v1/demo/status');
+export const restoreGolden = () => post<DemoStatus>('/api/v1/demo/restore-golden');
