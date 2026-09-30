@@ -1,65 +1,17 @@
-// ScapeBusters Dashboard — TypeScript contracts
-// Mirrors backend/sb/contracts.py and master plan §16.
-// TODO sync at M0: re-verify against contracts-v1 tag
-
-// ─── Enums (fixed contract) ───────────────────────────────────────────
-
+// Mirrors the frozen Phase 6 response contracts in backend/sb/contracts.py.
 export type Decision =
-  | 'ALLOW'
-  | 'ESCALATE'
-  | 'CHALLENGE'
-  | 'PASS'
-  | 'RESTRICT'
-  | 'THROTTLE'
-  | 'BLOCK'
-  | 'TRAP';
-
+  | 'ALLOW' | 'ESCALATE' | 'CHALLENGE' | 'PASS'
+  | 'RESTRICT' | 'THROTTLE' | 'BLOCK' | 'TRAP';
 export type Layer = 'L1' | 'L2' | 'L3' | 'ORIGIN';
-
-export type Classification =
-  | 'BOT_BASIC'
-  | 'AUTOMATION'
-  | 'SOPHISTICATED_SCRAPER'
-  | 'HUMAN_LIKELY'
-  | 'UNKNOWN';
-
-export type SessionState =
-  | 'NEW'
-  | 'VERIFIED'
-  | 'ESCALATED'
-  | 'RESTRICTED'
-  | 'THROTTLED'
-  | 'BLOCKED'
-  | 'TRAPPED';
-
+export type ComponentStatus = 'ok' | 'down' | 'disabled' | 'unknown' | 'not_checked';
 export type CanaryStatus = 'DRAFT' | 'ACTIVE' | 'EXPOSED' | 'OBSERVED';
-
-export type CaseStatus =
-  | 'PROVENANCE_SIGNAL_DETECTED'
-  | 'PARTIAL_SIGNAL'
-  | 'INCONCLUSIVE'
-  | 'NO_SIGNAL';
-
-export type ModelMode = 'live' | 'extractive_fallback' | 'replay';
-
 export type DemoMode = 'live' | 'golden';
-
-// ─── Health ───────────────────────────────────────────────────────────
-
-export interface HealthComponents {
-  db: 'ok' | 'down';
-  origin: 'ok' | 'down';
-  llm: 'ok' | 'down' | 'fallback';
-  s3: 'ok' | 'disabled' | 'down';
-}
+export type DemoPhase = 'READY' | 'RUNNING' | 'COMPLETE' | 'PAUSED' | 'FAILED';
 
 export interface Health {
   status: 'ok' | 'degraded';
-  run_id?: string;
-  components?: HealthComponents;
+  components: Record<string, ComponentStatus>;
 }
-
-// ─── Traffic ──────────────────────────────────────────────────────────
 
 export interface TrafficEvent {
   seq: number;
@@ -83,8 +35,6 @@ export interface TrafficEventsResponse {
   last_seq: number;
 }
 
-// ─── Sessions ─────────────────────────────────────────────────────────
-
 export interface SessionSummary {
   session_id: string;
   classification: string;
@@ -93,9 +43,10 @@ export interface SessionSummary {
 }
 
 export interface LayerPathEntry {
-  layer: Layer;
-  decision: Decision;
-  ts: string;
+  layer: string;
+  decision: string;
+  ts?: string | null;
+  [key: string]: unknown;
 }
 
 export interface SessionDetail extends SessionSummary {
@@ -115,7 +66,17 @@ export interface SessionDetail extends SessionSummary {
   canaries_exposed: string[];
 }
 
-// ─── Canaries ─────────────────────────────────────────────────────────
+export interface ExposureEvent {
+  exposure_id: string;
+  canary_id: string;
+  ts: string;
+  session_id: string;
+  resource: string;
+  content_version: string;
+  content_sha256: string;
+  client: Record<string, unknown>;
+  request: Record<string, unknown>;
+}
 
 export interface Canary {
   canary_id: string;
@@ -132,24 +93,18 @@ export interface Canary {
   placements: string[];
 }
 
-export interface ExposureEvent {
-  exposure_id: string;
+export interface Publication {
   canary_id: string;
-  ts: string;
-  session_id: string;
-  resource: string;
+  sha256: string;
   content_version: string;
-  content_sha256: string;
-  client: Record<string, unknown>;
-  request: Record<string, unknown>;
+  published_at: string | null;
+  placements: string[];
 }
 
 export interface CanaryDetail extends Canary {
-  publication?: Record<string, unknown>;
+  publication: Publication | null;
   exposures: ExposureEvent[];
 }
-
-// ─── Datasets ─────────────────────────────────────────────────────────
 
 export interface Dataset {
   dataset_id: string;
@@ -160,65 +115,46 @@ export interface Dataset {
   ingested_at: string;
 }
 
-// ─── Probes ───────────────────────────────────────────────────────────
-
 export interface ProbeResult {
   result_id: string;
-  probe_id: string;
   canary_id: string;
   prompt: string;
-  retrieved: string[];
+  retrieved: Record<string, unknown>[];
   response_text: string;
   response_sha256: string;
   latency_ms: number;
   ts: string;
 }
 
-export interface ProbeModel {
-  name: string;
-  digest: string;
-  mode: ModelMode;
-}
-
 export interface ProbeRun {
   probe_id: string;
   target: string;
   status: string;
-  model: ProbeModel;
+  dataset_id: string;
   dataset_sha256: string;
+  started_at: string;
+  finished_at: string | null;
+  model: Record<string, unknown>;
   results: ProbeResult[];
 }
 
-// ─── Findings ─────────────────────────────────────────────────────────
-
-export interface ContextMatch {
-  matched: string[];
-  required: number;
-  ok: boolean;
-}
-
-export interface Temporal {
-  published_at: string;
-  first_exposed_at: string;
-  ingested_at: string;
-  observed_at: string;
-  ordered: boolean;
+export interface ProbeRunResponse {
+  probe_ids: Record<string, string>;
+  case_id: string | null;
 }
 
 export interface Finding {
   finding_id: string;
   canary_id: string;
   exact_match: boolean;
-  context_match: ContextMatch;
+  context_match: Record<string, unknown>;
   uniqueness: string;
-  temporal: Temporal;
+  temporal: Record<string, unknown>;
   integrity: string;
   control_negative: boolean;
   status: string;
   confidence: string;
 }
-
-// ─── Cases ────────────────────────────────────────────────────────────
 
 export interface CaseSummary {
   case_id: string;
@@ -229,92 +165,90 @@ export interface CaseSummary {
   primary_canary_id: string;
 }
 
-export interface EvidenceObject {
-  name: string;
-  sha256: string;
-  bytes: number;
-  local_path?: string;
-  s3_key?: string;
-  s3_version_id?: string;
-  retain_until?: string;
-}
-
-export interface EvidenceSummary {
-  status: string;
-  bundle_path?: string;
-  manifest_sha256?: string;
-  prev_manifest_sha256?: string;
-  objects?: EvidenceObject[];
-  s3_bucket?: string;
-  retain_until?: string;
-}
-
 export interface Case extends CaseSummary {
   session_ids: string[];
   probe_ids: string[];
   findings: Finding[];
-  evidence: EvidenceSummary;
+  evidence: Record<string, unknown>;
   statement: string;
 }
 
-export interface VerifyCheck {
+export interface EvidenceFile {
   name: string;
-  ok: boolean;
-  detail?: string;
+  sha256: string;
+  bytes: number;
 }
 
-export interface VerifyResult {
-  result: 'VALID' | 'TAMPERED';
-  checks: VerifyCheck[];
+export interface EvidenceManifest {
+  case_id: string;
+  run_id: string;
+  created_at: string;
+  files: EvidenceFile[];
+  prev_manifest_sha256: string;
+  tool_version: string;
+  manifest_sha256: string;
+}
+
+export interface EvidenceObject extends EvidenceFile {
+  local_path: string;
+  s3_key: string | null;
+  s3_version_id: string | null;
+  retain_until: string | null;
 }
 
 export interface CaseEvidence {
-  manifest: Record<string, unknown>;
+  manifest: EvidenceManifest;
   objects: EvidenceObject[];
   receipt: Record<string, unknown> | null;
 }
 
-// ─── Demo ─────────────────────────────────────────────────────────────
+export interface EvidenceCheck {
+  name: string;
+  ok: boolean;
+  detail: string;
+}
+
+export interface VerifyResult {
+  result: 'VALID' | 'TAMPERED';
+  checks: EvidenceCheck[];
+}
 
 export interface DemoStep {
   id: number;
   name: string;
   status: 'PENDING' | 'RUNNING' | 'PASS' | 'FAIL';
-  detail?: string;
-  started_at?: string;
-  finished_at?: string;
+  detail: string;
+  started_at: string | null;
+  finished_at: string | null;
 }
 
 export interface DemoStatus {
-  run_id: string;
-  phase: string;
+  run_id: string | null;
+  phase: DemoPhase;
   mode: DemoMode;
-  steps?: DemoStep[];
+  steps: DemoStep[];
 }
 
-// ─── Overview ─────────────────────────────────────────────────────────
-
-export interface OverviewLadder {
-  safe: number;
-  suspicious: number;
-  challenge_restrict: number;
-  block: number;
-  trap: number;
-  provenance: number;
-}
-
-export interface PipelineStage {
-  stage: string;
-  status: 'ok' | 'pending' | 'active' | 'error';
+export interface DemoResetResponse {
+  ok: boolean;
+  run_id: string;
+  checks: { name: string; ok: boolean; detail: string }[];
 }
 
 export interface Overview {
   run_id: string;
   counts: Record<Decision, number>;
-  ladder: OverviewLadder;
+  ladder: {
+    safe: number;
+    suspicious: number;
+    challenge_restrict: number;
+    block: number;
+    trap: number;
+    provenance: number;
+  };
   sessions_by_class: Record<string, number>;
   canaries: { active: number; exposed: number; observed: number };
   cases: { total: number; detected: number };
-  pipeline: PipelineStage[];
+  pipeline: { stage: string; status: ComponentStatus }[];
   latest_case: CaseSummary | null;
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { usePoll } from '../api/poll';
-import { getOverview, getEvents } from '../api/client';
-import type { TrafficEvent } from '../types/contracts';
+import { getOverview, getEvents, getSessions, getHealth } from '../api/client';
+import type { TrafficEvent, SessionSummary } from '../types/contracts';
 import {
   Shield,
   ShieldAlert,
@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import SessionDrawer from '../components/SessionDrawer';
 import DemoPanel from '../components/DemoPanel';
+import ApiStateNotice from '../components/ApiStateNotice';
 import { Skeleton } from '../components/ui/skeleton';
 import { SkeletonTable } from '../components/SkeletonTable';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../components/ui/tooltip';
@@ -23,9 +24,9 @@ const REASON_HUMAN_MAP: Record<string, string> = {
   'L1_AUTOMATION_UA': 'Automation client signature detected in User-Agent header',
   'L1_MISSING_BROWSER_HEADERS': 'Missing standard browser headers (Accept, Sec-Fetch-*)',
   'L1_HEADER_FP_ANOMALY': 'Anomalous HTTP header order inconsistent with stated client',
-  'L1_RATE_SOFT': 'Soft rate threshold exceeded (>10 req/sec across burst interval)',
-  'L1_RATE_HARD': 'Hard rate threshold breached (>30 req/sec instantaneous burst)',
-  'L1_REPEAT_THROTTLE': 'Repeated rate-limiting violations in rolling 5-minute window',
+  'L1_RATE_SOFT': 'Soft request-rate window exceeded',
+  'L1_RATE_HARD': 'Hard request-rate window exceeded',
+  'L1_REPEAT_THROTTLE': 'Repeated rate-limit decisions',
   'L1_UNVERIFIED_SESSION': 'Unverified session attempting access to guarded resource',
   'L2_WEBDRIVER': 'Navigator webdriver automation flag active',
   'L2_HEADLESS_UA': 'Headless browser runtime signature (Chrome-Lighthouse / Puppeteer)',
@@ -34,64 +35,70 @@ const REASON_HUMAN_MAP: Record<string, string> = {
   'L2_SOFTWARE_GL': 'Software WebGL renderer detected (Mesa / SwiftShader)',
   'L2_NO_LANGUAGES': 'No system language preferences reported by client',
   'L2_NO_INTERACTION': 'No mouse, keyboard, or touch interaction prior to submission',
-  'L2_FAST_SUBMIT': 'Form submitted in <200ms with zero pointer interaction',
+  'L2_FAST_SUBMIT': 'Form submission timing signal recorded by Layer 2',
   'L2_POW_INVALID': 'Proof-of-work cryptographic challenge missing or failed',
   'L2_NO_JS': 'Failed JavaScript execution verification challenge',
-  'L3_L2_SUSPICIOUS_BAND': 'Behavioral risk band evaluated between 45-75 (trap candidate)',
+  'L3_L2_SUSPICIOUS_BAND': 'Behavioral risk band signal recorded by Layer 3',
   'TRAP-LINK-01': 'Hidden zero-pixel honeypot hyperlink traversed by scraper crawler',
   'TRAP-ROBOTS-01': 'Robots.txt disallowed honeypot endpoint accessed',
-  'TRAP-DECOY-01': 'Synthetic decoy internal REST API called with fake tokens',
+  'TRAP-DECOY-01': 'Synthetic decoy endpoint accessed',
 };
 
 const LADDER_EXPLANATIONS: Record<string, { label: string; desc: string; threshold: string }> = {
   ALLOW: {
     label: 'ALLOW Tier',
-    desc: 'Verified benign human traffic with passing behavioral signatures.',
-    threshold: 'Risk Score < 25 & Verified Browser Fingerprint',
+    desc: 'The backend accepted the request at Layer 1.',
+    threshold: 'Decision and count reported by backend',
   },
   PASS: {
     label: 'PASS Tier',
-    desc: 'Unclassified exploratory traffic passing basic L1 protocol integrity.',
-    threshold: 'Risk Score < 40 & Standard HTTP/2 Header Ordering',
+    desc: 'The backend allowed the request to continue after behavioral checks.',
+    threshold: 'Decision and count reported by backend',
   },
   CHALLENGE: {
     label: 'CHALLENGE Tier',
-    desc: 'Suspicious automation requiring interactive Proof-of-Work or JS puzzle.',
-    threshold: 'Risk Score 40-60 or Missing Viewport Metrics',
+    desc: 'The backend issued a challenge for this request.',
+    threshold: 'Decision and count reported by backend',
   },
   THROTTLE: {
     label: 'THROTTLE Tier',
-    desc: 'Rate-shaped request stream enforced to neutralize aggressive scraping bursts.',
-    threshold: 'Burst rate > 15 req/sec in 500ms sliding window',
+    desc: 'The backend throttled requests based on its rate window.',
+    threshold: 'Decision and count reported by backend',
   },
   RESTRICT: {
     label: 'RESTRICT Tier',
-    desc: 'Degraded data serving: rate throttled and high-value payloads redacted.',
-    threshold: 'Risk Score 60-80 or Repeated Headless Signatures',
+    desc: 'The backend restricted the session after behavioral evaluation.',
+    threshold: 'Decision and count reported by backend',
   },
   BLOCK: {
     label: 'BLOCK Tier',
-    desc: 'Hard perimeter rejection for confirmed botnets and scraper nodes.',
-    threshold: 'Risk Score > 80 or Known Threat Intelligence IP',
+    desc: 'The backend blocked the request before origin access.',
+    threshold: 'Decision and count reported by backend',
   },
   TRAP: {
     label: 'TRAP Tier (L3 Honeypot)',
-    desc: 'Autonomous diversion into synthetic honeypots serving poisoned RAG data.',
-    threshold: 'Traversed Hidden Anchor or Flagged AI Ingestor Bot',
+    desc: 'The backend routed this request into a trap path.',
+    threshold: 'Decision and count reported by backend',
   },
 };
 
 export default function Overview() {
-  const { data: overviewData, isLoading: isOverviewLoading } = usePoll(getOverview, {
+  const { data: overviewData, isLoading: isOverviewLoading, error: overviewError, lastUpdated: overviewUpdated } = usePoll(getOverview, {
     cacheKey: 'getOverview',
     intervalMs: 2000,
+  });
+  const { data: sessionData, isLoading: isSessionsLoading, error: sessionsError, lastUpdated: sessionsUpdated } = usePoll(getSessions, {
+    cacheKey: 'getSessionsOverview', intervalMs: 2000,
+  });
+  const { data: healthData, isLoading: isHealthLoading, error: healthError, lastUpdated: healthUpdated } = usePoll(getHealth, {
+    cacheKey: 'getHealthOverview', intervalMs: 5000,
   });
 
   const [events, setEvents] = useState<TrafficEvent[]>([]);
   const [lastSeq, setLastSeq] = useState(0);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
-  const { isLoading: isEventsLoading } = usePoll(
+  const { isLoading: isEventsLoading, error: eventsError, lastUpdated: eventsUpdated } = usePoll(
     async () => {
       const res = await getEvents(lastSeq);
       if (res.events.length > 0) {
@@ -109,26 +116,19 @@ export default function Overview() {
   );
 
   const isInitialLoading = isOverviewLoading && !overviewData;
+  if (!overviewData && (isOverviewLoading || overviewError)) {
+    return <div className="space-y-5 max-w-full pb-12"><h1 className="text-5xl font-extrabold text-slate-100 tracking-tight font-display">SOC Threat Feed</h1><ApiStateNotice isLoading={isOverviewLoading} error={overviewError} hasData={false} lastUpdated={overviewUpdated} /></div>;
+  }
 
-  // Derived KPIs
-  const totalTraffic =
-    (overviewData?.ladder?.safe || 0) +
-    (overviewData?.ladder?.suspicious || 0) +
-    (overviewData?.ladder?.block || 0);
-
-  const botsBlocked =
-    (overviewData?.sessions_by_class?.BOT_BASIC || 0) +
-    (overviewData?.sessions_by_class?.SOPHISTICATED_SCRAPER || 0);
-
-  const canariesDeployed = 3;
-  const healthScore = Math.max(
-    0,
-    100 -
-    (overviewData?.sessions_by_class?.SOPHISTICATED_SCRAPER || 0) * 2 -
-    (overviewData?.ladder?.block || 0) * 0.1
-  );
-
-  const isZeroData = !isInitialLoading && totalTraffic === 0 && events.length === 0;
+  const totalTraffic = Object.values(overviewData?.counts ?? {}).reduce((sum, count) => sum + count, 0);
+  const sessions = sessionData?.sessions ?? [];
+  const botsBlocked = sessionData
+    ? sessions.filter((session: SessionSummary) =>
+      ['BOT_BASIC', 'AUTOMATION'].includes(session.classification) && ['BLOCKED', 'RESTRICTED'].includes(session.state),
+    ).length
+    : null;
+  const activeCanaries = overviewData?.canaries.active;
+  const isZeroData = !isInitialLoading && !eventsError && totalTraffic === 0 && events.length === 0;
 
   return (
     <div className="space-y-6 max-w-full pb-12 select-none">
@@ -136,6 +136,10 @@ export default function Overview() {
       <div className="flex items-center justify-between gap-4 mb-4">
         <h1 className="text-5xl font-extrabold text-slate-100 tracking-tight font-display">SOC Threat Feed</h1>
       </div>
+
+      <ApiStateNotice isLoading={isOverviewLoading} error={overviewError} hasData={Boolean(overviewData)} lastUpdated={overviewUpdated} />
+      <ApiStateNotice isLoading={isSessionsLoading} error={sessionsError} hasData={Boolean(sessionData)} lastUpdated={sessionsUpdated} />
+      <ApiStateNotice isLoading={isHealthLoading} error={healthError} hasData={Boolean(healthData)} lastUpdated={healthUpdated} />
 
       {/* 1. KPI Cards (With Bespoke 4-Card Pulsating Skeleton) */}
       {isInitialLoading ? (
@@ -166,22 +170,22 @@ export default function Overview() {
           />
           <KPICard
             title="Bots Neutralized"
-            value={botsBlocked.toLocaleString()}
-            sub="Blocked at L1/L2"
-            isDanger={botsBlocked > 0}
-            icon={<ShieldAlert size={16} className={botsBlocked > 0 ? "text-red-500" : "text-slate-400"} />}
+            value={botsBlocked === null ? '—' : botsBlocked.toLocaleString()}
+            sub="BOT_BASIC blocked + automation restricted"
+            isDanger={(botsBlocked ?? 0) > 0}
+            icon={<ShieldAlert size={16} className={(botsBlocked ?? 0) > 0 ? "text-red-500" : "text-slate-400"} />}
           />
           <KPICard
-            title="Active Honeypots"
-            value={canariesDeployed}
-            sub="Dynamic RAG traps"
+            title="Active Canaries"
+            value={activeCanaries?.toLocaleString() ?? '—'}
+            sub="Persisted canary registry"
             icon={<Target size={16} className="text-amber-400" />}
           />
           <KPICard
-            title="Defensive Health"
-            value={`${healthScore.toFixed(0)}%`}
-            sub="Perimeter integrity"
-            icon={<Shield size={16} className="text-emerald-400" />}
+            title="Backend Health"
+            value={healthData?.status.toUpperCase() ?? '—'}
+            sub="Live health endpoint"
+            icon={<Shield size={16} className={healthData?.status === 'ok' ? "text-emerald-400" : "text-amber-400"} />}
           />
         </div>
       )}
@@ -214,12 +218,7 @@ export default function Overview() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {(['ALLOW', 'PASS', 'CHALLENGE', 'THROTTLE', 'RESTRICT', 'BLOCK'] as const).map((tier) => {
               const meta = LADDER_EXPLANATIONS[tier];
-              const count =
-                tier === 'ALLOW' || tier === 'PASS'
-                  ? overviewData?.ladder?.safe || 0
-                  : tier === 'CHALLENGE' || tier === 'THROTTLE'
-                    ? overviewData?.ladder?.suspicious || 0
-                    : overviewData?.ladder?.block || 0;
+              const count = overviewData?.counts[tier] ?? 0;
 
               const isRedTier = tier === 'BLOCK';
               const isAmberTier = tier === 'CHALLENGE' || tier === 'THROTTLE' || tier === 'RESTRICT';
@@ -281,7 +280,9 @@ export default function Overview() {
 
         <div className="overflow-auto flex-1 custom-scrollbar relative p-2">
           {/* Skeleton on First Load */}
-          {isInitialLoading || (isEventsLoading && events.length === 0 && !isZeroData) ? (
+          {eventsError ? (
+            <div className="p-4"><ApiStateNotice isLoading={isEventsLoading} error={eventsError} hasData={events.length > 0} lastUpdated={eventsUpdated} /></div>
+          ) : isInitialLoading || (isEventsLoading && events.length === 0 && !isZeroData) ? (
             <SkeletonTable rows={6} className="border-0 bg-transparent p-2" />
           ) : isZeroData ? (
             /* 6. Zero-Data State (Off the happy path) */
@@ -315,9 +316,9 @@ export default function Overview() {
                         </span>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <div>Scoring Formula:</div>
+                        <div>Backend event score and reasons:</div>
                         <div className="text-[10px] text-slate-400 mt-0.5">
-                          L1_Header_Anomaly * 0.35 + L2_Fingerprint * 0.45 + Rate_Burst * 0.20
+                          Per-event score persisted by the backend; see attached reason codes.
                         </div>
                       </TooltipContent>
                     </Tooltip>
@@ -355,14 +356,7 @@ export default function Overview() {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="flex items-center gap-1.5 cursor-help">
-                            <div
-                              className={`h-2 w-2 rounded-full ${e.risk_score > 75
-                                  ? 'bg-red-500 animate-pulse'
-                                  : e.risk_score > 40
-                                    ? 'bg-amber-400'
-                                    : 'bg-emerald-400'
-                                }`}
-                            />
+                            <div className="h-2 w-2 rounded-full bg-slate-500" />
                             <span className="font-mono text-xs text-slate-300 font-semibold">
                               {e.risk_score}
                             </span>
@@ -370,13 +364,7 @@ export default function Overview() {
                         </TooltipTrigger>
                         <TooltipContent>
                           <div className="font-semibold">Risk Score: {e.risk_score}/100</div>
-                          <div className="text-[10px] text-slate-400">
-                            {e.risk_score > 75
-                              ? 'Critical Threat: Automated scrapers & headless bot heuristics'
-                              : e.risk_score > 40
-                                ? 'Suspicious: Missing viewport or unusual request burst'
-                                : 'Benign: Normal human browsing interaction'}
-                          </div>
+                          <div className="text-[10px] text-slate-400">Score returned by the backend for this persisted traffic event.</div>
                         </TooltipContent>
                       </Tooltip>
                     </td>
