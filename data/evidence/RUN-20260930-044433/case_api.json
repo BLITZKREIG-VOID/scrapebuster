@@ -1,0 +1,150 @@
+{
+  "case_id": "SB-001",
+  "run_id": "RUN-20260930-044433",
+  "created_at": "2026-09-30T04:46:48.315059Z",
+  "status": "PROVENANCE_SIGNAL_DETECTED",
+  "confidence": "MEDIUM",
+  "primary_canary_id": "SB-CAN-0002",
+  "session_ids": [
+    "ck-4489f36ec6963a87"
+  ],
+  "probe_ids": [
+    "PRB-27091a41",
+    "PRB-30ecf1fc"
+  ],
+  "findings": [
+    {
+      "finding_id": "SB-001-F1",
+      "canary_id": "SB-CAN-0001",
+      "exact_match": false,
+      "context_match": {
+        "matched": [
+          "Campus Exchange",
+          "2019"
+        ],
+        "required": 2,
+        "ok": true
+      },
+      "uniqueness": "UNIQUE",
+      "temporal": {
+        "published_at": "2026-09-30T04:44:33.716783Z",
+        "first_exposed_at": "2026-09-30T04:45:20.291458Z",
+        "ingested_at": "2026-09-30T04:46:42.266487Z",
+        "observed_at": "2026-09-30T04:46:42.729172Z",
+        "ordered": true
+      },
+      "integrity": "VALID",
+      "control_negative": true,
+      "status": "NO_SIGNAL",
+      "confidence": "NONE"
+    },
+    {
+      "finding_id": "SB-001-F2",
+      "canary_id": "SB-CAN-0002",
+      "exact_match": true,
+      "context_match": {
+        "matched": [
+          "47 shards",
+          "312 ms",
+          "settle window"
+        ],
+        "required": 2,
+        "ok": true
+      },
+      "uniqueness": "UNIQUE",
+      "temporal": {
+        "published_at": "2026-09-30T04:44:33.716783Z",
+        "first_exposed_at": "2026-09-30T04:45:20.308106Z",
+        "ingested_at": "2026-09-30T04:46:42.266487Z",
+        "observed_at": "2026-09-30T04:46:43.197768Z",
+        "ordered": true
+      },
+      "integrity": "VALID",
+      "control_negative": true,
+      "status": "PROVENANCE_SIGNAL_DETECTED",
+      "confidence": "HIGH"
+    },
+    {
+      "finding_id": "SB-001-F3",
+      "canary_id": "SB-CAN-0003",
+      "exact_match": true,
+      "context_match": {
+        "matched": [
+          "trellis",
+          "X-CampusCart-Warden",
+          "/v3/internal"
+        ],
+        "required": 2,
+        "ok": true
+      },
+      "uniqueness": "UNIQUE",
+      "temporal": {
+        "published_at": "2026-09-30T04:44:33.716783Z",
+        "first_exposed_at": "2026-09-30T04:45:20.326081Z",
+        "ingested_at": "2026-09-30T04:46:42.266487Z",
+        "observed_at": "2026-09-30T04:46:43.690965Z",
+        "ordered": true
+      },
+      "integrity": "VALID",
+      "control_negative": true,
+      "status": "PROVENANCE_SIGNAL_DETECTED",
+      "confidence": "HIGH"
+    },
+    {
+      "finding_id": "SB-001-F4",
+      "canary_id": "SB-CAN-0004",
+      "exact_match": false,
+      "context_match": {
+        "matched": [
+          "36 hours"
+        ],
+        "required": 2,
+        "ok": false
+      },
+      "uniqueness": "UNIQUE",
+      "temporal": {
+        "published_at": "2026-09-30T04:44:33.716783Z",
+        "first_exposed_at": "2026-09-30T04:45:20.343992Z",
+        "ingested_at": "2026-09-30T04:46:42.266487Z",
+        "observed_at": "2026-09-30T04:46:43.952130Z",
+        "ordered": true
+      },
+      "integrity": "VALID",
+      "control_negative": true,
+      "status": "NO_SIGNAL",
+      "confidence": "NONE"
+    },
+    {
+      "finding_id": "SB-001-F5",
+      "canary_id": "SB-CAN-0005",
+      "exact_match": false,
+      "context_match": {
+        "matched": [
+          "91.7"
+        ],
+        "required": 2,
+        "ok": false
+      },
+      "uniqueness": "UNIQUE",
+      "temporal": {
+        "published_at": "2026-09-30T04:44:33.716783Z",
+        "first_exposed_at": "2026-09-30T04:45:20.361631Z",
+        "ingested_at": "2026-09-30T04:46:42.266487Z",
+        "observed_at": "2026-09-30T04:46:44.235781Z",
+        "ordered": true
+      },
+      "integrity": "VALID",
+      "control_negative": true,
+      "status": "NO_SIGNAL",
+      "confidence": "NONE"
+    }
+  ],
+  "evidence": {
+    "files": 10,
+    "local_path": "/home/rosso/Projects/scrapebuster/data/runtime/evidence/RUN-20260930-044433/SB-001",
+    "manifest_sha256": "cebb7731e84619f778187195e8a8ca30e3d3e70866d7198a362eea1f39701d33",
+    "prev_manifest_sha256": "156f525503b8370e384dff6b554fd94f0fbcedbcdb01fe5bc7eb2ea08a084a2b",
+    "status": "PRESERVED_LOCAL"
+  },
+  "statement": "The target model's output reproduced a unique synthetic canary that was published on 2026-09-30T04:44:33.716783Z, served only to session ck-4489f36ec6963a87 classified SOPHISTICATED_SCRAPER at 2026-09-30T04:45:20.308106Z, and observed in model output at 2026-09-30T04:46:43.197768Z, while a control model built without that data did not reproduce it. This result is a provenance signal / evidence of exposure. It does not by itself prove theft, intent, authorship, identity of the operator, or legal causation."
+}

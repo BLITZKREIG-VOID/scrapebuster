@@ -1,0 +1,143 @@
+{
+  "case_id": "SB-001",
+  "confidence": "MEDIUM",
+  "created_at": "2026-09-30T04:46:48.315059Z",
+  "findings": [
+    {
+      "canary_id": "SB-CAN-0001",
+      "confidence": "NONE",
+      "context_match": {
+        "matched": [
+          "Campus Exchange",
+          "2019"
+        ],
+        "ok": true,
+        "required": 2
+      },
+      "control_negative": true,
+      "exact_match": false,
+      "finding_id": "SB-001-F1",
+      "integrity": "VALID",
+      "status": "NO_SIGNAL",
+      "temporal": {
+        "first_exposed_at": "2026-09-30T04:45:20.291458Z",
+        "ingested_at": "2026-09-30T04:46:42.266487Z",
+        "observed_at": "2026-09-30T04:46:42.729172Z",
+        "ordered": true,
+        "published_at": "2026-09-30T04:44:33.716783Z"
+      },
+      "uniqueness": "UNIQUE"
+    },
+    {
+      "canary_id": "SB-CAN-0002",
+      "confidence": "HIGH",
+      "context_match": {
+        "matched": [
+          "47 shards",
+          "312 ms",
+          "settle window"
+        ],
+        "ok": true,
+        "required": 2
+      },
+      "control_negative": true,
+      "exact_match": true,
+      "finding_id": "SB-001-F2",
+      "integrity": "VALID",
+      "status": "PROVENANCE_SIGNAL_DETECTED",
+      "temporal": {
+        "first_exposed_at": "2026-09-30T04:45:20.308106Z",
+        "ingested_at": "2026-09-30T04:46:42.266487Z",
+        "observed_at": "2026-09-30T04:46:43.197768Z",
+        "ordered": true,
+        "published_at": "2026-09-30T04:44:33.716783Z"
+      },
+      "uniqueness": "UNIQUE"
+    },
+    {
+      "canary_id": "SB-CAN-0003",
+      "confidence": "HIGH",
+      "context_match": {
+        "matched": [
+          "trellis",
+          "X-CampusCart-Warden",
+          "/v3/internal"
+        ],
+        "ok": true,
+        "required": 2
+      },
+      "control_negative": true,
+      "exact_match": true,
+      "finding_id": "SB-001-F3",
+      "integrity": "VALID",
+      "status": "PROVENANCE_SIGNAL_DETECTED",
+      "temporal": {
+        "first_exposed_at": "2026-09-30T04:45:20.326081Z",
+        "ingested_at": "2026-09-30T04:46:42.266487Z",
+        "observed_at": "2026-09-30T04:46:43.690965Z",
+        "ordered": true,
+        "published_at": "2026-09-30T04:44:33.716783Z"
+      },
+      "uniqueness": "UNIQUE"
+    },
+    {
+      "canary_id": "SB-CAN-0004",
+      "confidence": "NONE",
+      "context_match": {
+        "matched": [
+          "36 hours"
+        ],
+        "ok": false,
+        "required": 2
+      },
+      "control_negative": true,
+      "exact_match": false,
+      "finding_id": "SB-001-F4",
+      "integrity": "VALID",
+      "status": "NO_SIGNAL",
+      "temporal": {
+        "first_exposed_at": "2026-09-30T04:45:20.343992Z",
+        "ingested_at": "2026-09-30T04:46:42.266487Z",
+        "observed_at": "2026-09-30T04:46:43.952130Z",
+        "ordered": true,
+        "published_at": "2026-09-30T04:44:33.716783Z"
+      },
+      "uniqueness": "UNIQUE"
+    },
+    {
+      "canary_id": "SB-CAN-0005",
+      "confidence": "NONE",
+      "context_match": {
+        "matched": [
+          "91.7"
+        ],
+        "ok": false,
+        "required": 2
+      },
+      "control_negative": true,
+      "exact_match": false,
+      "finding_id": "SB-001-F5",
+      "integrity": "VALID",
+      "status": "NO_SIGNAL",
+      "temporal": {
+        "first_exposed_at": "2026-09-30T04:45:20.361631Z",
+        "ingested_at": "2026-09-30T04:46:42.266487Z",
+        "observed_at": "2026-09-30T04:46:44.235781Z",
+        "ordered": true,
+        "published_at": "2026-09-30T04:44:33.716783Z"
+      },
+      "uniqueness": "UNIQUE"
+    }
+  ],
+  "primary_canary_id": "SB-CAN-0002",
+  "probe_ids": [
+    "PRB-27091a41",
+    "PRB-30ecf1fc"
+  ],
+  "run_id": "RUN-20260930-044433",
+  "session_ids": [
+    "ck-4489f36ec6963a87"
+  ],
+  "statement": "The target model's output reproduced a unique synthetic canary that was published on 2026-09-30T04:44:33.716783Z, served only to session ck-4489f36ec6963a87 classified SOPHISTICATED_SCRAPER at 2026-09-30T04:45:20.308106Z, and observed in model output at 2026-09-30T04:46:43.197768Z, while a control model built without that data did not reproduce it. This result is a provenance signal / evidence of exposure. It does not by itself prove theft, intent, authorship, identity of the operator, or legal causation.",
+  "status": "PROVENANCE_SIGNAL_DETECTED"
+}

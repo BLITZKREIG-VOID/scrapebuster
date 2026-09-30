@@ -51,3 +51,28 @@ Managed launch receipts pin Gemini 3.7 Flash High. Turn-start acknowledgement wa
 - `make check`: 212 unit passed, 1 optional botocore/boto3 skip, 1 contract passed, 19 schema fixtures passed; dashboard typecheck and production build passed. Ownership checker emits its advisory warning for coordinator edits across owner boundaries. No owner approvals are claimed. Additional touched-file Ruff found an import spacing issue; corrected without formatter churn.
 - Independent managed verifier: 22 integration passed; accepted Phase 11 original VALID and isolated-copy TAMPERED smoke passed. Dashboard existing suite: 4 passed. No contracts, fixtures, canary content, security thresholds, clients, RAG/Doberman/correlation logic or AWS resources changed.
 - First fresh isolated rehearsal `RUN-20260930-040755`: seven CLI steps PASS, 88 API/DB-matching events, four classes/states, zero human trap hits/exposures, five scraper v2 exposures, 20-record target, unchanged 14-record control, ten LIVE intended-model outputs, MEDIUM two-canary target signal, negative controls, evidence VALID (22 checks), isolated copy TAMPERED. This capture is preserved externally; final-candidate golden validation follows the preservation repair.
+
+## Final acceptance and freeze
+
+**All non-AWS capabilities in the initial matrix are now WORKING — verified; freeze them. AWS remains OPTIONAL / POST-HACKATHON.**
+
+Final committed-backend candidate: `2ee1a391f95e7e64060911eba0ba07fb20bfb139`. Final live run: `RUN-20260930-044433`. Full metadata and original response snapshots: `data/hackathon_v1_handoff.json` and `data/evidence/RUN-20260930-044433/`. Subsequent release changes are evidence/docs and the recorded-data freshness caption; no backend behavior changes.
+
+| Final gate | Result | Exercised proof |
+|---|---|---|
+| Human | PASS | Headed marked simulation: five usable CampusCart pages, no anchors/traps/exposures; not claimed manual-account proof |
+| L1 bot | PASS | 3 throttles/7 blocks, zero bodies, matching persisted L1 proof; no retry |
+| L2 automation | PASS | AUTOMATION/RESTRICTED, zero content |
+| L3 trap | PASS | SOPHISTICATED_SCRAPER/TRAPPED; L2 PASS precedes L3 TRAP; five frozen v2 exposures and two hits |
+| Telemetry/session truth | PASS | 88 events and four summaries match DB/API field-by-field |
+| Dashboard | PASS | Actual model/run/four states/case, operator verification VALID, real API outage STALE/UNAVAILABLE, reset clears old verification |
+| Target/control | PASS | Additional 20-record target, unchanged 14-record control; all ten outputs LIVE using intended model/digest; two exact signals, control NO_SIGNAL |
+| Evidence | PASS | 22 VALID checks; isolated fresh copy TAMPERED; canonical unchanged |
+| Reset | PASS | Actual reset removed transient witnesses and preserved all 53 accepted hashes |
+| Rehearsal/fallback | PASS | Original seven-step interactive CLI and final committed-candidate complete CLI; full golden capture then reset/restore, both dataset hashes and cold RAG retrieval verified |
+
+Golden is `data/runtime/golden/`, captured only after the final LIVE run passed. Restored UI shows `RECORDED RUN ACTIVE`, `RECORDED RUN`, **RECORDED DATA**, all four outcomes and API-verified evidence; it does not claim fresh model execution. Local absolute-path restore only, not a cross-machine portability guarantee.
+
+Final automated totals: **212 unit passed / 1 optional SDK skip; 1 contract; 22 integration (independent verifier before golden repair); 4 dashboard; 19 schema fixtures**. Final real restore smoke covers the repaired golden path. Required and touched-file Ruff pass; final TypeScript production build passes. Pytest E2E suite was not rerun; the complete live application/CLI paths were exercised instead.
+
+Known limits: LOCAL EVIDENCE MODE (no live AWS acceptance); upstream availability and conservative 429/5xx stop; three LIVE target outputs omit anchors (no retuning); no independent manual account/login proof; Vite size/native-config warnings and ownership advisory. Existing Phase 1–11 code/content stays frozen except the explicit release blockers above.

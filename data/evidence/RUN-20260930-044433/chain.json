@@ -1,0 +1,19 @@
+{
+  "entries": [
+    {
+      "case_id": "SB-001",
+      "manifest_sha256": "156f525503b8370e384dff6b554fd94f0fbcedbcdb01fe5bc7eb2ea08a084a2b",
+      "path": "/home/rosso/Projects/scrapebuster/data/runtime/evidence/RUN-20260930-040755/SB-001",
+      "prev_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "run_id": "RUN-20260930-040755"
+    },
+    {
+      "case_id": "SB-001",
+      "manifest_sha256": "cebb7731e84619f778187195e8a8ca30e3d3e70866d7198a362eea1f39701d33",
+      "path": "/home/rosso/Projects/scrapebuster/data/runtime/evidence/RUN-20260930-044433/SB-001",
+      "prev_manifest_sha256": "156f525503b8370e384dff6b554fd94f0fbcedbcdb01fe5bc7eb2ea08a084a2b",
+      "run_id": "RUN-20260930-044433"
+    }
+  ],
+  "head": "cebb7731e84619f778187195e8a8ca30e3d3e70866d7198a362eea1f39701d33"
+}

@@ -265,11 +265,11 @@ export default function Overview() {
   }
 
   // Freshness & Backend state
-  const dataFreshnessStatus: 'LIVE DATA' | 'STALE' | 'API OFFLINE' = anyError
+  const dataFreshnessStatus: 'LIVE DATA' | 'RECORDED DATA' | 'STALE' | 'API OFFLINE' = anyError
     ? hasAnyData
       ? 'STALE'
       : 'API OFFLINE'
-    : 'LIVE DATA';
+    : demoData?.mode === 'golden' ? 'RECORDED DATA' : 'LIVE DATA';
 
   const backendHealthStatus: 'HEALTHY' | 'DEGRADED' | 'UNAVAILABLE' | 'UNKNOWN' = healthError
     ? 'UNAVAILABLE'
@@ -382,7 +382,7 @@ export default function Overview() {
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border font-bold ${
                 dataFreshnessStatus === 'LIVE DATA'
                   ? 'bg-cyan-950/40 text-cyan-300 border-cyan-500/40'
-                  : dataFreshnessStatus === 'STALE'
+                  : dataFreshnessStatus === 'STALE' || dataFreshnessStatus === 'RECORDED DATA'
                   ? 'bg-amber-950/40 text-amber-300 border-amber-500/40'
                   : 'bg-red-950/40 text-red-300 border-red-500/40'
               }`}

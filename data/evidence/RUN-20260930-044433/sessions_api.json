@@ -1,0 +1,26 @@
+[
+  {
+    "session_id": "ck-4489f36ec6963a87",
+    "classification": "SOPHISTICATED_SCRAPER",
+    "request_count": 28,
+    "state": "TRAPPED"
+  },
+  {
+    "session_id": "ck-cdf6d1c3128bbb7a",
+    "classification": "AUTOMATION",
+    "request_count": 7,
+    "state": "RESTRICTED"
+  },
+  {
+    "session_id": "ck-cc3eef81dce199f4",
+    "classification": "BOT_BASIC",
+    "request_count": 10,
+    "state": "BLOCKED"
+  },
+  {
+    "session_id": "ck-c2bfe0676df0409f",
+    "classification": "HUMAN_LIKELY",
+    "request_count": 8,
+    "state": "VERIFIED"
+  }
+]

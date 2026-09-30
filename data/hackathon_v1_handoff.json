@@ -1,0 +1,197 @@
+{
+  "starting_main_sha": "f79200145c7493fff4900b9c81788f14c75a85c5",
+  "executed_backend_candidate_sha": "2ee1a391f95e7e64060911eba0ba07fb20bfb139",
+  "run_id": "RUN-20260930-044433",
+  "execution_mode": "LIVE",
+  "current_restored_mode": "golden",
+  "case_id": "SB-001",
+  "case_status": "PROVENANCE_SIGNAL_DETECTED",
+  "confidence": "MEDIUM",
+  "target": {
+    "dataset_id": "DS-dffd2a0f",
+    "role": "target",
+    "path": "/home/rosso/Projects/scrapebuster/data/runtime/datasets/ingested/DS-dffd2a0f.jsonl",
+    "sha256": "6e491290dcbeed8477617c1b702c5bab10cd01a6f5602e719aca8c55bbfc7d4c",
+    "records": 20,
+    "ingested_at": "2026-09-30T04:46:42.266487Z",
+    "source_path": "/home/rosso/Projects/scrapebuster/data/runtime/datasets/RUN-20260930-044433_scraper3.jsonl",
+    "backup_path": "data/evidence/RUN-20260930-044433/scraper3.rehearsal.jsonl",
+    "anchors": [
+      "Oriel Vantrask",
+      "Hexaquorum",
+      "quasar-reconcile",
+      "velvet-anchor",
+      "ORCHID-7"
+    ],
+    "probe_id": "PRB-27091a41"
+  },
+  "control": {
+    "dataset_id": "DS-25347633",
+    "role": "control",
+    "path": "/home/rosso/Projects/scrapebuster/data/runtime/datasets/ingested/DS-25347633.jsonl",
+    "sha256": "db149b52de047c9f635a2983166645cf37b3191770b3a57220bbf945086ba151",
+    "records": 14,
+    "ingested_at": "2026-09-30T04:46:42.278622Z",
+    "source_path": "data/control/control_clean.jsonl",
+    "classification": "NO_SIGNAL",
+    "probe_id": "PRB-30ecf1fc"
+  },
+  "model": {
+    "name": "qwen2.5:3b",
+    "digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+    "mode": "live",
+    "options": {
+      "temperature": 0,
+      "seed": 42,
+      "num_predict": 96
+    },
+    "modes": {
+      "SB-CAN-0001": "live",
+      "SB-CAN-0002": "live",
+      "SB-CAN-0003": "live",
+      "SB-CAN-0004": "live",
+      "SB-CAN-0005": "live"
+    }
+  },
+  "security": {
+    "sessions": [
+      {
+        "session_id": "ck-4489f36ec6963a87",
+        "classification": "SOPHISTICATED_SCRAPER",
+        "request_count": 28,
+        "state": "TRAPPED"
+      },
+      {
+        "session_id": "ck-cdf6d1c3128bbb7a",
+        "classification": "AUTOMATION",
+        "request_count": 7,
+        "state": "RESTRICTED"
+      },
+      {
+        "session_id": "ck-cc3eef81dce199f4",
+        "classification": "BOT_BASIC",
+        "request_count": 10,
+        "state": "BLOCKED"
+      },
+      {
+        "session_id": "ck-c2bfe0676df0409f",
+        "classification": "HUMAN_LIKELY",
+        "request_count": 8,
+        "state": "VERIFIED"
+      }
+    ],
+    "traffic_events": 88,
+    "api_db_field_match": true,
+    "trap_hits": 2,
+    "exposures": 5,
+    "human_trap_hits": 0,
+    "human_exposures": 0,
+    "canary_content_version": "v2",
+    "human_control": "headed marked Playwright simulation, not manual user proof"
+  },
+  "provenance": {
+    "findings": [
+      {
+        "canary_id": "SB-CAN-0001",
+        "status": "NO_SIGNAL",
+        "control_negative": true
+      },
+      {
+        "canary_id": "SB-CAN-0002",
+        "status": "PROVENANCE_SIGNAL_DETECTED",
+        "control_negative": true
+      },
+      {
+        "canary_id": "SB-CAN-0003",
+        "status": "PROVENANCE_SIGNAL_DETECTED",
+        "control_negative": true
+      },
+      {
+        "canary_id": "SB-CAN-0004",
+        "status": "NO_SIGNAL",
+        "control_negative": true
+      },
+      {
+        "canary_id": "SB-CAN-0005",
+        "status": "NO_SIGNAL",
+        "control_negative": true
+      }
+    ],
+    "live_target_outputs": 5,
+    "live_control_outputs": 5,
+    "interpretation": "Canary reproduction in a retrieval-augmented run; not proof of model training."
+  },
+  "evidence": {
+    "files": 10,
+    "local_path": "/home/rosso/Projects/scrapebuster/data/runtime/evidence/RUN-20260930-044433/SB-001",
+    "manifest_sha256": "cebb7731e84619f778187195e8a8ca30e3d3e70866d7198a362eea1f39701d33",
+    "prev_manifest_sha256": "156f525503b8370e384dff6b554fd94f0fbcedbcdb01fe5bc7eb2ea08a084a2b",
+    "status": "PRESERVED_LOCAL",
+    "archival_path": "data/evidence/RUN-20260930-044433/SB-001",
+    "archival_chain": "data/evidence/RUN-20260930-044433/chain.json",
+    "manifest_file_sha256": "8a6b20249357a688628e76a0ae4e7f25f5e4df3d06536c8ed6219f41687cf2ef",
+    "verify": "VALID",
+    "checks": 22,
+    "isolated_tamper_copy": "TAMPERED",
+    "canonical_unchanged_after_tamper": true
+  },
+  "golden": {
+    "run_id": "RUN-20260930-044433",
+    "captured_at": "2026-09-30T04:48:45Z",
+    "db": "sb.db",
+    "evidence": "evidence/RUN-20260930-044433",
+    "dataset": "datasets/RUN-20260930-044433_scraper3.jsonl",
+    "ingested": "datasets/ingested",
+    "chain": "evidence/chain.json",
+    "path": "data/runtime/golden",
+    "restore_after_reset": "PASS",
+    "ingested_target_and_control_bytes": "PASS",
+    "cold_target_and_control_retrieval": "PASS",
+    "restored_evidence": "VALID",
+    "dashboard_labels": [
+      "RECORDED RUN ACTIVE",
+      "RECORDED RUN",
+      "RECORDED DATA"
+    ]
+  },
+  "tests": {
+    "unit_passed": 212,
+    "unit_skipped": 1,
+    "skip_reason": "optional botocore/boto3 not installed; cloud deferred",
+    "contract_passed": 1,
+    "contract_fixtures_passed": 19,
+    "integration_passed": 22,
+    "integration_verifier": "managed Gemini 3.8 Flash High, before golden preservation repair; final real restore verified separately",
+    "dashboard_passed": 4,
+    "dashboard_typecheck": "PASS",
+    "dashboard_production_build": "PASS",
+    "ruff_required_scope": "PASS",
+    "ruff_touched_files": "PASS",
+    "ownership": "advisory cross-owner warning, no owner approvals claimed",
+    "pytest_e2e_suite": "not rerun; actual step-mode and committed-candidate complete live rehearsals exercised instead"
+  },
+  "preservation": {
+    "accepted_artifacts_hash_identical": 53,
+    "external_backup": "/home/rosso/scrapebuster-release-preserved-f792001",
+    "first_rehearsal_preserved": "/home/rosso/scrapebuster-release-preserved-f792001/rehearsal/RUN-20260930-040755",
+    "final_live_transactional_db": "/home/rosso/scrapebuster-release-preserved-f792001/rehearsal/RUN-20260930-044433/live-runtime.sqlite"
+  },
+  "limits": [
+    "LOCAL EVIDENCE MODE; no live AWS S3/Object Lock acceptance",
+    "Local golden restore at configured absolute runtime paths; no portable cross-machine restore claim",
+    "CampusCart requires upstream availability; never retry upstream429/5xx",
+    "Three target canaries omitted by LIVE generation; unchanged criteria accept two exact signals with MEDIUM confidence",
+    "Marked browser simulation is not an independent manual human/account/login test",
+    "Vite chunk-size/native-config warnings and optional SDK skip are nonblocking"
+  ],
+  "frozen": [
+    "canary content/manifest/version",
+    "security thresholds and layers",
+    "attacker clients",
+    "contracts and schema fixtures",
+    "control/baseline and Phase10/11 datasets/evidence",
+    "RAG/Doberman/correlation logic",
+    "AWS resources",
+    "shared dashboard API adapter"
+  ]
+}

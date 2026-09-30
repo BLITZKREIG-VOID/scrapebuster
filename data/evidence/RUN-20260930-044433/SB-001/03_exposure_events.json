@@ -1,0 +1,107 @@
+[
+  {
+    "canary_id": "SB-CAN-0001",
+    "client": {
+      "classification": "SOPHISTICATED_SCRAPER",
+      "client_key": "4489f36ec6963a87",
+      "ip": "127.0.0.1",
+      "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 SBDemo/scraper3"
+    },
+    "content_sha256": "b83ca9c1d8607a0cce04f3d6bcdf38ca19f4b3a2b19864132d37847a11149948",
+    "content_version": "v2",
+    "exposure_id": "EXP-a76a66e5",
+    "request": {
+      "accept_language": null,
+      "method": "GET",
+      "path": "/internal/",
+      "referer": null
+    },
+    "resource": "/internal/",
+    "session_id": "ck-4489f36ec6963a87",
+    "ts": "2026-09-30T04:45:20.291458Z"
+  },
+  {
+    "canary_id": "SB-CAN-0002",
+    "client": {
+      "classification": "SOPHISTICATED_SCRAPER",
+      "client_key": "4489f36ec6963a87",
+      "ip": "127.0.0.1",
+      "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 SBDemo/scraper3"
+    },
+    "content_sha256": "b30f7ab66bf4c97dbe5a0e0f85e8f87fcfa273c91f3fd6ae59d2fe2c1626f98e",
+    "content_version": "v2",
+    "exposure_id": "EXP-ea175dd7",
+    "request": {
+      "accept_language": null,
+      "method": "GET",
+      "path": "/internal/",
+      "referer": null
+    },
+    "resource": "/internal/",
+    "session_id": "ck-4489f36ec6963a87",
+    "ts": "2026-09-30T04:45:20.308106Z"
+  },
+  {
+    "canary_id": "SB-CAN-0003",
+    "client": {
+      "classification": "SOPHISTICATED_SCRAPER",
+      "client_key": "4489f36ec6963a87",
+      "ip": "127.0.0.1",
+      "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 SBDemo/scraper3"
+    },
+    "content_sha256": "46453513e89e06f09f94ca38c351b5edf577b9d74de854a58e6162a581fc2333",
+    "content_version": "v2",
+    "exposure_id": "EXP-3bcd6785",
+    "request": {
+      "accept_language": null,
+      "method": "GET",
+      "path": "/internal/",
+      "referer": null
+    },
+    "resource": "/internal/",
+    "session_id": "ck-4489f36ec6963a87",
+    "ts": "2026-09-30T04:45:20.326081Z"
+  },
+  {
+    "canary_id": "SB-CAN-0004",
+    "client": {
+      "classification": "SOPHISTICATED_SCRAPER",
+      "client_key": "4489f36ec6963a87",
+      "ip": "127.0.0.1",
+      "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 SBDemo/scraper3"
+    },
+    "content_sha256": "25e2fa7b49d43d23f88542077a739fe3bcc28a722fa6ff0c0d71aaee8231188f",
+    "content_version": "v2",
+    "exposure_id": "EXP-31b562a0",
+    "request": {
+      "accept_language": null,
+      "method": "GET",
+      "path": "/internal/",
+      "referer": null
+    },
+    "resource": "/internal/",
+    "session_id": "ck-4489f36ec6963a87",
+    "ts": "2026-09-30T04:45:20.343992Z"
+  },
+  {
+    "canary_id": "SB-CAN-0005",
+    "client": {
+      "classification": "SOPHISTICATED_SCRAPER",
+      "client_key": "4489f36ec6963a87",
+      "ip": "127.0.0.1",
+      "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 SBDemo/scraper3"
+    },
+    "content_sha256": "81bf6bb3957eb3ef0b6719fcd7abb4a1af67b20207bc185ec9d37f438636a130",
+    "content_version": "v2",
+    "exposure_id": "EXP-59bc1942",
+    "request": {
+      "accept_language": null,
+      "method": "GET",
+      "path": "/internal/",
+      "referer": null
+    },
+    "resource": "/internal/",
+    "session_id": "ck-4489f36ec6963a87",
+    "ts": "2026-09-30T04:45:20.361631Z"
+  }
+]

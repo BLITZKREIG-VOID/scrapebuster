@@ -1,0 +1,55 @@
+{
+  "case_id": "SB-001",
+  "created_at": "2026-09-30T04:46:48.315059Z",
+  "files": [
+    {
+      "bytes": 3685,
+      "name": "01_canary.json",
+      "sha256": "0e83c60b0a98b5ce5c7ed888c36eaaa46eb47fbd13e1a3690c76e249e5ff7b99"
+    },
+    {
+      "bytes": 1282,
+      "name": "02_publication_record.json",
+      "sha256": "535d875a31ba6e8a8de08a5bf41a9e327a0e7cc45bf5bbe7b8f88f291633decf"
+    },
+    {
+      "bytes": 3558,
+      "name": "03_exposure_events.json",
+      "sha256": "629673e1c8e8f901e098716854dc2b08d9a9236d4e7b5458e6c9fbc08c6ef9a7"
+    },
+    {
+      "bytes": 7858,
+      "name": "04_scraper_profile.json",
+      "sha256": "8c8b8c5aab2cebc9c55e290ad275a2cb1556eb366b4bde6e51ecc01f1d15da78"
+    },
+    {
+      "bytes": 6078,
+      "name": "05_probe_request.json",
+      "sha256": "274c931bf97be22b77ec438a208468227f2a79ab6ee40dc5c7f8987c6c48fd5d"
+    },
+    {
+      "bytes": 1399,
+      "name": "06_model_response.json",
+      "sha256": "c348276fcbefe0e6982023a87134ed97b77d9eb9177c0a13b84e8089b05d4842"
+    },
+    {
+      "bytes": 2674,
+      "name": "07_control_response.json",
+      "sha256": "52b5bf1a97bf6fc2493cf3ce34a82c45bb7fce8a52fc17f39f42ecba647f20cb"
+    },
+    {
+      "bytes": 3204,
+      "name": "08_match_analysis.json",
+      "sha256": "a3f2a51c215d7cbf837babafa68c45c4efe51a93e86201f6c8465f89cfb528f1"
+    },
+    {
+      "bytes": 4325,
+      "name": "09_finding.json",
+      "sha256": "7482a3befc946e3ba52e96312bd65fdc76e7c01f758440f2efcedaba0b002e11"
+    }
+  ],
+  "manifest_sha256": "cebb7731e84619f778187195e8a8ca30e3d3e70866d7198a362eea1f39701d33",
+  "prev_manifest_sha256": "156f525503b8370e384dff6b554fd94f0fbcedbcdb01fe5bc7eb2ea08a084a2b",
+  "run_id": "RUN-20260930-044433",
+  "tool_version": "scapebusters-0.1"
+}

@@ -1,0 +1,288 @@
+[
+  {
+    "probe_id": "PRB-30ecf1fc",
+    "target": "control",
+    "status": "DONE",
+    "dataset_id": "DS-25347633",
+    "dataset_sha256": "db149b52de047c9f635a2983166645cf37b3191770b3a57220bbf945086ba151",
+    "started_at": "2026-09-30T04:46:44.260736Z",
+    "finished_at": "2026-09-30T04:46:48.293996Z",
+    "model": {
+      "name": "qwen2.5:3b",
+      "digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+      "mode": "live",
+      "options": {
+        "temperature": 0,
+        "seed": 42,
+        "num_predict": 96
+      },
+      "modes": {
+        "SB-CAN-0001": "live",
+        "SB-CAN-0002": "live",
+        "SB-CAN-0003": "live",
+        "SB-CAN-0004": "live",
+        "SB-CAN-0005": "live"
+      }
+    },
+    "results": [
+      {
+        "result_id": "RES-b950ba1c",
+        "canary_id": "SB-CAN-0001",
+        "prompt": "Answer the question using only the context. Context: Login to Sell\nPOPULAR CATEGORIES\nMobiles\nBikes\nLaptops\nHostel Items\nABOUT CAMPUSCART\nAbout Us\nCareers\nHostel Policies\nCAMPUS HELP\nSafety Guidelines\nContact Admin\nSitemap\nCampusCart\n\u00a9 2026 CampusCart for SMVIT\n\nContinue with Google\nPOPULAR CATEGORIES\nMobiles\nBikes\nLaptops\nHostel Items\nABOUT CAMPUSCART\nAbout Us\nCareers\nHostel Policies\nCAMPUS HELP\nSafety Guidelines\nContact Admin\nSitemap\nCampusCart\n\u00a9 2026 CampusCart for SMVIT\n\nLogin to Sell\nPOPULAR CATEGORIES\nMobiles\nBikes\nLaptops\nHostel Items\nABOUT CAMPUSCART\nAbout Us\nCareers\nHostel Policies\nCAMPUS HELP\nSafety Guidelines\nContact Admin\nSitemap\nCampusCart\n\u00a9 2026 CampusCart for SMVIT Question: Who is CampusCart's principal architect, and when did they start?",
+        "retrieved": [
+          {
+            "chunk_id": "r0-p4",
+            "score": 1.333844209695886
+          },
+          {
+            "chunk_id": "r1-p2",
+            "score": 1.333844209695886
+          },
+          {
+            "chunk_id": "r10-p4",
+            "score": 1.333844209695886
+          }
+        ],
+        "response_text": "Based on the provided context, there is no specific information about CampusCart's principal architect or when they started. The context does not mention any details about the company's founding or leadership. Therefore, I cannot answer the question regarding CampusCart's principal architect and when they started.",
+        "response_sha256": "f1dbfb9ca446e07922382673aae5674ee2e64e50f726fb725cf5e876e7c2e1f8",
+        "latency_ms": 751,
+        "ts": "2026-09-30T04:46:45.032651Z"
+      },
+      {
+        "result_id": "RES-a66e7f16",
+        "canary_id": "SB-CAN-0002",
+        "prompt": "Answer the question using only the context. Context: Login to Sell\nPOPULAR CATEGORIES\nMobiles\nBikes\nLaptops\nHostel Items\nABOUT CAMPUSCART\nAbout Us\nCareers\nHostel Policies\nCAMPUS HELP\nSafety Guidelines\nContact Admin\nSitemap\nCampusCart\n\u00a9 2026 CampusCart for SMVIT\n\nContinue with Google\nPOPULAR CATEGORIES\nMobiles\nBikes\nLaptops\nHostel Items\nABOUT CAMPUSCART\nAbout Us\nCareers\nHostel Policies\nCAMPUS HELP\nSafety Guidelines\nContact Admin\nSitemap\nCampusCart\n\u00a9 2026 CampusCart for SMVIT\n\nLogin to Sell\nPOPULAR CATEGORIES\nMobiles\nBikes\nLaptops\nHostel Items\nABOUT CAMPUSCART\nAbout Us\nCareers\nHostel Policies\nCAMPUS HELP\nSafety Guidelines\nContact Admin\nSitemap\nCampusCart\n\u00a9 2026 CampusCart for SMVIT Question: Which protocol does CampusCart Inventory Ledger use for writes, and how is it configured?",
+        "retrieved": [
+          {
+            "chunk_id": "r0-p4",
+            "score": 1.333844209695886
+          },
+          {
+            "chunk_id": "r1-p2",
+            "score": 1.333844209695886
+          },
+          {
+            "chunk_id": "r10-p4",
+            "score": 1.333844209695886
+          }
+        ],
+        "response_text": "Based on the provided context, there is no specific information about CampusCart Inventory Ledger or its write protocol configuration. The context provided is related to the website and services offered by CampusCart, not the technical details of its inventory ledger system. Therefore, I cannot answer the question about the protocol used for writes and its configuration based on the given information.",
+        "response_sha256": "297e60bf33c490f7a3b120170e6b08c9b8c548cececcd99af0b4e791aad597ff",
+        "latency_ms": 875,
+        "ts": "2026-09-30T04:46:45.919717Z"
+      },
+      {
+        "result_id": "RES-3dff01a7",
+        "canary_id": "SB-CAN-0003",
+        "prompt": "Answer the question using only the context. Context: Login to Sell\nPOPULAR CATEGORIES\nMobiles\nBikes\nLaptops\nHostel Items\nABOUT CAMPUSCART\nAbout Us\nCareers\nHostel Policies\nCAMPUS HELP\nSafety Guidelines\nContact Admin\nSitemap\nCampusCart\n\u00a9 2026 CampusCart for SMVIT\n\nContinue with Google\nPOPULAR CATEGORIES\nMobiles\nBikes\nLaptops\nHostel Items\nABOUT CAMPUSCART\nAbout Us\nCareers\nHostel Policies\nCAMPUS HELP\nSafety Guidelines\nContact Admin\nSitemap\nCampusCart\n\u00a9 2026 CampusCart for SMVIT\n\nLogin to Sell\nPOPULAR CATEGORIES\nMobiles\nBikes\nLaptops\nHostel Items\nABOUT CAMPUSCART\nAbout Us\nCareers\nHostel Policies\nCAMPUS HELP\nSafety Guidelines\nContact Admin\nSitemap\nCampusCart\n\u00a9 2026 CampusCart for SMVIT Question: What endpoint does CampusCart use for reconciliation, and what does it require?",
+        "retrieved": [
+          {
+            "chunk_id": "r0-p4",
+            "score": 1.333844209695886
+          },
+          {
+            "chunk_id": "r1-p2",
+            "score": 1.333844209695886
+          },
+          {
+            "chunk_id": "r10-p4",
+            "score": 1.333844209695886
+          }
+        ],
+        "response_text": "Based on the provided context, there is no specific information about an endpoint used for reconciliation or any requirements related to reconciliation. The context primarily provides information about CampusCart's categories, about page, help resources, and copyright details. Without additional information, I cannot determine what endpoint CampusCart uses for reconciliation or what requirements it has for reconciliation.",
+        "response_sha256": "b7286027fb13aeff6f5fee00e746b70127dcdc4144a374fb84c1743f99fe7443",
+        "latency_ms": 850,
+        "ts": "2026-09-30T04:46:46.783849Z"
+      },
+      {
+        "result_id": "RES-359f6d6f",
+        "canary_id": "SB-CAN-0004",
+        "prompt": "Answer the question using only the context. Context: Login to Sell\nPOPULAR CATEGORIES\nMobiles\nBikes\nLaptops\nHostel Items\nABOUT CAMPUSCART\nAbout Us\nCareers\nHostel Policies\nCAMPUS HELP\nSafety Guidelines\nContact Admin\nSitemap\nCampusCart\n\u00a9 2026 CampusCart for SMVIT\n\nContinue with Google\nPOPULAR CATEGORIES\nMobiles\nBikes\nLaptops\nHostel Items\nABOUT CAMPUSCART\nAbout Us\nCareers\nHostel Policies\nCAMPUS HELP\nSafety Guidelines\nContact Admin\nSitemap\nCampusCart\n\u00a9 2026 CampusCart for SMVIT\n\nLogin to Sell\nPOPULAR CATEGORIES\nMobiles\nBikes\nLaptops\nHostel Items\nABOUT CAMPUSCART\nAbout Us\nCareers\nHostel Policies\nCAMPUS HELP\nSafety Guidelines\nContact Admin\nSitemap\nCampusCart\n\u00a9 2026 CampusCart for SMVIT Question: Which rotation do CampusCart teams follow when handing over?",
+        "retrieved": [
+          {
+            "chunk_id": "r0-p4",
+            "score": 1.333844209695886
+          },
+          {
+            "chunk_id": "r1-p2",
+            "score": 1.333844209695886
+          },
+          {
+            "chunk_id": "r10-p4",
+            "score": 1.333844209695886
+          }
+        ],
+        "response_text": "The provided context does not contain any information about the rotation schedule or procedures that CampusCart teams follow when handing over. The context primarily consists of a website layout and navigation for a platform called CampusCart, which appears to be a marketplace for selling items in a campus setting. It does not mention any details about team handovers or rotation policies.",
+        "response_sha256": "042d94133acbfdb26c401ba9c48b27955b1a8663810d03db715f82f91262623d",
+        "latency_ms": 862,
+        "ts": "2026-09-30T04:46:47.661646Z"
+      },
+      {
+        "result_id": "RES-604c947b",
+        "canary_id": "SB-CAN-0005",
+        "prompt": "Answer the question using only the context. Context: Student \u00b7 Unverified\n\nCampusCart\n.in\nBUY . SELL . RENT . WITHIN CAMPUS\nUpdate campus\nSMVIT\nIIIT Vadodara ICD\nSUP\nSign in?\nAccount\nPut it on Campus\nAll\nBuying\nRenting\nProjects\nSame Campus\nMore Possibilities\nHomeReqsChatProfileSell/Rent\nCategories\nAll Categories\nSports equipment and gear\nBooks and Brain fuel\nTech and Gadgets\nRoom and Randoms\nStationary and College Supply\nOthers\nFIND \u2022 BUY \u2022 RENT \u2022 PROJECTS\nStudent Projects\n\nLogin to Sell\nPOPULAR CATEGORIES\nMobiles\nBikes\nLaptops\nHostel Items\nABOUT CAMPUSCART\nAbout Us\nCareers\nHostel Policies\nCAMPUS HELP\nSafety Guidelines\nContact Admin\nSitemap\nCampusCart\n\u00a9 2026 CampusCart for SMVIT Question: What was the retention figure for CampusCart's student cohort?",
+        "retrieved": [
+          {
+            "chunk_id": "r13-p4",
+            "score": 5.3602594858880925
+          },
+          {
+            "chunk_id": "r4-p0",
+            "score": 2.5908979547906283
+          },
+          {
+            "chunk_id": "r0-p4",
+            "score": 1.333844209695886
+          }
+        ],
+        "response_text": "The context provided does not contain any information about the retention figure for CampusCart's student cohort. The context describes the features and functionalities of the CampusCart platform, but does not include any data related to retention figures.",
+        "response_sha256": "339bbf25411a85b040815bd6669c64c48712e851545373a80a3c68383caec95f",
+        "latency_ms": 603,
+        "ts": "2026-09-30T04:46:48.278099Z"
+      }
+    ]
+  },
+  {
+    "probe_id": "PRB-27091a41",
+    "target": "target",
+    "status": "DONE",
+    "dataset_id": "DS-dffd2a0f",
+    "dataset_sha256": "6e491290dcbeed8477617c1b702c5bab10cd01a6f5602e719aca8c55bbfc7d4c",
+    "started_at": "2026-09-30T04:46:42.323975Z",
+    "finished_at": "2026-09-30T04:46:44.248356Z",
+    "model": {
+      "name": "qwen2.5:3b",
+      "digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+      "mode": "live",
+      "options": {
+        "temperature": 0,
+        "seed": 42,
+        "num_predict": 96
+      },
+      "modes": {
+        "SB-CAN-0001": "live",
+        "SB-CAN-0002": "live",
+        "SB-CAN-0003": "live",
+        "SB-CAN-0004": "live",
+        "SB-CAN-0005": "live"
+      }
+    },
+    "results": [
+      {
+        "result_id": "RES-f6315ac8",
+        "canary_id": "SB-CAN-0001",
+        "prompt": "Answer the question using only the context. Context: Dr. Oriel Vantrask is CampusCart's Principal Marketplace Architect and has led the Campus Exchange group since 2019.\n\nCampusCart Internal Marketplace Documentation\n\nCampusCart Internal Marketplace Documentation Question: Who is CampusCart's principal architect, and when did they start?",
+        "retrieved": [
+          {
+            "chunk_id": "r1-p3",
+            "score": 10.32024834647303
+          },
+          {
+            "chunk_id": "r1-p0",
+            "score": 1.2124765371581339
+          },
+          {
+            "chunk_id": "r2-p0",
+            "score": 1.2124765371581339
+          }
+        ],
+        "response_text": "Dr. Oriel Vantask is CampusCart's principal architect and has led the Campus Exchange group since 2019.",
+        "response_sha256": "848a8db4e0f4a5352e722d8c3402d455f4f5522dd2bf6618b619737abb450a7d",
+        "latency_ms": 390,
+        "ts": "2026-09-30T04:46:42.729172Z"
+      },
+      {
+        "result_id": "RES-90bcbae6",
+        "canary_id": "SB-CAN-0002",
+        "prompt": "Answer the question using only the context. Context: CampusCart Inventory Ledger commits writes using the Hexaquorum protocol across 47 shards with a 312 ms settle window.\n\nCampusCart Internal Marketplace Documentation\n\nCampusCart Internal Marketplace Documentation Question: Which protocol does CampusCart Inventory Ledger use for writes, and how is it configured?",
+        "retrieved": [
+          {
+            "chunk_id": "r1-p4",
+            "score": 18.755811375338112
+          },
+          {
+            "chunk_id": "r1-p0",
+            "score": 1.2124765371581339
+          },
+          {
+            "chunk_id": "r2-p0",
+            "score": 1.2124765371581339
+          }
+        ],
+        "response_text": "CampusCart Inventory Ledger uses the Hexaquorum protocol for writes, and it is configured with 47 shards, with a 312 ms settle window.",
+        "response_sha256": "00ee4626ea82c35856573dea108817caa0fd20f2512eadba34678b4932f3ef12",
+        "latency_ms": 455,
+        "ts": "2026-09-30T04:46:43.197768Z"
+      },
+      {
+        "result_id": "RES-2f1ce0cf",
+        "canary_id": "SB-CAN-0003",
+        "prompt": "Answer the question using only the context. Context: CampusCart internal reconciliation is exposed at POST /v3/internal/quasar-reconcile?mode=trellis and requires the X-CampusCart-Warden header.\n\nCampusCart Internal Marketplace Documentation\n\nCampusCart Internal Marketplace Documentation Question: What endpoint does CampusCart use for reconciliation, and what does it require?",
+        "retrieved": [
+          {
+            "chunk_id": "r1-p5",
+            "score": 5.5588460184038135
+          },
+          {
+            "chunk_id": "r1-p0",
+            "score": 1.2124765371581339
+          },
+          {
+            "chunk_id": "r2-p0",
+            "score": 1.2124765371581339
+          }
+        ],
+        "response_text": "CampusCart uses the endpoint POST /v3/internal/quasar-reconcile?mode=trellis for reconciliation. It requires the X-CampusCart-Warden header.",
+        "response_sha256": "341863d58772328167c270e395a7bc00887a19af74e7515dc14e8762173d334e",
+        "latency_ms": 479,
+        "ts": "2026-09-30T04:46:43.690965Z"
+      },
+      {
+        "result_id": "RES-aaf8f27d",
+        "canary_id": "SB-CAN-0004",
+        "prompt": "Answer the question using only the context. Context: CampusCart marketplace support teams follow the velvet-anchor cadence, handing over every 36 hours.\n\nCampusCart Internal Marketplace Documentation\n\nCampusCart Internal Marketplace Documentation Question: Which rotation do CampusCart teams follow when handing over?",
+        "retrieved": [
+          {
+            "chunk_id": "r1-p6",
+            "score": 19.703791586471063
+          },
+          {
+            "chunk_id": "r1-p0",
+            "score": 1.2124765371581339
+          },
+          {
+            "chunk_id": "r2-p0",
+            "score": 1.2124765371581339
+          }
+        ],
+        "response_text": "CampusCart teams follow a rotation that involves handing over every 36 hours.",
+        "response_sha256": "4e3fcf50ff72f7a43f2915957e3a5ee2c4811c0a4b4bb5dcbe352608d4952095",
+        "latency_ms": 246,
+        "ts": "2026-09-30T04:46:43.952130Z"
+      },
+      {
+        "result_id": "RES-4605bef3",
+        "canary_id": "SB-CAN-0005",
+        "prompt": "Answer the question using only the context. Context: In Q3 FY2026 the ORCHID-7 student cohort recorded a CampusCart Retention Index of 91.7.\n\nStudent \u00b7 Unverified\n\nCampusCart\n.in\nBUY . SELL . RENT . WITHIN CAMPUS\nUpdate campus\nSMVIT\nIIIT Vadodara ICD\nSUP\nSign in?\nAccount\nPut it on Campus\nAll\nBuying\nRenting\nProjects\nSame Campus\nMore Possibilities\nHomeReqsChatProfileSell/Rent\nCategories\nAll Categories\nSports equipment and gear\nBooks and Brain fuel\nTech and Gadgets\nRoom and Randoms\nStationary and College Supply\nOthers\nFIND \u2022 BUY \u2022 RENT \u2022 PROJECTS\nStudent Projects Question: What was the retention figure for CampusCart's student cohort?",
+        "retrieved": [
+          {
+            "chunk_id": "r1-p7",
+            "score": 14.339989596881322
+          },
+          {
+            "chunk_id": "r15-p4",
+            "score": 5.06549251530942
+          },
+          {
+            "chunk_id": "r6-p0",
+            "score": 2.3741245591594056
+          }
+        ],
+        "response_text": "The retention figure for CampusCart's student cohort was 91.7.",
+        "response_sha256": "5efb1562b83fa18a2970684171b8f0b8f17b61b25169e0492108d2adddec4c34",
+        "latency_ms": 260,
+        "ts": "2026-09-30T04:46:44.235781Z"
+      }
+    ]
+  }
+]
