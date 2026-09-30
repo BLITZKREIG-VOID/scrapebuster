@@ -15,6 +15,8 @@ import sys
 import threading
 from pathlib import Path
 
+import pytest
+
 from sb.demo.runner import Runner, SafetyStop, StepFailed, fresh_status
 
 REPO = Path(__file__).resolve().parents[4]
@@ -189,6 +191,11 @@ def test_crawler_ignores_absolute_robots_disallow(tmp_path):
             ],
             cwd=REPO, capture_output=True, text=True, timeout=90, check=False,
         )
+        if proc.returncode != 0 and (
+            "playwright install" in proc.stderr
+            or "Executable doesn't exist" in proc.stderr
+        ):
+            pytest.skip("Playwright browser executable not installed")
         assert proc.returncode == 0, proc.stderr
         result = json.loads([line for line in proc.stdout.splitlines() if line.startswith("{")][-1])
         assert result["pages"] == 1
