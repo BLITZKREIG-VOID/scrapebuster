@@ -19,13 +19,14 @@ async def test_live_dashboard_get_contracts(tmp_path, monkeypatch, origin_server
     seed_canaries()
     canary = list_canaries()[0]
     now = "2026-09-30T10:00:00Z"
-
     with db.get_connection() as conn:
         conn.execute(
-            """INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            """INSERT INTO sessions
+               (session_id, client_key, ip, user_agent, header_fp, first_seen, last_seen, request_count,
+                state, classification, decision, risk_score, reasons, pages, traps_triggered, canaries_exposed, event_ids)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             ("SESSION-DEMO-001", "CLIENT-DEMO-001", "192.0.2.10", "Synthetic Browser", "fp-demo", now, now, 1,
-             "VERIFIED", "HUMAN_LIKELY", 0, "[]", 0, "[]", json.dumps([{"layer": "ORIGIN", "decision": "ALLOW"}]),
-             '["/"]', "[]", "[]", None),
+             "SANDBOX", "HUMAN_LIKELY", "SANDBOX", 0, "[]", '["/"]', "[]", "[]", json.dumps(["EVENT-DEMO-001"])),
         )
         conn.execute(
             """INSERT INTO traffic_events

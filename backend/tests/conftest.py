@@ -1,8 +1,10 @@
 import os
 
-# Tests run locally against the :8001 origin fixtures, never the public
-# CampusCart default. Set before any test module imports sb.config.
-os.environ["UPSTREAM_ORIGIN"] = os.environ.get("SB_ORIGIN_URL", "http://127.0.0.1:8001")
+# Tests run locally against in-process neutral test origin fixtures.
+# Set before any test module imports sb.config.
+os.environ.setdefault("SB_UPSTREAM_ORIGIN", "http://127.0.0.1:8001")
+os.environ.setdefault("SB_PUBLIC_BASE_URL", "http://127.0.0.1:8000")
+os.environ.setdefault("UPSTREAM_ORIGIN", "http://127.0.0.1:8001")
 
 import threading
 import time
