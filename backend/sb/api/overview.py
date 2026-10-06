@@ -6,14 +6,8 @@ from ..store.db import get_connection
 router = APIRouter()
 
 DECISIONS = (
-    "ALLOW",
-    "ESCALATE",
-    "CHALLENGE",
-    "PASS",
-    "RESTRICT",
-    "THROTTLE",
-    "BLOCK",
-    "TRAP",
+    "FAST_PATH",
+    "SANDBOX",
 )
 
 
@@ -55,7 +49,7 @@ async def get_overview() -> Overview:
         ).fetchone()["count"]
         latest_row = conn.execute(
             """SELECT case_id, run_id, created_at, status, confidence, primary_canary_id
-               FROM cases ORDER BY created_at DESC, case_id DESC LIMIT 1"""
+            FROM cases ORDER BY created_at DESC, case_id DESC LIMIT 1"""
         ).fetchone()
         latest_case = dict(latest_row) if latest_row else None
 
@@ -63,11 +57,9 @@ async def get_overview() -> Overview:
         conn.close()
 
     ladder = {
-        "safe": counts["ALLOW"] + counts["PASS"],
-        "suspicious": counts["ESCALATE"],
-        "challenge_restrict": counts["CHALLENGE"] + counts["RESTRICT"],
-        "block": counts["THROTTLE"] + counts["BLOCK"],
-        "trap": counts["TRAP"],
+        "fast_path": counts.get("FAST_PATH", 0),
+        "sandbox": counts.get("SANDBOX", 0),
+        "canary_exposed": canary_counts.get("exposed", 0),
         "provenance": case_detected,
     }
 
@@ -80,7 +72,7 @@ async def get_overview() -> Overview:
         cases={"total": case_total, "detected": case_detected},
         pipeline=[
             PipelineStage(stage="edge", status="ok"),
-            PipelineStage(stage="trap", status="unknown"),
+            PipelineStage(stage="offense", status="unknown"),
             PipelineStage(stage="provenance", status="unknown"),
         ],
         latest_case=latest_case,

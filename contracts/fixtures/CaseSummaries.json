@@ -5,6 +5,6 @@
     "created_at": "2026-09-30T10:00:00Z",
     "status": "PROVENANCE_SIGNAL_DETECTED",
     "confidence": "HIGH",
-    "primary_canary_id": "CANARY-DEMO-001"
+    "primary_canary_id": "SB-CANARY-demo0001-001"
   }
 ]

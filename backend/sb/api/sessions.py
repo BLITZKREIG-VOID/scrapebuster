@@ -16,22 +16,24 @@ def _summary(session) -> SessionSummary:
 
 
 def _detail(session) -> SessionDetail:
+    decision = getattr(session, "decision", "SANDBOX")
+    if decision not in ("FAST_PATH", "SANDBOX"):
+        decision = "SANDBOX"
     return SessionDetail(
         **_summary(session).model_dump(),
-        client_key=session.client_key,
-        ip=session.ip,
-        user_agent=session.user_agent,
-        header_fp=session.header_fp,
-        first_seen=session.first_seen,
-        last_seen=session.last_seen,
-        l1_score=session.l1_score,
-        l1_reasons=session.l1_reasons,
-        l2_score=session.l2_score,
-        l2_signals=session.l2_signals,
-        layer_path=session.layer_path,
-        pages=session.pages,
-        traps_triggered=session.traps_triggered,
-        canaries_exposed=session.canaries_exposed,
+        client_key=getattr(session, "client_key", "") or "",
+        ip=getattr(session, "ip", "") or "",
+        user_agent=getattr(session, "user_agent", "") or "",
+        header_fp=getattr(session, "header_fp", "") or "",
+        first_seen=getattr(session, "first_seen", "") or "",
+        last_seen=getattr(session, "last_seen", "") or "",
+        decision=decision,
+        risk_score=getattr(session, "risk_score", 0) or 0,
+        reasons=getattr(session, "reasons", []) or [],
+        pages=getattr(session, "pages", []) or [],
+        traps_triggered=getattr(session, "traps_triggered", getattr(session, "offenses_triggered", [])) or [],
+        canaries_exposed=getattr(session, "canaries_exposed", []) or [],
+        event_ids=getattr(session, "event_ids", []) or [],
     )
 
 
