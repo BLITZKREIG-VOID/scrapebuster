@@ -94,7 +94,7 @@ def main(argv: list[str] | None = None) -> int:
     control_path: Path = args.control
     if not control_path.is_file():
         sys.stderr.write(
-            f"Error: Control dataset not found at {control_path}. Please run scripts/build_control_dataset.py to generate it.\n"
+            f"Error: Control dataset not found at {control_path}.\n"
         )
         sys.exit(2)
 
