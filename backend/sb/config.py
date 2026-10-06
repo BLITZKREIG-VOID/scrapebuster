@@ -22,13 +22,15 @@ SB_RUNTIME_DIR = os.getenv("SB_RUNTIME_DIR", "data/runtime")
 def _parse_trap_paths(val: str | None) -> list[str]:
     if not val:
         return []
-    try:
-        parsed = json.loads(val)
-        if isinstance(parsed, list):
-            return [str(p) for p in parsed]
-        return []
-    except (json.JSONDecodeError, TypeError):
-        return []
+    val = val.strip()
+    if val.startswith("["):
+        try:
+            parsed = json.loads(val)
+            if isinstance(parsed, list):
+                return [str(p).strip() for p in parsed if str(p).strip()]
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return [p.strip() for p in val.split(",") if p.strip()]
 
 
 # Decoy / trap route configuration
