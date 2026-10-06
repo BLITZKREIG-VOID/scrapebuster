@@ -242,6 +242,23 @@ def investigate(
             ),
         )
 
+    from sb.store.ledger import append_event
+    append_event(
+        "case_created",
+        {
+            "case_id": case_id,
+            "run_id": run_id,
+            "created_at": created_at,
+            "status": status,
+            "confidence": confidence,
+            "primary_canary_id": primary_canary_id,
+            "session_ids": session_ids,
+            "probe_ids": [target_probe_id, control_probe_id],
+            "findings": [f.model_dump() for f in findings],
+            "statement": statement,
+        },
+    )
+
     # 10. Gather bundle data
     publications: list[dict[str, Any]] = [
         pub

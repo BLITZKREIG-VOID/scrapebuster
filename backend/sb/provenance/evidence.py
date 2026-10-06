@@ -215,6 +215,20 @@ def build_bundle(case: dict[str, Any]) -> dict[str, Any]:
             (json.dumps(evidence_summary, sort_keys=True), case_id),
         )
 
+    from sb.store.ledger import append_event
+    append_event(
+        "evidence_bundle",
+        {
+            "case_id": case_id,
+            "run_id": run_id,
+            "created_at": created_at,
+            "manifest_sha256": manifest_sha256,
+            "prev_manifest_sha256": prev_manifest_sha256,
+            "local_path": str(bundle_dir),
+            "files": files_meta,
+        },
+    )
+
     return evidence_summary
 
 
@@ -434,6 +448,17 @@ def verify_case(case_id: str) -> dict[str, Any]:
                 })
         except (OSError, ValueError, KeyError, TypeError) as e:
             checks.append({"name": check_name, "ok": False, "detail": f"Error reading {name}: {e}"})
+
+    from sb.store.ledger import verify_chain
+    ledger_res = verify_chain()
+    if ledger_res["result"] == "VALID":
+        checks.append({"name": "forensic_ledger_chain", "ok": True, "detail": f"ok ({ledger_res['count']} events)"})
+    else:
+        checks.append({
+            "name": "forensic_ledger_chain",
+            "ok": False,
+            "detail": f"Tampered ledger: {'; '.join(ledger_res.get('errors', []))}",
+        })
 
     result = "VALID" if all(c["ok"] for c in checks) else "TAMPERED"
     return {"result": result, "checks": checks}

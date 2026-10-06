@@ -7,7 +7,9 @@ import json
 import sqlite3
 from typing import Any
 
+from .canaries import reserve_canary_sequence
 from .db import get_connection
+from .ledger import append_event
 
 
 def _json(value: Any) -> str:
@@ -24,7 +26,10 @@ def _decode(value: str | None, default: Any) -> Any:
 
 
 def save_session(session: Any) -> None:
-    """Insert or update one session without replacing its original first_seen."""
+    """Insert or update one session without replacing its original first_seen.
+
+    Appends an authoritative snapshot of the session state to the append-only forensic ledger.
+    """
     conn = get_connection()
     try:
         session_id = session.session_id
@@ -44,15 +49,14 @@ def save_session(session: Any) -> None:
         traps_triggered = getattr(session, "traps_triggered", getattr(session, "offenses_triggered", []))
         canaries_exposed = getattr(session, "canaries_exposed", [])
         event_ids = getattr(session, "event_ids", [])
-        block_until = getattr(session, "block_until", "")
 
         conn.execute(
             """INSERT INTO sessions (
                    session_id, client_key, ip, user_agent, header_fp,
                    first_seen, last_seen, request_count, state, classification,
                    decision, risk_score, reasons, pages,
-                   traps_triggered, canaries_exposed, event_ids, block_until
-               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   traps_triggered, canaries_exposed, event_ids
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(session_id) DO UPDATE SET
                    client_key=excluded.client_key,
                    ip=excluded.ip,
@@ -70,8 +74,7 @@ def save_session(session: Any) -> None:
                    pages=excluded.pages,
                    traps_triggered=excluded.traps_triggered,
                    canaries_exposed=excluded.canaries_exposed,
-                   event_ids=excluded.event_ids,
-                   block_until=excluded.block_until""",
+                   event_ids=excluded.event_ids""",
             (
                 session_id,
                 client_key,
@@ -90,12 +93,40 @@ def save_session(session: Any) -> None:
                 _json(traps_triggered),
                 _json(canaries_exposed),
                 _json(event_ids),
-                block_until,
             ),
         )
         conn.commit()
+
+        # Query authoritative first_seen if previously preserved in database
+        saved_row = conn.execute(
+            "SELECT first_seen FROM sessions WHERE session_id = ?",
+            (session_id,),
+        ).fetchone()
+        authoritative_first_seen = saved_row["first_seen"] if saved_row else first_seen
     finally:
         conn.close()
+
+    # Append authoritative snapshot to the append-only forensic ledger
+    snapshot = {
+        "session_id": session_id,
+        "client_key": client_key,
+        "ip": ip,
+        "user_agent": user_agent,
+        "header_fp": header_fp,
+        "first_seen": authoritative_first_seen,
+        "last_seen": last_seen,
+        "request_count": request_count,
+        "state": state,
+        "classification": classification,
+        "decision": decision,
+        "risk_score": risk_score,
+        "reasons": reasons,
+        "pages": pages,
+        "traps_triggered": traps_triggered,
+        "canaries_exposed": canaries_exposed,
+        "event_ids": event_ids,
+    }
+    append_event("session_snapshot", snapshot)
 
 
 def _session_from_row(row: sqlite3.Row):
@@ -126,7 +157,6 @@ def _session_from_row(row: sqlite3.Row):
         "traps_triggered": traps,
         "canaries_exposed": canaries,
         "event_ids": event_ids,
-        "block_until": (row["block_until"] if "block_until" in row.keys() else "") or "",
     }
 
     sig = inspect.signature(Session)
