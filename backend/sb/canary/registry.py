@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import secrets
 import sqlite3
 from collections.abc import Mapping
 from contextlib import closing
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -21,6 +23,20 @@ CANARIES_YAML: Path = Path(__file__).resolve().parent / "canaries.yaml"
 
 class InvalidTransition(ValueError):
     """Raised when an invalid status transition is attempted on a canary."""
+
+
+@dataclass(frozen=True)
+class SessionCanaryBinding:
+    """Runtime binding for session-bound canaries."""
+    canary_id: str
+    session_id: str
+    vector: str
+    ts: str
+    value: str
+
+
+_session_bindings: dict[str, SessionCanaryBinding] = {}
+_session_seq_counters: dict[str, int] = {}
 
 
 def now_iso() -> str:
@@ -72,6 +88,73 @@ def _row_to_exposure(row: sqlite3.Row | dict) -> ExposureEvent:
     return ExposureEvent.model_validate(d)
 
 
+def bind_session_canary(
+    session_id: str,
+    vector: str = "html",
+    value: str | None = None,
+    ts: str | None = None,
+) -> SessionCanaryBinding:
+    """Generate and bind a runtime session canary: SB-CANARY-<session_hash>-<seq>.
+
+    Binds canary_id, session_id, vector, ts, value.
+    """
+    clean_session = str(session_id or "anonymous")
+    session_hash = hashlib.sha256(clean_session.encode("utf-8")).hexdigest()[:8]
+    _session_seq_counters[clean_session] = _session_seq_counters.get(clean_session, 0) + 1
+    seq = _session_seq_counters[clean_session]
+    canary_id = f"SB-CANARY-{session_hash}-{seq:04d}"
+    timestamp = ts or now_iso()
+    canary_val = value or f"CONFIDENTIAL-REF-{canary_id}"
+
+    binding = SessionCanaryBinding(
+        canary_id=canary_id,
+        session_id=clean_session,
+        vector=vector,
+        ts=timestamp,
+        value=canary_val,
+    )
+    _session_bindings[canary_id] = binding
+
+    # Best-effort DB registration in canaries table so downstream foreign references succeed
+    try:
+        upsert_canary({
+            "canary_id": canary_id,
+            "type": f"session_{vector}",
+            "canonical_content": canary_val,
+            "anchor": canary_id,
+            "context_terms": [clean_session, vector],
+            "probe_prompts": [],
+            "sha256": hashing.block_hash(canary_val),
+            "content_version": "v1",
+            "created_at": timestamp,
+            "published_at": timestamp,
+            "status": "ACTIVE",
+            "placements": [],
+        })
+    except Exception:
+        pass
+
+    return binding
+
+
+def get_session_binding(canary_id: str) -> SessionCanaryBinding | None:
+    """Retrieve session canary binding by canary_id."""
+    return _session_bindings.get(canary_id)
+
+
+def list_session_bindings(session_id: str | None = None) -> list[SessionCanaryBinding]:
+    """List session canary bindings, optionally filtered by session_id."""
+    if session_id is not None:
+        return [b for b in _session_bindings.values() if b.session_id == str(session_id)]
+    return list(_session_bindings.values())
+
+
+def reset_session_bindings() -> None:
+    """Reset in-memory session canary bindings."""
+    _session_bindings.clear()
+    _session_seq_counters.clear()
+
+
 def upsert_canary(record: dict | Canary) -> Canary:
     """Upsert a canary record into the canaries table.
 
@@ -85,11 +168,11 @@ def upsert_canary(record: dict | Canary) -> Canary:
     canary_id = data["canary_id"]
     canary_type = data["type"]
     canonical_content = data["canonical_content"]
-    anchor = data["anchor"]
+    anchor = data.get("anchor", "")
     context_terms = data.get("context_terms", [])
     probe_prompts = data.get("probe_prompts", [])
     sha256 = data["sha256"]
-    content_version = data["content_version"]
+    content_version = data.get("content_version", "v1")
     created_at = data.get("created_at") or now_iso()
     published_at = data.get("published_at")
     status = data.get("status", "DRAFT")
@@ -144,6 +227,23 @@ def get(canary_id: str) -> Canary | None:
     with closing(db.get_connection()) as conn, conn:
         row = conn.execute("SELECT * FROM canaries WHERE canary_id = ?", (canary_id,)).fetchone()
         if row is None:
+            # Check if it exists as an in-memory session binding
+            binding = get_session_binding(canary_id)
+            if binding is not None:
+                return Canary(
+                    canary_id=binding.canary_id,
+                    type=f"session_{binding.vector}",
+                    canonical_content=binding.value,
+                    anchor=binding.canary_id,
+                    context_terms=[binding.session_id, binding.vector],
+                    probe_prompts=[],
+                    sha256=hashing.block_hash(binding.value),
+                    content_version="v1",
+                    created_at=binding.ts,
+                    published_at=binding.ts,
+                    status="ACTIVE",
+                    placements=[],
+                )
             return None
         return _row_to_canary(row)
 
@@ -221,7 +321,6 @@ def _extract(obj: Any, key: str) -> Any:
     return val
 
 
-
 def record_exposure(
     canary_id: str,
     session: Any,
@@ -229,6 +328,7 @@ def record_exposure(
     resource: str,
     block_text: str,
     ts: str | None = None,
+    vector: str = "html",
 ) -> ExposureEvent:
     """Record an exposure event and transition canary from ACTIVE to EXPOSED on first exposure."""
     timestamp = ts or now_iso()
@@ -269,6 +369,7 @@ def record_exposure(
         "path": path,
         "referer": referer,
         "accept_language": accept_language,
+        "vector": vector,
     }
 
     with closing(db.get_connection()) as conn, conn:
@@ -276,11 +377,38 @@ def record_exposure(
             "SELECT status, content_version FROM canaries WHERE canary_id = ?",
             (canary_id,),
         ).fetchone()
-        if row is None:
-            raise KeyError(f"Unknown canary: {canary_id}")
 
-        content_version = row["content_version"]
-        current_status = row["status"]
+        if row is None:
+            # If not in table, create record for session canary
+            binding = get_session_binding(canary_id)
+            content_version = "v1"
+            current_status = "ACTIVE"
+            conn.execute(
+                """
+                INSERT INTO canaries (
+                    canary_id, type, canonical_content, anchor, context_terms,
+                    probe_prompts, sha256, content_version, created_at, published_at,
+                    status, placements
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    canary_id,
+                    f"session_{vector}",
+                    binding.value if binding else block_text,
+                    canary_id,
+                    json.dumps([session_id_str, vector]),
+                    "[]",
+                    content_sha256,
+                    content_version,
+                    timestamp,
+                    timestamp,
+                    current_status,
+                    json.dumps([resource]),
+                ),
+            )
+        else:
+            content_version = row["content_version"]
+            current_status = row["status"]
 
         conn.execute(
             """
@@ -359,5 +487,5 @@ def set_status(canary_id: str, status: str) -> Canary:
 
 
 def injected_block_text(canary: Canary) -> str:
-    """Return the raw block text of the canary for injection (<p>...</p>)."""
+    """Return the raw block text of the canary for injection."""
     return canary.canonical_content

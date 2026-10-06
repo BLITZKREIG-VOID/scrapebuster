@@ -1,0 +1,90 @@
+"""Honeypot definitions, metadata, and configuration helpers."""
+
+from __future__ import annotations
+
+import json
+import os
+from dataclasses import dataclass
+from typing import Any
+
+
+@dataclass(frozen=True)
+class Honeypot:
+    trap_id: str
+    trap_type: str
+    mechanism: str
+    paths: tuple[str, ...] = ()
+
+
+def get_configured_trap_paths() -> list[str]:
+    """Retrieve configured trap paths from sb.config or env var SB_TRAP_PATHS.
+
+    Defaults to empty list, avoiding default claims on customer origin paths.
+    """
+    try:
+        from sb import config
+        val = getattr(config, "SB_TRAP_PATHS", None)
+        if val is not None:
+            if isinstance(val, (list, tuple)):
+                return [str(p) for p in val]
+            if isinstance(val, str):
+                parsed = json.loads(val)
+                if isinstance(parsed, list):
+                    return [str(p) for p in parsed]
+    except Exception:
+        pass
+
+    raw = os.getenv("SB_TRAP_PATHS", "[]")
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, list):
+            return [str(p) for p in parsed]
+    except Exception:
+        pass
+    return []
+
+
+def get_configured_trap_api_path() -> str:
+    """Retrieve configured decoy API path from sb.config or env var SB_TRAP_API_PATH.
+
+    Defaults to empty string.
+    """
+    try:
+        from sb import config
+        val = getattr(config, "SB_TRAP_API_PATH", None)
+        if val:
+            return str(val)
+    except Exception:
+        pass
+    return os.getenv("SB_TRAP_API_PATH", "")
+
+
+def get_hidden_link_html() -> str:
+    """Generate hidden link HTML using first configured trap path if present, else empty."""
+    paths = get_configured_trap_paths()
+    if not paths:
+        return ""
+    target_path = paths[0]
+    return f'<a href="{target_path}" style="display:none" aria-hidden="true" tabindex="-1" rel="nofollow">Resource Reference</a>'
+
+
+def get_honeypots() -> dict[str, Honeypot]:
+    """Return active honeypots based on current configuration."""
+    trap_paths = tuple(get_configured_trap_paths())
+    decoy_api = get_configured_trap_api_path()
+    pots: dict[str, Honeypot] = {}
+    if trap_paths:
+        pots["TRAP-PATH-01"] = Honeypot(
+            trap_id="TRAP-PATH-01",
+            trap_type="trap_path",
+            mechanism="configured trap path",
+            paths=trap_paths,
+        )
+    if decoy_api:
+        pots["TRAP-DECOY-01"] = Honeypot(
+            trap_id="TRAP-DECOY-01",
+            trap_type="decoy_api",
+            mechanism="configured decoy API",
+            paths=(decoy_api,),
+        )
+    return pots
