@@ -4,12 +4,20 @@ from __future__ import annotations
 
 from sb.offense.injector import (
     ScapeBustersOffenseHooks,
-    ScapeBustersTrapHooks,
+    deterministic_fallback,
+    inject_json_canary,
+    insert_canary,
+    insert_hidden_link,
+    transform_response,
 )
 
 __all__ = [
     "ScapeBustersOffenseHooks",
-    "ScapeBustersTrapHooks",
+    "deterministic_fallback",
+    "inject_json_canary",
+    "insert_canary",
+    "insert_hidden_link",
+    "transform_response",
     "install",
 ]
 

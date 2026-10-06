@@ -134,6 +134,14 @@ def _note_exposure(session: Any, canary_id: str) -> None:
             logger.warning("Could not persist canary exposure to session store: %s", exc)
 
 
+def deterministic_fallback(ctx: Any, session: Any, upstream: Any) -> bytes:
+    """Deterministic fallback returning unmodified upstream content."""
+    if upstream is None:
+        return b""
+    content = getattr(upstream, "content", b"")
+    return content if isinstance(content, bytes) else bytes(content or b"")
+
+
 def transform_response(ctx: Any, session: Any, upstream: Any) -> bytes:
     """Transform eligible HTML and JSON unconditionally with deterministic fallback on error.
 
@@ -185,24 +193,27 @@ def transform_response(ctx: Any, session: Any, upstream: Any) -> bytes:
     raw_path = getattr(ctx, "path", "") or ""
 
     if is_html:
+        binding = None
         try:
             html_text = content_bytes.decode("utf-8", errors="replace")
             html_text = insert_hidden_link(html_text)
 
             binding = registry.bind_session_canary(
                 session_id=str(session_id),
-                vector="html",
+                vector="TEXT",
             )
             block_text = f"Security Verification Token: {binding.value}"
             html_text = insert_canary(html_text, block_text, canary_id=binding.canary_id)
 
+            # Record exposure only AFTER actual response injection succeeds
             registry.record_exposure(
                 canary_id=binding.canary_id,
                 session=session,
                 ctx=ctx,
                 resource=raw_path,
                 block_text=block_text,
-                vector="html",
+                vector="TEXT",
+                outcome="success",
             )
             _note_exposure(session, binding.canary_id)
 
@@ -221,41 +232,69 @@ def transform_response(ctx: Any, session: Any, upstream: Any) -> bytes:
                         ctx=ctx,
                         resource=raw_path,
                         block_text=seed_text,
-                        vector="html",
+                        vector="TEXT",
+                        outcome="success",
                     )
                     _note_exposure(session, db_canary.canary_id)
 
             return html_text.encode("utf-8")
         except Exception as exc:
             logger.warning("Deterministic fallback for HTML mutation error: %s", exc)
-            return content_bytes
+            try:
+                registry.record_injection_outcome(
+                    canary_id=binding.canary_id if binding else None,
+                    vector="TEXT",
+                    session_id=str(session_id),
+                    time=registry.now_iso(),
+                    outcome="fallback",
+                    error=str(exc),
+                    resource=raw_path,
+                )
+            except Exception:
+                pass
+            return deterministic_fallback(ctx, session, upstream)
 
     if is_json:
+        binding = None
         try:
             json_text = content_bytes.decode("utf-8", errors="replace")
             data = json.loads(json_text)
 
             binding = registry.bind_session_canary(
                 session_id=str(session_id),
-                vector="json",
+                vector="API",
             )
             mutated_data = inject_json_canary(data, binding.canary_id, binding.value)
             serialized = json.dumps(mutated_data, ensure_ascii=False)
 
+            # Record exposure only AFTER actual response injection succeeds
             registry.record_exposure(
                 canary_id=binding.canary_id,
                 session=session,
                 ctx=ctx,
                 resource=raw_path,
                 block_text=binding.value,
-                vector="json",
+                vector="API",
+                outcome="success",
             )
             _note_exposure(session, binding.canary_id)
 
             return serialized.encode("utf-8")
         except Exception as exc:
             logger.warning("Deterministic fallback for JSON mutation error: %s", exc)
-            return content_bytes
+            try:
+                registry.record_injection_outcome(
+                    canary_id=binding.canary_id if binding else None,
+                    vector="API",
+                    session_id=str(session_id),
+                    time=registry.now_iso(),
+                    outcome="fallback",
+                    error=str(exc),
+                    resource=raw_path,
+                )
+            except Exception:
+                pass
+            return deterministic_fallback(ctx, session, upstream)
 
     return content_bytes
 
@@ -284,7 +323,8 @@ def handle_decoy(ctx: Any, session: Any) -> Response | None:
                 ctx=ctx,
                 resource=raw_path,
                 block_text=block_text,
-                vector="decoy_api",
+                vector="API",
+                outcome="success",
             )
             _note_exposure(session, canary_id)
             return JSONResponse(content=payload)
@@ -311,7 +351,8 @@ def handle_decoy(ctx: Any, session: Any) -> Response | None:
                     ctx=ctx,
                     resource=raw_path,
                     block_text=block_text,
-                    vector="decoy_html",
+                    vector="TEXT",
+                    outcome="success",
                 )
                 _note_exposure(session, c.canary_id)
             return HTMLResponse(content=insert_hidden_link(html_content))
@@ -332,9 +373,5 @@ class ScapeBustersOffenseHooks:
         return transform_response(ctx, session, upstream)
 
     def reset(self) -> None:
-        """Reset in-memory session bindings."""
+        """Reset durable session bindings and counters."""
         registry.reset_session_bindings()
-
-
-# Backward-compatibility alias
-ScapeBustersTrapHooks = ScapeBustersOffenseHooks
