@@ -1,21 +1,13 @@
 {
   "run_id": "RUN-DEMO-001",
   "counts": {
-    "ALLOW": 1,
-    "ESCALATE": 0,
-    "CHALLENGE": 0,
-    "PASS": 0,
-    "RESTRICT": 0,
-    "THROTTLE": 0,
-    "BLOCK": 0,
-    "TRAP": 0
+    "FAST_PATH": 0,
+    "SANDBOX": 1
   },
   "ladder": {
-    "safe": 1,
-    "suspicious": 0,
-    "challenge_restrict": 0,
-    "block": 0,
-    "trap": 0,
+    "fast_path": 0,
+    "sandbox": 1,
+    "canary_exposed": 0,
     "provenance": 0
   },
   "sessions_by_class": {
@@ -36,12 +28,12 @@
       "status": "ok"
     },
     {
-      "stage": "trap",
-      "status": "unknown"
+      "stage": "offense",
+      "status": "ok"
     },
     {
       "stage": "provenance",
-      "status": "unknown"
+      "status": "ok"
     }
   ],
   "latest_case": null

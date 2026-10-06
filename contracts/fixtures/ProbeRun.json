@@ -13,7 +13,7 @@
   "results": [
     {
       "result_id": "RESULT-DEMO-001",
-      "canary_id": "CANARY-DEMO-001",
+      "canary_id": "SB-CANARY-demo0001-001",
       "prompt": "What is the demo term?",
       "retrieved": [
         {

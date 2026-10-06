@@ -10,7 +10,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 ComponentStatus = Literal["ok", "down", "disabled", "unknown", "not_checked"]
-Decision = Literal["ALLOW", "ESCALATE", "CHALLENGE", "PASS", "RESTRICT", "THROTTLE", "BLOCK", "TRAP"]
+Decision = Literal["FAST_PATH", "SANDBOX"]
 
 
 class Health(BaseModel):
@@ -29,7 +29,8 @@ class TrafficEvent(BaseModel):
     path: str
     status_code: int
     user_agent: str
-    layer: Literal["L1", "L2", "L3", "ORIGIN"]
+    stage: str = "offense"
+    layer: str = "ORIGIN"
     decision: Decision
     risk_score: int
     reasons: list[str]
@@ -47,14 +48,6 @@ class SessionSummary(BaseModel):
     state: str
 
 
-class LayerPathEntry(BaseModel):
-    model_config = ConfigDict(extra="allow")
-
-    layer: str
-    decision: str
-    ts: str | None = None
-
-
 class SessionDetail(SessionSummary):
     client_key: str
     ip: str
@@ -62,14 +55,13 @@ class SessionDetail(SessionSummary):
     header_fp: str
     first_seen: str
     last_seen: str
-    l1_score: int
-    l1_reasons: list[str]
-    l2_score: int
-    l2_signals: list[str]
-    layer_path: list[LayerPathEntry]
-    pages: list[str]
-    traps_triggered: list[str]
-    canaries_exposed: list[str]
+    decision: Decision = "SANDBOX"
+    risk_score: int = 0
+    reasons: list[str] = Field(default_factory=list)
+    pages: list[str] = Field(default_factory=list)
+    traps_triggered: list[str] = Field(default_factory=list)
+    canaries_exposed: list[str] = Field(default_factory=list)
+    event_ids: list[str] = Field(default_factory=list)
 
 
 class SessionList(BaseModel):
@@ -84,23 +76,17 @@ class PipelineStage(BaseModel):
 class DecisionCounts(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-    ALLOW: int = 0
-    ESCALATE: int = 0
-    CHALLENGE: int = 0
-    PASS: int = 0
-    RESTRICT: int = 0
-    THROTTLE: int = 0
-    BLOCK: int = 0
-    TRAP: int = 0
+    FAST_PATH: int = 0
+    SANDBOX: int = 0
 
 
 class LadderCounts(BaseModel):
-    safe: int
-    suspicious: int
-    challenge_restrict: int
-    block: int
-    trap: int
-    provenance: int
+    model_config = ConfigDict(extra="allow")
+
+    fast_path: int = 0
+    sandbox: int = 0
+    canary_exposed: int = 0
+    provenance: int = 0
 
 
 class CanaryCounts(BaseModel):
@@ -310,9 +296,9 @@ class DemoStep(BaseModel):
 
 class DemoStatus(BaseModel):
     run_id: str | None = None
-    phase: Literal["READY", "RUNNING", "COMPLETE", "PAUSED", "FAILED"]
-    mode: Literal["live", "golden"]
-    steps: list[DemoStep]
+    phase: Literal["READY", "RUNNING", "COMPLETE", "PAUSED", "FAILED"] = "READY"
+    mode: str = "live"
+    steps: list[DemoStep] = Field(default_factory=list)
 
 
 class DemoResetCheck(BaseModel):

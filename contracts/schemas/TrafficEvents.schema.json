@@ -42,26 +42,20 @@
           "title": "User Agent",
           "type": "string"
         },
+        "stage": {
+          "default": "offense",
+          "title": "Stage",
+          "type": "string"
+        },
         "layer": {
-          "enum": [
-            "L1",
-            "L2",
-            "L3",
-            "ORIGIN"
-          ],
+          "default": "ORIGIN",
           "title": "Layer",
           "type": "string"
         },
         "decision": {
           "enum": [
-            "ALLOW",
-            "ESCALATE",
-            "CHALLENGE",
-            "PASS",
-            "RESTRICT",
-            "THROTTLE",
-            "BLOCK",
-            "TRAP"
+            "FAST_PATH",
+            "SANDBOX"
           ],
           "title": "Decision",
           "type": "string"
@@ -89,7 +83,6 @@
         "path",
         "status_code",
         "user_agent",
-        "layer",
         "decision",
         "risk_score",
         "reasons"

@@ -1,37 +1,4 @@
 {
-  "$defs": {
-    "LayerPathEntry": {
-      "additionalProperties": true,
-      "properties": {
-        "layer": {
-          "title": "Layer",
-          "type": "string"
-        },
-        "decision": {
-          "title": "Decision",
-          "type": "string"
-        },
-        "ts": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Ts"
-        }
-      },
-      "required": [
-        "layer",
-        "decision"
-      ],
-      "title": "LayerPathEntry",
-      "type": "object"
-    }
-  },
   "properties": {
     "session_id": {
       "title": "Session Id",
@@ -73,33 +40,25 @@
       "title": "Last Seen",
       "type": "string"
     },
-    "l1_score": {
-      "title": "L1 Score",
+    "decision": {
+      "default": "SANDBOX",
+      "enum": [
+        "FAST_PATH",
+        "SANDBOX"
+      ],
+      "title": "Decision",
+      "type": "string"
+    },
+    "risk_score": {
+      "default": 0,
+      "title": "Risk Score",
       "type": "integer"
     },
-    "l1_reasons": {
+    "reasons": {
       "items": {
         "type": "string"
       },
-      "title": "L1 Reasons",
-      "type": "array"
-    },
-    "l2_score": {
-      "title": "L2 Score",
-      "type": "integer"
-    },
-    "l2_signals": {
-      "items": {
-        "type": "string"
-      },
-      "title": "L2 Signals",
-      "type": "array"
-    },
-    "layer_path": {
-      "items": {
-        "$ref": "#/$defs/LayerPathEntry"
-      },
-      "title": "Layer Path",
+      "title": "Reasons",
       "type": "array"
     },
     "pages": {
@@ -122,6 +81,13 @@
       },
       "title": "Canaries Exposed",
       "type": "array"
+    },
+    "event_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Event Ids",
+      "type": "array"
     }
   },
   "required": [
@@ -134,15 +100,7 @@
     "user_agent",
     "header_fp",
     "first_seen",
-    "last_seen",
-    "l1_score",
-    "l1_reasons",
-    "l2_score",
-    "l2_signals",
-    "layer_path",
-    "pages",
-    "traps_triggered",
-    "canaries_exposed"
+    "last_seen"
   ],
   "title": "SessionDetail",
   "type": "object"

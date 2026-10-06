@@ -58,6 +58,16 @@ export default function SessionDrawer({ sessionId, onClose, reasonMap }: Props) 
               {/* Meta */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-slate-900/50 p-3 rounded border border-slate-700">
+                  <div className="text-[10px] uppercase font-bold text-slate-500 mb-1">Decision</div>
+                  <div className={`text-sm font-bold font-mono ${detail.decision === 'SANDBOX' ? 'text-purple-400' : 'text-emerald-400'}`}>
+                    {detail.decision}
+                  </div>
+                </div>
+                <div className="bg-slate-900/50 p-3 rounded border border-slate-700">
+                  <div className="text-[10px] uppercase font-bold text-slate-500 mb-1">Risk Score</div>
+                  <div className="text-sm font-medium font-mono text-slate-200">{detail.risk_score}</div>
+                </div>
+                <div className="bg-slate-900/50 p-3 rounded border border-slate-700">
                   <div className="text-[10px] uppercase font-bold text-slate-500 mb-1">Classification</div>
                   <div className="text-sm font-medium text-slate-200">{detail.classification.replace(/_/g, ' ')}</div>
                 </div>
@@ -79,99 +89,70 @@ export default function SessionDrawer({ sessionId, onClose, reasonMap }: Props) 
                 </div>
               </div>
 
-              {/* L1 / L2 Signals */}
-              <div className="space-y-4">
+              {/* Reasons & Signals */}
+              {detail.reasons && detail.reasons.length > 0 && (
                 <div className="border border-slate-700 rounded overflow-hidden">
-                  <div className="bg-slate-900/80 p-2 text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-700 flex justify-between">
-                    <span>Layer 1 Reasons</span>
-                    <span className="text-slate-500 font-mono">Score: {detail.l1_score}</span>
+                  <div className="bg-slate-900/80 p-2 text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-700">
+                    Evaluation Reasons
                   </div>
                   <div className="p-3 bg-slate-800">
-                    {detail.l1_reasons.length > 0 ? (
-                      <ul className="list-disc pl-5 text-sm text-slate-300 space-y-1">
-                        {detail.l1_reasons.map((r, i) => <li key={i}>{reasonMap[r] || r}</li>)}
-                      </ul>
-                    ) : (
-                      <div className="text-xs text-slate-500 italic">No L1 anomalies.</div>
-                    )}
+                    <ul className="list-disc pl-5 text-sm text-slate-300 space-y-1">
+                      {detail.reasons.map((r, i) => <li key={i}>{reasonMap[r] || r}</li>)}
+                    </ul>
                   </div>
                 </div>
+              )}
 
+              {/* Pages Visited */}
+              {detail.pages && detail.pages.length > 0 && (
                 <div className="border border-slate-700 rounded overflow-hidden">
-                  <div className="bg-slate-900/80 p-2 text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-700 flex justify-between">
-                    <span>Layer 2 Signals</span>
-                    <span className="text-slate-500 font-mono">Score: {detail.l2_score}</span>
+                  <div className="bg-slate-900/80 p-2 text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-700">
+                    Pages Visited
                   </div>
                   <div className="p-3 bg-slate-800">
-                    {detail.l2_signals.length > 0 ? (
-                      <table className="w-full text-left text-sm">
-                        <tbody className="divide-y divide-slate-700">
-                          {detail.l2_signals.map((s, i) => (
-                            <tr key={i}><td className="py-1 text-slate-300">{reasonMap[s] || s}</td></tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    ) : (
-                      <div className="text-xs text-slate-500 italic">No L2 signals collected.</div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Traps & Exposures */}
-              {(detail.traps_triggered.length > 0 || detail.canaries_exposed.length > 0) && (
-                <div className="bg-purple-900/10 border border-purple-500/20 rounded p-4">
-                  <h3 className="text-sm font-semibold text-purple-400 mb-3 uppercase tracking-wider">Deception Intelligence</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <div className="text-xs font-medium text-slate-400 mb-1">Traps Triggered</div>
-                      <div className="flex flex-wrap gap-2">
-                        {detail.traps_triggered.map(t => (
-                          <span key={t} className="px-2 py-1 bg-slate-900 rounded text-xs font-mono text-purple-300 border border-purple-500/30">
-                            {reasonMap[t] || t}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs font-medium text-slate-400 mb-1">Canaries Exposed</div>
-                      <div className="flex flex-wrap gap-2">
-                        {detail.canaries_exposed.map(c => (
-                          <Link key={c} to="/canaries" className="flex items-center gap-1 px-2 py-1 bg-slate-900 rounded text-xs font-mono text-blue-400 border border-blue-500/30 hover:bg-blue-900/30 transition-colors">
-                            {c} <ExternalLink size={10} />
-                          </Link>
-                        ))}
-                      </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {detail.pages.map((p, i) => (
+                        <span key={i} className="px-2 py-0.5 bg-slate-900 text-slate-300 font-mono text-xs rounded border border-slate-700">
+                          {p}
+                        </span>
+                      ))}
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Layer Path Timeline */}
-              <div>
-                <h3 className="text-sm font-semibold text-slate-200 mb-3">Interaction Timeline</h3>
-                <div className="relative border-l-2 border-slate-700 ml-3 space-y-4 pb-4">
-                  {detail.layer_path.map((event, i) => (
-                    <div key={i} className="relative pl-4">
-                      <div className={`absolute -left-[5px] top-1.5 w-2 h-2 rounded-full ${
-                        event.decision === 'ALLOW' || event.decision === 'PASS' ? 'bg-green-500' :
-                        event.decision === 'TRAP' ? 'bg-purple-500' :
-                        'bg-amber-500'
-                      }`}></div>
-          <div className="text-xs font-mono text-slate-500 mb-0.5">{event.ts ? new Date(event.ts).toLocaleTimeString() : 'Time unavailable'}</div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold uppercase tracking-wider bg-slate-700 px-1.5 py-0.5 rounded text-slate-300">{event.layer}</span>
-                        <span className={`text-xs font-bold ${
-                           event.decision === 'ALLOW' || event.decision === 'PASS' ? 'text-green-400' :
-                           event.decision === 'TRAP' ? 'text-purple-400' :
-                           'text-amber-400'
-                        }`}>{event.decision}</span>
+              {/* Offenses & Canaries */}
+              {(detail.traps_triggered.length > 0 || detail.canaries_exposed.length > 0) && (
+                <div className="bg-purple-900/10 border border-purple-500/20 rounded p-4">
+                  <h3 className="text-sm font-semibold text-purple-400 mb-3 uppercase tracking-wider">Offensive Deception</h3>
+                  <div className="space-y-4">
+                    {detail.traps_triggered.length > 0 && (
+                      <div>
+                        <div className="text-xs font-medium text-slate-400 mb-1">Offense Hooks Triggered</div>
+                        <div className="flex flex-wrap gap-2">
+                          {detail.traps_triggered.map(t => (
+                            <span key={t} className="px-2 py-1 bg-slate-900 rounded text-xs font-mono text-purple-300 border border-purple-500/30">
+                              {reasonMap[t] || t}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )}
+                    {detail.canaries_exposed.length > 0 && (
+                      <div>
+                        <div className="text-xs font-medium text-slate-400 mb-1">Canaries Exposed</div>
+                        <div className="flex flex-wrap gap-2">
+                          {detail.canaries_exposed.map(c => (
+                            <Link key={c} to="/canaries" className="flex items-center gap-1 px-2 py-1 bg-slate-900 rounded text-xs font-mono text-blue-400 border border-blue-500/30 hover:bg-blue-900/30 transition-colors">
+                              {c} <ExternalLink size={10} />
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-
+              )}
             </>
           )}
         </div>
