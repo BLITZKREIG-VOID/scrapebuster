@@ -17,7 +17,7 @@ STATUS_RANK = {
 
 STATEMENT_TEMPLATE = (
     "The target model's output reproduced a unique synthetic canary that was published on <t0>, "
-    "served only to session <sid> classified SOPHISTICATED_SCRAPER at <t1>, and observed in model "
+    "served only to session <sid> routed to SANDBOX at <t1>, and observed in model "
     "output at <t3>, while a control model built without that data did not reproduce it. "
     "This result is a provenance signal / evidence of exposure. It does not by itself prove theft, "
     "intent, authorship, identity of the operator, or legal causation."

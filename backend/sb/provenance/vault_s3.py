@@ -80,8 +80,13 @@ def s3_status() -> Literal["ok", "disabled", "down"]:
         return "down" if _last_error else "ok"
 
 
+# Phase 5 Cloud Vault obligation: S3 Object Lock remote upload is a later milestone feature.
+# In Phase 0, SB_S3_BUCKET remains unset by default, no AWS provisioning or remote calls are made,
+# and s3_status() reports 'disabled' explicitly with local evidence preservation.
+
+
 def reset() -> None:
-    """Forget the last upload error (demo reset)."""
+    """Forget the last upload error (reset vault state)."""
     _set_last_error(None)
 
 
