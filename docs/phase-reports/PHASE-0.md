@@ -5,17 +5,21 @@
 - **Coordinator**: Supervisor
 - **Workers**: W1-W5 (W1 Edge, W2 Offense, W3 Provenance, W4 Dashboard, W5 Governance & Demolition)
 - **Integration Owner**: Worker 5 (`@w5`) — Consolidated integration ownership
-- **Document Status**: READY FOR INDEPENDENT VERIFICATION
-- **Worktree / Branch**: `phase0-integration` (isolated integration branch; never merged to `main`)
-- **Parent Main Baseline Commit**: `36875140b32af4a32771696e3a2c2f06cd99e201`
+- **Document Status**: ACCEPTED (Independent Audit: @verifier PhaseZeroAcceptanceAudit; conditional documentation truthfulness and final grep criteria resolved)
+- **Worktree / Branch**: `phase0-integration` (isolated integration branch)
+- **Parent Main Baseline Commit (at verification)**: `36875140b32af4a32771696e3a2c2f06cd99e201`
+- **Frozen Source Commit**: `0b8ffcb0e960ddf66160fbb0bb96d98e351ffc00`
+- **Evidence References**: `C:\Users\kashy\orca\workspaces\scrapebuster\phase0-final-evidence-20261007-settle` and `gate-closure`
+- **Independent Acceptance Audit**: Passed all six substantive source/execution criteria under @verifier PhaseZeroAcceptanceAudit on 2026-10-07; conditional documentation truthfulness requirements (135 removed baseline paths reconciliation, uninitialized db_failed disclosure, eligible origin status mutation fidelity) resolved.
 - **Configured Agent Provider**: Antigravity Gemini (actual dispatch model/version UNKNOWN, metadata null)
 - **Authoritative Specification**: User-approved `ScrapeBuster_L3_Full_Offense_PRD.md` v3.0 (approved 2026-10-07) and Eight-Phase Master Plan. Literal PRD text is intentionally omitted to maintain zero forbidden tokens outside `.git`.
+
 
 ---
 
 ## 1. Scope Delivered
 
-All five worker streams were integrated sequentially off baseline `36875140b32af4a32771696e3a2c2f06cd99e201` into `phase0-integration`, followed by audit corrections and stabilization:
+All five worker streams were integrated sequentially off baseline `36875140b32af4a32771696e3a2c2f06cd99e201` (at verification) into `phase0-integration`, followed by audit corrections and stabilization:
 
 ### W1 — Edge Reverse Proxy Subsystem
 - **Head Commit**: `e788751048ac3c753c8abac13543a416777d9fab`
@@ -40,7 +44,7 @@ All five worker streams were integrated sequentially off baseline `36875140b32af
   - Stream Integration: `5a24d3bb49ab2ae1a62419df98cd34fe89eb05f3`
   - Gate Fix & Concurrency Hardening: `13c94f21307fb0ac1a36e6bd1d7360c9d8469da2`
   - Final Audit Corrections & Source Stabilization: `0b8ffcb0e960ddf66160fbb0bb96d98e351ffc00`
-- **Delivered Scope**: Complete demolition of exactly 132 legacy assets relative to baseline (purging resurrected canary manifest and baseline artifacts), contract test suite (`test_phase0_contracts.py`), whole-tree byte grep gate script (`scripts/grep_gate.py`), repository governance (`Makefile`, `.env.example`, `README.md`, `.github/CODEOWNERS`), origin HTTP semantics hardening, internal fault guarding, and consolidated integration ownership under `@w5`.
+- **Delivered Scope**: Complete demolition and removal of exactly 135 legacy assets relative to baseline (purging resurrected canary manifest and baseline artifacts, including 3 migrated trap unit test files: `backend/tests/unit/trap/__init__.py`, `backend/tests/unit/trap/conftest.py`, `backend/tests/unit/trap/test_install.py`), contract test suite (`test_phase0_contracts.py`), whole-tree byte grep gate script (`scripts/grep_gate.py`), repository governance (`Makefile`, `.env.example`, `README.md`, `.github/CODEOWNERS`), origin HTTP semantics hardening, internal fault guarding, and consolidated integration ownership under `@w5`.
 
 ---
 
@@ -50,8 +54,8 @@ All five worker streams were integrated sequentially off baseline `36875140b32af
 |---|---|---|---|
 | EC-01 | Agent Model Dispatch Verification | VERIFIED | Provider Antigravity Gemini configured; actual dispatch model/version UNKNOWN (metadata null). |
 | EC-02 | Authoritative PRD v3.0 Availability | VERIFIED | PRD v3.0 + eight-phase master plan implemented; literal text omitted to preserve zero forbidden tokens. |
-| EC-03 | Worktree Isolation & Merge Sequence | VERIFIED | Operating strictly on `phase0-integration`; sequential merges W1 through W5 executed cleanly; `main` untouched at `36875140b32af4a32771696e3a2c2f06cd99e201`. |
-| EC-04 | Demolition Execution | VERIFIED | Exactly 132 legacy files removed relative to baseline commit `36875140b32a` (including total removal of `data/canary_manifest.json` and `data/baseline/public_baseline.jsonl`). |
+| EC-03 | Worktree Isolation & Merge Sequence | VERIFIED | Operating strictly on `phase0-integration`; sequential merges W1 through W5 executed cleanly; `main` untouched at `36875140b32af4a32771696e3a2c2f06cd99e201` (at verification). |
+| EC-04 | Demolition Execution | VERIFIED | Exactly 135 legacy files removed relative to baseline commit `36875140b32a` (at verification) (including total removal of `data/canary_manifest.json`, `data/baseline/public_baseline.jsonl`, and 3 migrated trap unit test files: `backend/tests/unit/trap/__init__.py`, `backend/tests/unit/trap/conftest.py`, `backend/tests/unit/trap/test_install.py`). |
 | EC-05 | Offense Subsystem Modernization | VERIFIED | Additive mutations, registered deterministic fallback, loud scalar/invalid JSON handling, segment-safe runtime trap matching, no silent persistence swallows. |
 | EC-06 | Edge Reverse Proxy Protocol Fidelity | VERIFIED | State-changing request preconditions (`If-Match`, `If-Unmodified-Since`, create-if-absent `If-None-Match: *`) preserved on unsafe methods and reads; read cache validators stripped only on eligible GET document paths; HEAD gzip representation metadata preserved; dual-origin startup validation (`SB_UPSTREAM_ORIGIN`, `SB_PUBLIC_BASE_URL`); 502/504 outage mapping even when audit DB is down; prefetch/postfetch fully guarded. |
 | EC-07 | Append-Only Forensic Ledger | VERIFIED | `BEGIN IMMEDIATE` atomic tail+insert transactions; compact canonical `{seq, kind, ts, record}` UTF-8 envelope hashing; missing table detected as `TAMPERED`; durable initialized marker prevents recreation; `reset_db()` preserves forensic ledger, counters, bindings, and marker while resetting projections. |
@@ -115,7 +119,7 @@ Verification was executed via ONE final bounded execution batch on frozen commit
 ### 5.3 Honest Description of Earlier Failed/Hung Runs & Recovery
 - **Context & Diagnosed Root Causes**: Earlier test runs experienced hangs and failures. A strict distinction must be drawn between actual diagnosed source defects and unverified speculations:
   1. **Non-Reentrant Lock Self-Deadlocks**: `_lock` in `sb.store.db` and `_ledger_lock` in `sb.store.ledger` were previously non-reentrant `threading.Lock` instances. During `reset_db()`, which acquired both locks, nested calls to `init_db()` (re-acquiring `_lock`) and `append_event()` (re-acquiring `_ledger_lock`) caused recursive self-deadlocks, hanging test runs. Fix: Converted locks to `threading.RLock()` in both modules and coordinated single-connection transaction handling.
-  2. **Audit Store Bootstrap & Missing SQLite3 Import Failures**: In `sb.edge.pipeline`, storage persistence error handling raised `sqlite3.OperationalError` without importing `sqlite3`, causing unhandled exceptions. Additionally, uninitialized database states lacked proper discrimination between empty bootstrap and tamper states (`app_state` initialization marker), causing healthy audit verification failures. Fix: Added explicit `sqlite3` import, hardened tamper detection in `init_db()`, and ensured audit persistence faults cleanly fail-pass to unmutated origin responses without crashing.
+  2. **Audit Store Uninitialized `db_failed` & Missing SQLite3 Import Fixes**: In `sb.edge.pipeline` (specifically within `log_event()`), `db_failed` was uninitialized prior to the database execution block, causing an `UnboundLocalError` when referencing `db_failed` upon successful audit record insertions. Furthermore, persistence error handling raised `sqlite3.OperationalError` without an explicit `import sqlite3`, causing unhandled exceptions. (This failure was a local pipeline variable initialization and missing module import defect, rather than a database bootstrap corruption). Fix: Explicitly initialized `db_failed = False` prior to execution, added explicit `import sqlite3`, and ensured audit persistence faults cleanly fail-pass to unmutated origin responses without crashing.
   3. **Closed Client Lifecycle Source Defect**: In `sb.edge.proxy`, async HTTP client instances were unmanaged across test lifecycles, causing connection attempts on closed `httpx.AsyncClient` instances. Fix: Introduced singleton `get_client()` with startup-frozen origin and explicit `close_client()` lifecycle management.
   4. **Live Boot Isolation**: Updated `scripts/verify_live_boot.py` to dynamically allocate neutral loopback ports, verify process ownership nonces, capture child stdout/stderr, and save external evidence snapshots outside the repository.
 - **Log Provenance & Unavailable Interim Artifacts**:
@@ -124,7 +128,7 @@ Verification was executed via ONE final bounded execution batch on frozen commit
   - The current final genuine raw logs in `phase0-final-evidence-20261007-settle` (160 test passes, uvicorn live boot logs, and grep gate logs) are genuine, verified, and preserved intact.
 
 ### 5.4 Phase 0 Scope Boundary
-- In Phase 0, all origin decisions are `SANDBOX` across all traffic routed to origin (`stage="ORIGIN", decision="SANDBOX"`). Only eligible HTML/JSON responses are mutated (via additive canary injection or deterministic fallback); non-eligible responses—such as binary media, HEAD requests (which have no response body), and error/non-200 responses—preserve their original status, headers, and content without mutation. They are not "eligible only decisions" (the decision is uniformly `SANDBOX` for all origin requests, while body mutation is strictly conditional on content eligibility). No Phase 2 `FAST_PATH` fast paths, clearance challenge stages, or finished MVP capabilities are introduced or claimed.
+- In Phase 0, all origin decisions are `SANDBOX` across all traffic routed to origin (`stage="ORIGIN", decision="SANDBOX"`). Eligible HTML/JSON response bodies are mutated (via additive canary injection or deterministic fallback) regardless of origin HTTP status code where protocol semantics allow, while the original HTTP status code and representation headers are faithfully retained. Non-eligible responses—such as binary media, HEAD requests (which carry no response body), and protocol no-body statuses (204 No Content, 205 Reset Content, 304 Not Modified)—have their HTTP semantics strictly protected and are passed unmutated. They are not "eligible only decisions" (the decision is uniformly `SANDBOX` for all origin requests, while body mutation is strictly conditional on content eligibility). No Phase 2 `FAST_PATH` fast paths, clearance challenge stages, or finished MVP capabilities are introduced or claimed.
 
 ---
 
@@ -146,16 +150,16 @@ Verification was executed via ONE final bounded execution batch on frozen commit
 
 ## 7. Next-Phase Readiness
 
-- **Status**: READY FOR INDEPENDENT VERIFICATION
-- The repository has passed all linting, grep gates, ownership checks, contracts, unit tests, integration tests, and live uvicorn boot verification.
-- Phase 0 integration is complete and frozen. Phase 1 development and main branch merge remain gated on independent verifier acceptance.
+- **Status**: ACCEPTED (Independent Audit: @verifier PhaseZeroAcceptanceAudit; conditional documentation truthfulness requirements resolved and final grep verified clean on 2026-10-07)
+- The repository has passed all linting, grep gates, ownership checks, contracts, unit tests, integration tests, and live uvicorn boot verification against frozen source commit `0b8ffcb0e960ddf66160fbb0bb96d98e351ffc00`.
+- Phase 0 integration is complete and verified. Supervisor authorizes normal merge into `main` worktree.
 
 ---
 
-## Appendix: True Demolished Files List (132 Files)
+## Appendix: True Demolished / Removed Files List (135 Files)
 
-Exactly 132 files were demolished relative to baseline commit `36875140b32af4a32771696e3a2c2f06cd99e201`. Paths containing forbidden components are deterministically encoded into Unicode code point sequences (`U+0062...`), while clean paths remain in plain text.
-*(Note on Git Diff Tracking: `git diff --diff-filter=D` with default rename detection reports 131 deletions due to partial similarity detection between demolished `backend/sb/trap/layer3.py` and new `backend/sb/offense/layer3.py` as R053; `git diff --no-renames --diff-filter=D` reflects the total removal of all 132 legacy path assets).*
+Exactly 135 files were removed/demolished relative to baseline commit `36875140b32af4a32771696e3a2c2f06cd99e201` (at verification). Paths containing forbidden components are deterministically encoded into Unicode code point sequences (`U+0062...`), while clean paths remain in plain text.
+*(Note on Git Diff Tracking: `git diff --diff-filter=D` with default rename detection reports 131 deletions and 4 renames (`backend/sb/trap/layer3.py -> backend/sb/offense/layer3.py` as R053, `backend/tests/unit/trap/__init__.py -> backend/tests/unit/offense/__init__.py` as R100, `backend/tests/unit/trap/conftest.py -> backend/tests/unit/offense/conftest.py` as R086, and `backend/tests/unit/trap/test_install.py -> backend/tests/unit/offense/test_install.py` as R067); `git diff --no-renames --diff-filter=D` reflects the complete list of all 135 removed baseline path assets, including moved/migrated test files. Historical evidence closure manifest notes mistakenly asserted 132 alongside the correct 135 count, which is reconciled and clarified here without modifying original receipts).*
 
 | # | Category | Path / Encoded Legacy Path |
 |---|---|---|
@@ -291,3 +295,7 @@ Exactly 132 files were demolished relative to baseline commit `36875140b32af4a32
 | 130 | Legacy Scraper Assets | `src/utils/fileHelper.js` |
 | 131 | Historical Run Artifact | `data/baseline/public_baseline.jsonl` |
 | 132 | Resurrected Run Artifact | `data/canary_manifest.json` |
+| 133 | Migrated Legacy Test Suite | `backend/tests/unit/trap/__init__.py` |
+| 134 | Migrated Legacy Test Suite | `backend/tests/unit/trap/conftest.py` |
+| 135 | Migrated Legacy Test Suite | `backend/tests/unit/trap/test_install.py` |
+
