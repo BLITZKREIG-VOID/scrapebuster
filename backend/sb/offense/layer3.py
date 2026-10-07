@@ -54,17 +54,14 @@ def classify_request(ctx: Any, session: Any = None) -> TrapHit | None:
         ts = registry.now_iso()
         session_id = getattr(session, "session_id", None)
         session_id_str = str(session_id) if session_id is not None else ""
-        try:
-            with closing(db.get_connection()) as conn, conn:
-                conn.execute(
-                    """
-                    INSERT INTO trap_hits (hit_id, ts, session_id, trap_id, trap_type, path)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    """,
-                    (hit_id, ts, session_id_str, hit.trap_id, hit.trap_type, hit.path),
-                )
-        except Exception:
-            pass
+        with closing(db.get_connection()) as conn, conn:
+            conn.execute(
+                """
+                INSERT INTO trap_hits (hit_id, ts, session_id, trap_id, trap_type, path)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (hit_id, ts, session_id_str, hit.trap_id, hit.trap_type, hit.path),
+            )
     return hit
 
 

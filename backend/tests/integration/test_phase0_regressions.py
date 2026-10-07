@@ -14,6 +14,16 @@ Covers:
 11. Shared segment-safe trap path matching
 12. Persisted stage visibility in traffic events API (no fake normalization)
 13. Scalar/invalid JSON transparent handling
+14. Missing history guard rejection of non-empty uninitialized databases
+15. Atomic reset_db rollback on audit failure
+16. Conditional headers stripped preventing 304 cache bypass on GET
+17. Layer 3 decoy API descendants match
+18. PUT forwards If-Match; origin 412 Precondition Failed preserved
+19. POST forwards If-None-Match (*); origin 412 preserved once without replay
+20. GET forwards If-Match precondition on document paths
+21. HEAD preserves origin gzip representation metadata
+22. Decoy fatal storage persistence failure fails-pass to origin once
+23. Layer 3 classify_request propagates database errors
 """
 
 import gzip
@@ -730,4 +740,284 @@ def test_layer3_decoy_api_descendants_match(monkeypatch):
     # Partial prefix non-matches
     assert match_trap("/api/v1/decoy-other") is None
     assert match_trap("/trap/pot-other") is None
+
+
+# ── 18. PUT forwards If-Match; origin 412 Precondition Failed preserved ───────
+
+@pytest.mark.asyncio
+async def test_put_forwards_if_match_and_preserves_origin_412(tmp_path, monkeypatch):
+    """Unsafe method PUT preserves If-Match precondition; origin 412 is returned without proxy override."""
+    test_db = str(tmp_path / "put_if_match.db")
+    monkeypatch.setattr(db, "DB_PATH", test_db)
+    db.reset_db()
+
+    received_headers = {}
+    put_count = 0
+    origin_app = FastAPI()
+
+    @origin_app.put("/items/widget")
+    async def put_handler(req: Request):
+        nonlocal put_count
+        put_count += 1
+        received_headers.update({k.lower(): v for k, v in req.headers.items()})
+        if req.headers.get("if-match") != '"v1.0.0"':
+            return Response(content="Precondition Failed", status_code=412, media_type="text/plain")
+        return Response(content="Updated", status_code=200, media_type="text/plain")
+
+    port = find_free_port()
+    server = uvicorn.Server(uvicorn.Config(app=origin_app, host="127.0.0.1", port=port, log_level="error"))
+    t = threading.Thread(target=server.run, daemon=True)
+    t.start()
+    time.sleep(0.1)
+
+    monkeypatch.setattr(proxy_module, "SB_UPSTREAM_ORIGIN", f"http://127.0.0.1:{port}")
+    monkeypatch.setenv("SB_UPSTREAM_ORIGIN", f"http://127.0.0.1:{port}")
+    monkeypatch.setattr(proxy_module, "_client", None)
+
+    try:
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+            resp = await client.put(
+                "/items/widget",
+                content=b'{"qty": 5}',
+                headers={
+                    "user-agent": "test-agent",
+                    "if-match": '"stale-etag-999"',
+                },
+            )
+            # Origin received the forwarded If-Match header
+            assert received_headers.get("if-match") == '"stale-etag-999"'
+            # Origin decision 412 is preserved faithfully by proxy
+            assert resp.status_code == 412
+            assert resp.text == "Precondition Failed"
+            assert put_count == 1
+    finally:
+        server.should_exit = True
+        t.join(timeout=2)
+
+
+# ── 19. POST forwards If-None-Match (*); origin 412 preserved once without replay ─
+
+@pytest.mark.asyncio
+async def test_post_forwards_if_none_match_and_never_replays(tmp_path, monkeypatch):
+    """Unsafe method POST preserves create-if-absent (If-None-Match: *); origin rejection is preserved without replay."""
+    test_db = str(tmp_path / "post_if_none_match.db")
+    monkeypatch.setattr(db, "DB_PATH", test_db)
+    db.reset_db()
+
+    received_headers = {}
+    post_count = 0
+    origin_app = FastAPI()
+
+    @origin_app.post("/items/create")
+    async def post_handler(req: Request):
+        nonlocal post_count
+        post_count += 1
+        received_headers.update({k.lower(): v for k, v in req.headers.items()})
+        if req.headers.get("if-none-match") == "*":
+            # Resource already exists -> 412 Precondition Failed
+            return Response(content="Resource Already Exists", status_code=412, media_type="text/plain")
+        return Response(content="Created", status_code=201, media_type="text/plain")
+
+    port = find_free_port()
+    server = uvicorn.Server(uvicorn.Config(app=origin_app, host="127.0.0.1", port=port, log_level="error"))
+    t = threading.Thread(target=server.run, daemon=True)
+    t.start()
+    time.sleep(0.1)
+
+    monkeypatch.setattr(proxy_module, "SB_UPSTREAM_ORIGIN", f"http://127.0.0.1:{port}")
+    monkeypatch.setenv("SB_UPSTREAM_ORIGIN", f"http://127.0.0.1:{port}")
+    monkeypatch.setattr(proxy_module, "_client", None)
+
+    try:
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+            resp = await client.post(
+                "/items/create",
+                content=b'{"id": "existing"}',
+                headers={
+                    "user-agent": "test-agent",
+                    "if-none-match": "*",
+                },
+            )
+            assert received_headers.get("if-none-match") == "*"
+            assert resp.status_code == 412
+            assert resp.text == "Resource Already Exists"
+            assert post_count == 1
+    finally:
+        server.should_exit = True
+        t.join(timeout=2)
+
+
+# ── 20. GET forwards If-Match precondition on document paths ───────────────────
+
+@pytest.mark.asyncio
+async def test_get_forwards_if_match_precondition(tmp_path, monkeypatch):
+    """GET preserves state-changing precondition If-Match, allowing origin concurrency validation."""
+    test_db = str(tmp_path / "get_if_match.db")
+    monkeypatch.setattr(db, "DB_PATH", test_db)
+    db.reset_db()
+
+    received_headers = {}
+    origin_app = FastAPI()
+
+    @origin_app.get("/document/doc1")
+    async def get_handler(req: Request):
+        received_headers.update({k.lower(): v for k, v in req.headers.items()})
+        if req.headers.get("if-match") == '"valid-v1"':
+            return HTMLResponse(
+                "<html><body><p>Validated Document Body</p></body></html>",
+                headers={"etag": '"valid-v1"'},
+            )
+        return Response(content="Precondition Failed", status_code=412)
+
+    port = find_free_port()
+    server = uvicorn.Server(uvicorn.Config(app=origin_app, host="127.0.0.1", port=port, log_level="error"))
+    t = threading.Thread(target=server.run, daemon=True)
+    t.start()
+    time.sleep(0.1)
+
+    monkeypatch.setattr(proxy_module, "SB_UPSTREAM_ORIGIN", f"http://127.0.0.1:{port}")
+    monkeypatch.setenv("SB_UPSTREAM_ORIGIN", f"http://127.0.0.1:{port}")
+    monkeypatch.setattr(proxy_module, "_client", None)
+
+    try:
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+            resp = await client.get(
+                "/document/doc1",
+                headers={
+                    "user-agent": "test-agent",
+                    "if-match": '"valid-v1"',
+                },
+            )
+            assert received_headers.get("if-match") == '"valid-v1"'
+            assert resp.status_code == 200
+            assert b"Validated Document Body" in resp.content
+            assert b"sb-canary" in resp.content
+    finally:
+        server.should_exit = True
+        t.join(timeout=2)
+
+
+# ── 21. HEAD preserves origin gzip representation metadata ─────────────────────
+
+@pytest.mark.asyncio
+async def test_head_preserves_origin_gzip_metadata(tmp_path, monkeypatch):
+    """HEAD preserves client Accept-Encoding: gzip and returns upstream Content-Encoding and Content-Length."""
+    test_db = str(tmp_path / "head_gzip.db")
+    monkeypatch.setattr(db, "DB_PATH", test_db)
+    db.reset_db()
+
+    received_headers = {}
+    origin_app = FastAPI()
+
+    @origin_app.head("/asset/bundle.js")
+    async def head_handler(req: Request):
+        received_headers.update({k.lower(): v for k, v in req.headers.items()})
+        return Response(
+            content=b"",
+            status_code=200,
+            headers={
+                "content-type": "application/javascript",
+                "content-encoding": "gzip",
+                "content-length": "45678",
+            },
+        )
+
+    port = find_free_port()
+    server = uvicorn.Server(uvicorn.Config(app=origin_app, host="127.0.0.1", port=port, log_level="error"))
+    t = threading.Thread(target=server.run, daemon=True)
+    t.start()
+    time.sleep(0.1)
+
+    monkeypatch.setattr(proxy_module, "SB_UPSTREAM_ORIGIN", f"http://127.0.0.1:{port}")
+    monkeypatch.setenv("SB_UPSTREAM_ORIGIN", f"http://127.0.0.1:{port}")
+    monkeypatch.setattr(proxy_module, "_client", None)
+
+    try:
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+            resp = await client.head(
+                "/asset/bundle.js",
+                headers={
+                    "user-agent": "test-agent",
+                    "accept-encoding": "gzip",
+                },
+            )
+            assert received_headers.get("accept-encoding") == "gzip"
+            assert resp.status_code == 200
+            assert resp.content == b""
+            assert resp.headers.get("content-encoding") == "gzip"
+            assert resp.headers.get("content-length") == "45678"
+    finally:
+        server.should_exit = True
+        t.join(timeout=2)
+
+
+# ── 22. Decoy fatal storage persistence failure fails-pass to origin once ──────
+
+@pytest.mark.asyncio
+async def test_decoy_storage_fault_fails_pass_to_origin(tmp_path, monkeypatch):
+    """When audit/session persistence fatally fails during decoy handling, fail-pass to origin once."""
+    test_db = str(tmp_path / "decoy_storage_fault.db")
+    monkeypatch.setattr(db, "DB_PATH", test_db)
+    db.reset_db()
+
+    origin_app = FastAPI()
+
+    @origin_app.get("/trap/honey")
+    async def origin_honey():
+        return HTMLResponse("<html><body><main><p>Real Upstream Origin Fallback</p></main></body></html>")
+
+    port = find_free_port()
+    server = uvicorn.Server(uvicorn.Config(app=origin_app, host="127.0.0.1", port=port, log_level="error"))
+    t = threading.Thread(target=server.run, daemon=True)
+    t.start()
+    time.sleep(0.1)
+
+    monkeypatch.setattr(proxy_module, "SB_UPSTREAM_ORIGIN", f"http://127.0.0.1:{port}")
+    monkeypatch.setenv("SB_UPSTREAM_ORIGIN", f"http://127.0.0.1:{port}")
+    monkeypatch.setattr(proxy_module, "_client", None)
+    monkeypatch.setenv("SB_TRAP_PATHS", '["/trap/honey"]')
+
+    import sb.edge.pipeline as pipe_mod
+
+    def broken_log_event(*args, **kwargs):
+        raise sqlite3.OperationalError("Simulated decoy audit persistence failure")
+
+    monkeypatch.setattr(pipe_mod, "log_event", broken_log_event)
+
+    try:
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+            resp = await client.get("/trap/honey", headers={"user-agent": "test-agent"})
+            # Must NOT return decoy; must fail-pass to upstream origin
+            assert resp.status_code == 200
+            assert b"Real Upstream Origin Fallback" in resp.content
+    finally:
+        server.should_exit = True
+        t.join(timeout=2)
+
+
+# ── 23. Layer 3 classify_request propagates database errors ───────────────────
+
+def test_layer3_classify_request_propagates_database_error(monkeypatch):
+    """classify_request no longer silently swallows DB persistence errors with except: pass."""
+    from types import SimpleNamespace
+    from sb.offense.layer3 import classify_request
+
+    monkeypatch.setenv("SB_TRAP_PATHS", '["/trap/error"]')
+
+    def broken_conn():
+        raise sqlite3.OperationalError("Simulated DB connection failure")
+
+    monkeypatch.setattr(db, "get_connection", broken_conn)
+
+    ctx = SimpleNamespace(path="/trap/error")
+    sess = SimpleNamespace(session_id="sess-err", state="SANDBOX")
+
+    with pytest.raises(sqlite3.OperationalError, match="Simulated DB connection failure"):
+        classify_request(ctx, sess)
+
 

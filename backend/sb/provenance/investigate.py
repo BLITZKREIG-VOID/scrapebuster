@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Callable
 from contextlib import closing
 from datetime import datetime, timezone
@@ -52,12 +53,14 @@ def current_run_id() -> str:
 
 
 def _load_baseline_texts(baseline_path: Path | str | None = None) -> list[str]:
-    b_path = (
-        Path(baseline_path)
-        if baseline_path is not None
-        else Path(__file__).resolve().parents[3] / "data" / "baseline" / "public_baseline.jsonl"
-    )
-    if not b_path.is_file():
+    """Load baseline texts from explicit path or SB_BASELINE_PATH; defaults to empty list."""
+    b_path: Path | None = None
+    if baseline_path is not None:
+        b_path = Path(baseline_path)
+    elif os.environ.get("SB_BASELINE_PATH"):
+        b_path = Path(os.environ["SB_BASELINE_PATH"])
+
+    if b_path is None or not b_path.is_file():
         return []
     texts: list[str] = []
     with b_path.open("r", encoding="utf-8") as f:

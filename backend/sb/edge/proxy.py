@@ -12,16 +12,13 @@ _client_origin: str | None = None
 
 
 def get_client() -> httpx.AsyncClient:
+    """Return singleton async client with startup-frozen origin.
+
+    Avoids leaky client reconfiguration while ensuring safe resource lifecycle.
+    """
     global _client, _client_origin
     origin = os.getenv("SB_UPSTREAM_ORIGIN", SB_UPSTREAM_ORIGIN)
-    if _client is None or _client_origin != origin:
-        if _client is not None:
-            # Origin changed; close existing client
-            try:
-                # synchronous cleanup of underlying transport if possible
-                pass
-            except Exception:
-                pass
+    if _client is None:
         _client = httpx.AsyncClient(base_url=origin, follow_redirects=False)
         _client_origin = origin
     return _client
@@ -54,16 +51,15 @@ HOP_BY_HOP_HEADERS = frozenset({
     "upgrade",
 })
 
-# Conditional and range request headers to strip on protected origin path
-# to prevent 304 Not Modified and 206 Partial Content unwatermarked bypass
-CONDITIONAL_REQUEST_HEADERS = frozenset({
+# Read cache validators and range negotiation headers
+# Only stripped on appropriate GET/HEAD sandbox eligible paths to prevent 304/206 bypass
+READ_CACHE_VALIDATORS = frozenset({
     "if-none-match",
     "if-modified-since",
-    "if-match",
-    "if-unmodified-since",
     "if-range",
     "range",
 })
+CONDITIONAL_REQUEST_HEADERS = READ_CACHE_VALIDATORS
 
 
 class UpstreamResponse:
@@ -80,6 +76,8 @@ async def proxy(ctx: RequestContext) -> httpx.Response:
     """Proxy request to upstream origin without site-specific lures or hardcoding."""
     request = ctx.request
     method = request.method
+    method_upper = method.upper()
+    is_read = method_upper in {"GET", "HEAD"}
 
     # Preserve raw encoded path/query bytes from ASGI scope where available
     scope = getattr(request, "scope", {})
@@ -111,18 +109,36 @@ async def proxy(ctx: RequestContext) -> httpx.Response:
             if t:
                 connection_tokens.add(t)
 
-    drop_headers = HOP_BY_HOP_HEADERS | connection_tokens | CONDITIONAL_REQUEST_HEADERS
+    # State-changing methods (POST, PUT, PATCH, DELETE, etc.) NEVER strip preconditions
+    # (preserving optimistic concurrency e.g. If-Match, and create-if-absent e.g. If-None-Match).
+    # Reads preserve state-changing preconditions (If-Match, If-Unmodified-Since) as well.
+    # Only strip read cache validators / range negotiation on appropriate GET/HEAD sandbox eligible paths.
+    is_sandbox_eligible_path = getattr(ctx, "is_document", True)
+    strip_cache_validators = is_read and is_sandbox_eligible_path
+
+    drop_headers = set(HOP_BY_HOP_HEADERS) | connection_tokens
+    if strip_cache_validators:
+        drop_headers |= READ_CACHE_VALIDATORS
+
     headers = {k: v for k, v in raw_headers.items() if k not in drop_headers}
 
     # Derive host from canonical configured upstream origin
-    origin = os.getenv("SB_UPSTREAM_ORIGIN", SB_UPSTREAM_ORIGIN)
+    origin = _client_origin or os.getenv("SB_UPSTREAM_ORIGIN", SB_UPSTREAM_ORIGIN)
     if origin:
         netloc = urlsplit(origin).netloc
         if netloc:
             headers["host"] = netloc
 
-    # Request identity encoding so response content is uncompressed for mutation
-    headers["accept-encoding"] = "identity"
+    if method_upper == "HEAD":
+        # Preserve client's accept-encoding on HEAD to allow origin to return gzip representation metadata
+        # (HEAD responses have no body and are never mutated)
+        if "accept-encoding" in raw_headers:
+            headers["accept-encoding"] = raw_headers["accept-encoding"]
+        else:
+            headers.pop("accept-encoding", None)
+    else:
+        # Request identity encoding so response content is uncompressed for mutation
+        headers["accept-encoding"] = "identity"
 
     # Forward body safely
     body = await request.body()

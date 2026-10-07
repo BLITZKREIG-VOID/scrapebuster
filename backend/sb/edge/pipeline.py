@@ -339,19 +339,15 @@ async def handle(request: Request) -> Response:
 
     try:
         return await _handle_request(ctx, session)
-    finally:
-        try:
-            save_session(session)
-        except Exception as sess_err:
-            logger.error("Failed to save session in finally: %s", sess_err)
-            _append_fault_record({
-                "event_type": "post_fetch_session_save_error",
-                "session_id": getattr(session, "session_id", "unknown"),
-                "client_key": getattr(ctx, "client_key", ""),
-                "path": getattr(ctx, "path", "/"),
-                "error": str(sess_err),
-                "ts": datetime.now(timezone.utc).isoformat(),
-            })
+    except Exception as unhandled_err:
+        logger.exception("Unhandled pipeline error: %s", unhandled_err)
+        _append_fault_record({
+            "event_type": "unhandled_pipeline_error",
+            "path": getattr(ctx, "path", "/"),
+            "error": str(unhandled_err),
+            "ts": datetime.now(timezone.utc).isoformat(),
+        })
+        return Response(content=b"Bad Gateway", status_code=502, media_type="text/plain")
 
 
 async def _handle_request(ctx: RequestContext, session: Session) -> Response:
@@ -382,13 +378,19 @@ async def _handle_request(ctx: RequestContext, session: Session) -> Response:
                     try:
                         log_event(ctx, session, "OFFENSE", "SANDBOX", decoy_resp.status_code, ["TRAP_DECOY_HIT"])
                         record_decision(session, "OFFENSE", "SANDBOX")
-                    except Exception as log_err:
-                        logger.error("Failed to log decoy event: %s", log_err)
-                    try:
                         save_session(session)
-                    except Exception as exc:
-                        logger.error("Failed to save session after decoy hit: %s", exc)
-                    return decoy_resp
+                        return decoy_resp
+                    except Exception as storage_err:
+                        logger.error("Decoy storage persistence fault for %s: %s; falling through to upstream", ctx.path, storage_err)
+                        _append_fault_record({
+                            "event_type": "decoy_storage_fault",
+                            "session_id": getattr(session, "session_id", "unknown"),
+                            "path": ctx.path,
+                            "error": str(storage_err),
+                            "outcome": "fail_pass_origin",
+                            "ts": datetime.now(timezone.utc).isoformat(),
+                        })
+                        # Fatal storage failure: do not swallow and return decoy; fail-pass to origin once!
         except Exception as decoy_err:
             logger.error("Decoy handling fault for %s: %s; falling through to upstream", ctx.path, decoy_err)
             _append_fault_record({
