@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from sb.canary import registry
+from sb.config import is_segment_match
 from sb.offense.honeypots import (
     get_configured_trap_api_path,
     get_configured_trap_paths,
@@ -26,23 +27,19 @@ def match_trap(path: str | None, session: Any = None) -> TrapHit | None:
     """Match request path against configured trap paths and decoy API paths.
 
     Uses configured paths only; does not claim customer origin paths by default.
+    Segment-safe: matches exact path or subpath under boundary (including API descendants).
     """
     if not path:
         return None
 
     api_path = get_configured_trap_api_path()
-    if api_path:
-        norm_path = path.rstrip("/") if path != "/" else "/"
-        norm_api = api_path.rstrip("/") if api_path != "/" else "/"
-        if norm_path == norm_api:
-            return TrapHit(trap_id="TRAP-DECOY-01", trap_type="decoy_api", path=path)
+    if api_path and is_segment_match(path, api_path):
+        return TrapHit(trap_id="TRAP-DECOY-01", trap_type="decoy_api", path=path)
 
     trap_paths = get_configured_trap_paths()
     if trap_paths:
-        norm_path = path.rstrip("/") if path != "/" else "/"
         for tp in trap_paths:
-            norm_tp = tp.rstrip("/") if tp != "/" else "/"
-            if norm_path == norm_tp or path.startswith(tp if tp.endswith("/") else tp + "/"):
+            if is_segment_match(path, tp):
                 return TrapHit(trap_id="TRAP-PATH-01", trap_type="trap_path", path=path)
 
     return None

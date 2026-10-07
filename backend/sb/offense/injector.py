@@ -67,6 +67,40 @@ def insert_hidden_link(html: str) -> str:
     return html[:end] + hidden_link + html[end:]
 
 
+def _detect_and_decode_html(content_bytes: bytes, content_type: str) -> tuple[str, str]:
+    """Detect charset from content-type or meta tag and decode HTML, preserving legitimate non-ASCII characters."""
+    encoding = "utf-8"
+    ct_lower = content_type.lower()
+    if "charset=" in ct_lower:
+        try:
+            encoding = ct_lower.split("charset=")[1].split(";")[0].strip().strip('"').strip("'")
+        except Exception:
+            encoding = "utf-8"
+    else:
+        sample = content_bytes[:1024].decode("ascii", errors="ignore")
+        match = re.search(r'<meta[^>]+charset=["\']?([a-zA-Z0-9_\-]+)', sample, re.IGNORECASE)
+        if match:
+            encoding = match.group(1).lower()
+
+    try:
+        return content_bytes.decode(encoding), encoding
+    except Exception:
+        return content_bytes.decode("utf-8", errors="replace"), "utf-8"
+
+
+def _ensure_utf8_meta(html_text: str) -> str:
+    """Ensure HTML meta charset tag is coherent with UTF-8 byte encoding."""
+    if re.search(r'<meta[^>]+charset=["\']?utf-8["\']?', html_text, re.IGNORECASE):
+        return html_text
+    return re.sub(
+        r'(<meta[^>]+charset=["\']?)[a-zA-Z0-9_\-]+(["\']?)',
+        r'\g<1>utf-8\g<2>',
+        html_text,
+        count=1,
+        flags=re.IGNORECASE,
+    )
+
+
 def insert_canary(html: str, block_text: str, canary_id: str | None = None) -> str:
     """Insert canary markup additively before </main>, or before </body> as fallback.
 
@@ -204,10 +238,11 @@ def deterministic_fallback_core(
                 session_id=str(session_id),
                 vector="TEXT",
             )
-            html_text = content_bytes.decode("utf-8", errors="replace")
+            html_text, _ = _detect_and_decode_html(content_bytes, content_type)
             html_text = insert_hidden_link(html_text)
             block_text = f"Security Verification Token: {binding.value}"
             mutated_text = insert_canary(html_text, block_text, canary_id=binding.canary_id)
+            mutated_text = _ensure_utf8_meta(mutated_text)
             mutated_bytes = mutated_text.encode("utf-8")
 
             # Record exposure and injection outcome exactly once
@@ -379,7 +414,7 @@ def transform_response(ctx: Any, session: Any, upstream: Any) -> bytes:
 
     if is_html:
         try:
-            html_text = content_bytes.decode("utf-8", errors="replace")
+            html_text, _ = _detect_and_decode_html(content_bytes, content_type)
             html_text = insert_hidden_link(html_text)
 
             binding = registry.bind_session_canary(
@@ -409,6 +444,7 @@ def transform_response(ctx: Any, session: Any, upstream: Any) -> bytes:
                     )
                     _note_exposure(session, db_canary.canary_id)
 
+            mutated_text = _ensure_utf8_meta(mutated_text)
             mutated_bytes = mutated_text.encode("utf-8")
 
             # Verify transform is not None/invalid/identity bytes
@@ -514,14 +550,23 @@ def transform_response(ctx: Any, session: Any, upstream: Any) -> bytes:
 
 
 def handle_decoy(ctx: Any, session: Any) -> Response | None:
-    """Handle decoy routes: configured API decoy payload or synthetic index HTML."""
+    """Handle decoy routes: configured API decoy payload or synthetic index HTML.
+
+    Uses shared canonical segment-safe runtime-config predicate (Phase 0 Hard Rule).
+    """
+    from sb.config import is_trap_path
+
     raw_path = getattr(ctx, "path", "") or ""
+    if not is_trap_path(raw_path):
+        return None
+
     norm_path = raw_path.rstrip("/") if raw_path != "/" else "/"
 
     decoy_api_path = get_configured_trap_api_path()
     if decoy_api_path:
         norm_decoy = decoy_api_path.rstrip("/") if decoy_api_path != "/" else "/"
-        if norm_path == norm_decoy:
+        decoy_prefix = norm_decoy if norm_decoy.endswith("/") else norm_decoy + "/"
+        if norm_path == norm_decoy or raw_path.startswith(decoy_prefix):
             canary = registry.get("SB-CAN-0003")
             if canary is None:
                 canaries = registry.list_canaries()
@@ -545,31 +590,23 @@ def handle_decoy(ctx: Any, session: Any) -> Response | None:
 
     configured_trap_paths = get_configured_trap_paths()
     if configured_trap_paths:
-        matched = False
-        for tp in configured_trap_paths:
-            norm_tp = tp.rstrip("/") if tp != "/" else "/"
-            if norm_path == norm_tp or raw_path.startswith(tp if tp.endswith("/") else tp + "/"):
-                matched = True
-                break
-
-        if matched:
-            html_content = decoy_index_html()
-            for c in registry.list_canaries():
-                if c.status == "DRAFT":
-                    continue
-                block_text = registry.injected_block_text(c)
-                html_content = insert_canary(html_content, block_text, canary_id=c.canary_id)
-                registry.record_exposure(
-                    canary_id=c.canary_id,
-                    session=session,
-                    ctx=ctx,
-                    resource=raw_path,
-                    block_text=block_text,
-                    vector="TEXT",
-                    outcome="success",
-                )
-                _note_exposure(session, c.canary_id)
-            return HTMLResponse(content=insert_hidden_link(html_content))
+        html_content = decoy_index_html()
+        for c in registry.list_canaries():
+            if c.status == "DRAFT":
+                continue
+            block_text = registry.injected_block_text(c)
+            html_content = insert_canary(html_content, block_text, canary_id=c.canary_id)
+            registry.record_exposure(
+                canary_id=c.canary_id,
+                session=session,
+                ctx=ctx,
+                resource=raw_path,
+                block_text=block_text,
+                vector="TEXT",
+                outcome="success",
+            )
+            _note_exposure(session, c.canary_id)
+        return HTMLResponse(content=insert_hidden_link(html_content))
 
     return None
 

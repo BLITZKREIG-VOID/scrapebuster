@@ -122,17 +122,41 @@ def test_contract_session_dataclass_fields():
 
 # ── 4. Token & Canary Format Contracts ───────────────────────────────────────
 
-def test_contract_session_canary_token_format():
-    """Canary tokens conforming to SB-CANARY-<session_hash>-<seq>."""
+def test_contract_session_canary_token_format(tmp_path, monkeypatch):
+    """Canary tokens conforming to SB-CANARY-<session_hash>-<seq> calling actual bind_session_canary."""
+    from sb.canary.registry import bind_session_canary, get_binding
+
+    monkeypatch.setattr(db, "DB_PATH", str(tmp_path / "binding_test.db"))
+    db.init_db()
+
     session_id = "test-session-identity-123"
     session_hash = hashlib.sha256(session_id.encode("utf-8")).hexdigest()[:8]
-    seq = 1
-    canary_id = f"SB-CANARY-{session_hash}-{seq:04d}"
 
-    assert canary_id.startswith("SB-CANARY-")
-    assert len(canary_id.split("-")) == 4
-    assert canary_id.split("-")[2] == session_hash
-    assert canary_id.split("-")[3] == "0001"
+    # Call actual bind_session_canary
+    binding1 = bind_session_canary(session_id, vector="TEXT")
+    assert binding1.canary_id == f"SB-CANARY-{session_hash}-0001"
+    assert binding1.session_id == session_id
+    assert binding1.vector == "TEXT"
+
+    # Durable lookup verification
+    stored1 = get_binding(binding1.canary_id)
+    assert stored1 is not None
+    assert stored1.canary_id == binding1.canary_id
+    assert stored1.value == binding1.value
+
+    # Sequential counter increments
+    binding2 = bind_session_canary(session_id, vector="API")
+    assert binding2.canary_id == f"SB-CANARY-{session_hash}-0002"
+
+    # Reset / restart preserves bindings and counter sequences
+    db.reset_db()
+    stored_after_reset = get_binding(binding1.canary_id)
+    assert stored_after_reset is not None
+    assert stored_after_reset.canary_id == binding1.canary_id
+
+    # Next sequence after reset continues sequentially
+    binding3 = bind_session_canary(session_id, vector="TEXT")
+    assert binding3.canary_id == f"SB-CANARY-{session_hash}-0003"
 
 
 # ── 5. Forensic Append-Only Ledger Contracts ─────────────────────────────────

@@ -29,8 +29,8 @@ async def get_traffic_events(
             reasons = json.loads(reasons_raw) if reasons_raw else []
             
             decision_val = row["decision"]
-            stage_val = (row["stage"] if "stage" in row.keys() else None) or "offense"
-            layer_val = (row["layer"] if "layer" in row.keys() else None) or "ORIGIN"
+            stage_val = row["stage"] if "stage" in row.keys() else None
+            layer_val = row["layer"] if "layer" in row.keys() else None
 
             event = TrafficEvent(
                 seq=row["seq"],

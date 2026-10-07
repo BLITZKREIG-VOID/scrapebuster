@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-import os
 from dataclasses import dataclass
 
 
@@ -20,28 +18,9 @@ def get_configured_trap_paths() -> list[str]:
 
     Defaults to empty list, avoiding default claims on customer origin paths.
     """
-    raw = os.getenv("SB_TRAP_PATHS")
-    if raw is not None:
-        try:
-            parsed = json.loads(raw)
-            if isinstance(parsed, list):
-                return [str(p) for p in parsed]
-        except Exception:
-            pass
+    from sb.config import get_configured_trap_paths as _get_paths
 
-    try:
-        from sb import config
-        val = getattr(config, "SB_TRAP_PATHS", None)
-        if val:
-            if isinstance(val, (list, tuple)):
-                return [str(p) for p in val]
-            if isinstance(val, str):
-                parsed = json.loads(val)
-                if isinstance(parsed, list):
-                    return [str(p) for p in parsed]
-    except Exception:
-        pass
-    return []
+    return _get_paths()
 
 
 def get_configured_trap_api_path() -> str:
@@ -49,18 +28,9 @@ def get_configured_trap_api_path() -> str:
 
     Defaults to empty string.
     """
-    raw = os.getenv("SB_TRAP_API_PATH")
-    if raw is not None:
-        return raw
+    from sb.config import get_configured_trap_api_path as _get_api
 
-    try:
-        from sb import config
-        val = getattr(config, "SB_TRAP_API_PATH", None)
-        if val:
-            return str(val)
-    except Exception:
-        pass
-    return ""
+    return _get_api()
 
 
 def get_hidden_link_html() -> str:

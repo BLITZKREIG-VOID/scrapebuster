@@ -23,7 +23,7 @@ from typing import Any
 from .db import get_connection
 
 GENESIS: str = "0" * 64
-_ledger_lock = threading.Lock()
+_ledger_lock = threading.RLock()
 
 
 def _json_default(obj: Any) -> Any:
@@ -59,11 +59,12 @@ def _compute_hash(prev_hash: str, envelope_bytes: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
-def append_event(kind: str, record: dict) -> dict[str, Any]:
+def append_event(kind: str, record: dict, conn: sqlite3.Connection | None = None) -> dict[str, Any]:
     """Append one event to the append-only forensic ledger.
 
     Atomically executes BEGIN IMMEDIATE tail + insert across connections and processes.
     Raises OperationalError if forensic_ledger table is missing (never silently recreates lost history).
+    If an existing connection is passed, caller manages the transaction context.
 
     Returns event metadata:
         {
@@ -80,21 +81,25 @@ def append_event(kind: str, record: dict) -> dict[str, Any]:
     if not isinstance(record, dict):
         raise TypeError(f"record must be a dict, got {type(record).__name__}")
 
+    manage_conn = conn is None
     with _ledger_lock:
-        conn = get_connection()
+        target_conn = get_connection() if manage_conn else conn
+        assert target_conn is not None
         try:
-            conn.isolation_level = None  # Autocommit mode to allow explicit BEGIN IMMEDIATE
-            conn.execute("BEGIN IMMEDIATE")
+            if manage_conn:
+                target_conn.isolation_level = None  # Autocommit mode to allow explicit BEGIN IMMEDIATE
+                target_conn.execute("BEGIN IMMEDIATE")
 
             # Check table exists; missing established table must fail visibly
-            tbl_check = conn.execute(
+            tbl_check = target_conn.execute(
                 "SELECT name FROM sqlite_master WHERE type='table' AND name='forensic_ledger'"
             ).fetchone()
             if tbl_check is None:
-                conn.execute("ROLLBACK")
+                if manage_conn:
+                    target_conn.execute("ROLLBACK")
                 raise sqlite3.OperationalError("forensic_ledger table missing: cannot append to uninitialized or dropped ledger")
 
-            row = conn.execute(
+            row = target_conn.execute(
                 "SELECT seq, hash FROM forensic_ledger ORDER BY seq DESC LIMIT 1"
             ).fetchone()
 
@@ -116,14 +121,15 @@ def append_event(kind: str, record: dict) -> dict[str, Any]:
             curr_hash = _compute_hash(prev_hash, envelope_bytes)
             record_str = canonical_json_bytes(record).decode("utf-8")
 
-            conn.execute(
+            target_conn.execute(
                 """
                 INSERT INTO forensic_ledger (seq, kind, record, prev_hash, hash, ts)
                 VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (seq, kind, record_str, prev_hash, curr_hash, ts),
             )
-            conn.execute("COMMIT")
+            if manage_conn:
+                target_conn.execute("COMMIT")
 
             return {
                 "seq": seq,
@@ -134,13 +140,15 @@ def append_event(kind: str, record: dict) -> dict[str, Any]:
                 "ts": ts,
             }
         except Exception:
-            try:
-                conn.execute("ROLLBACK")
-            except Exception:
-                pass
+            if manage_conn:
+                try:
+                    target_conn.execute("ROLLBACK")
+                except Exception:
+                    pass
             raise
         finally:
-            conn.close()
+            if manage_conn:
+                target_conn.close()
 
 
 def verify_chain() -> dict[str, Any]:

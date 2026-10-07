@@ -25,24 +25,27 @@ except ImportError:
 async def lifespan(app: FastAPI):
     """Application lifespan: validate config, initialize DB, install hooks, cleanup on shutdown."""
     from .config import validate_required_urls
+    from .edge.proxy import close_client
     from .offense import install as install_offense_hooks
     from .store.db import init_db
 
-    # Enforce canonical SB_UPSTREAM_ORIGIN and SB_PUBLIC_BASE_URL (PRD PR-2)
-    validate_required_urls()
+    try:
+        # Enforce canonical SB_UPSTREAM_ORIGIN and SB_PUBLIC_BASE_URL (PRD PR-2)
+        validate_required_urls()
 
-    # Ensure schema, ledger, and triggers are initialized before first request/verify
-    init_db()
+        # Ensure schema, ledger, and triggers are initialized before first request/verify
+        # Startup corrupt-store must not crash application (best-effort degraded origin operation)
+        try:
+            init_db()
+        except Exception as db_err:
+            logger.error("Database initialization failed at startup (store degraded): %s", db_err)
 
-    # Install W2 offense hooks
-    install_offense_hooks()
+        # Install W2 offense hooks
+        install_offense_hooks()
 
-    yield
-
-    from .edge.proxy import _client
-
-    if _client is not None:
-        await _client.aclose()
+        yield
+    finally:
+        await close_client()
 
 
 app = FastAPI(title="ScapeBusters", lifespan=lifespan)

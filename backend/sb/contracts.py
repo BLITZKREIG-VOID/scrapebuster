@@ -29,8 +29,8 @@ class TrafficEvent(BaseModel):
     path: str
     status_code: int
     user_agent: str
-    stage: str = "offense"
-    layer: str = "ORIGIN"
+    stage: str | None = None
+    layer: str | None = None
     decision: Decision
     risk_score: int
     reasons: list[str]

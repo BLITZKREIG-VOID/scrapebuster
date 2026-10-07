@@ -35,6 +35,68 @@ def _parse_trap_paths(val: str | None) -> list[str]:
 SB_TRAP_PATHS = _parse_trap_paths(os.getenv("SB_TRAP_PATHS"))
 SB_TRAP_API_PATH = os.getenv("SB_TRAP_API_PATH", "")
 
+
+def get_configured_trap_paths() -> list[str]:
+    """Return runtime configured trap paths from environment or module default."""
+    val = os.getenv("SB_TRAP_PATHS")
+    if val is not None:
+        try:
+            return _parse_trap_paths(val)
+        except Exception as exc:
+            logger.warning("Failed to parse live SB_TRAP_PATHS ('%s'): %s; defaulting to []", val, exc)
+            return []
+    return list(SB_TRAP_PATHS)
+
+
+def get_configured_trap_api_path() -> str:
+    """Return runtime configured trap API path from environment or module default."""
+    val = os.getenv("SB_TRAP_API_PATH")
+    if val is not None:
+        return val.strip()
+    return SB_TRAP_API_PATH.strip() if SB_TRAP_API_PATH else ""
+
+
+def is_segment_match(path: str, prefix: str) -> bool:
+    """Segment-safe match: exact or subpath under boundary (e.g. /trap and /trap/sub, not /trap-other)."""
+    if not path or not prefix:
+        return False
+    norm_path = path.rstrip("/") if path != "/" else "/"
+    norm_prefix = prefix.rstrip("/") if prefix != "/" else "/"
+    if norm_path == norm_prefix:
+        return True
+    pfx = norm_prefix if norm_prefix.endswith("/") else norm_prefix + "/"
+    return norm_path.startswith(pfx)
+
+
+def is_trap_path(path: str, candidates: list[str] | None = None) -> bool:
+    """Check if the path matches runtime-configured trap paths.
+
+    Shared canonical runtime-config predicate (Phase 0 Hard Rule).
+    Segment-safe: matches exact path or subpath under segment boundary (e.g. /trap and /trap/sub),
+    but never partial prefix matches without segment boundary (e.g. /trap-other).
+    Defaults to empty (no hardcoded trap paths).
+    """
+    try:
+        if candidates is None:
+            trap_paths = get_configured_trap_paths()
+            api_path = get_configured_trap_api_path()
+            if not trap_paths and not api_path:
+                return False
+            check_list: list[str] = list(trap_paths)
+            if api_path:
+                check_list.append(api_path)
+        else:
+            check_list = candidates
+
+        for tp in check_list:
+            if is_segment_match(path, tp):
+                return True
+        return False
+    except Exception as exc:
+        logger.warning("Error evaluating is_trap_path for %s: %s", path, exc)
+        return False
+
+
 # Mutation mode: Phase 0 is pure SANDBOX mutation on all eligible origin HTML/JSON.
 # Passthrough escape removed; adaptive mode deferred to Phase 2.
 SB_MUTATION_MODE = "always"

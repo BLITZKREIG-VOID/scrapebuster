@@ -236,6 +236,9 @@ def get_session_binding(canary_id: str) -> SessionCanaryBinding | None:
         return binding
 
 
+get_binding = get_session_binding
+
+
 def list_session_bindings(session_id: str | None = None) -> list[SessionCanaryBinding]:
     """List session canary bindings from SQLite durable storage, optionally filtered by session_id."""
     with closing(db.get_connection()) as conn, conn:

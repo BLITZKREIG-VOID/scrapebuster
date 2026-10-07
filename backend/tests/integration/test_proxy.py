@@ -25,6 +25,7 @@ async def test_proxy_flow(origin_server):
 
         assert response.status_code == 200
         assert b"Origin" in response.content
+        assert b"sb-canary" in response.content
 
         # Verify traffic_events logged by pipeline
         conn = get_connection()
@@ -47,8 +48,15 @@ async def test_proxy_unregistered_routes_forward_and_mutate(origin_server):
 
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        # 1. /api/catalog forwards to origin and mutates
         response = await client.get("/api/catalog", headers=BROWSER_HEADERS)
-
         assert response.status_code == 200
-        # Pipeline forwards to origin and mutates eligible HTML/JSON response
-        assert b"Origin" in response.content or b"sb-canary" in response.content
+        # Pipeline forwards to origin and mutates eligible HTML/JSON response: assert BOTH
+        assert b"Origin" in response.content
+        assert b"sb-canary" in response.content
+
+        # 2. Unregistered /api/v1 route forwards to origin and mutates
+        resp_v1 = await client.get("/api/v1/unknown_catalog", headers=BROWSER_HEADERS)
+        assert resp_v1.status_code == 200
+        assert b"Origin" in resp_v1.content
+        assert b"sb-canary" in resp_v1.content

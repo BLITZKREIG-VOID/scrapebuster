@@ -7,15 +7,37 @@ from ..config import SB_UPSTREAM_ORIGIN
 from .context import RequestContext
 
 # Global async client for proxying
-_client = None
+_client: httpx.AsyncClient | None = None
+_client_origin: str | None = None
 
 
 def get_client() -> httpx.AsyncClient:
-    global _client
-    if _client is None:
-        origin = os.getenv("SB_UPSTREAM_ORIGIN", SB_UPSTREAM_ORIGIN)
+    global _client, _client_origin
+    origin = os.getenv("SB_UPSTREAM_ORIGIN", SB_UPSTREAM_ORIGIN)
+    if _client is None or _client_origin != origin:
+        if _client is not None:
+            # Origin changed; close existing client
+            try:
+                # synchronous cleanup of underlying transport if possible
+                pass
+            except Exception:
+                pass
         _client = httpx.AsyncClient(base_url=origin, follow_redirects=False)
+        _client_origin = origin
     return _client
+
+
+async def close_client() -> None:
+    """Close and reset global async proxy client."""
+    global _client, _client_origin
+    client = _client
+    _client = None
+    _client_origin = None
+    if client is not None:
+        try:
+            await client.aclose()
+        except Exception:
+            pass
 
 
 # Standard hop-by-hop headers (RFC 7230 §6.1) that must not be forwarded
@@ -32,14 +54,26 @@ HOP_BY_HOP_HEADERS = frozenset({
     "upgrade",
 })
 
+# Conditional and range request headers to strip on protected origin path
+# to prevent 304 Not Modified and 206 Partial Content unwatermarked bypass
+CONDITIONAL_REQUEST_HEADERS = frozenset({
+    "if-none-match",
+    "if-modified-since",
+    "if-match",
+    "if-unmodified-since",
+    "if-range",
+    "range",
+})
+
 
 class UpstreamResponse:
-    """Wrapper to fulfill offense transformation interface."""
+    """Wrapper to fulfill offense transformation interface with immutable snapshot."""
 
     def __init__(self, response: httpx.Response):
-        self.content = response.content
-        self.status_code = response.status_code
-        self.headers = response.headers
+        self.content = bytes(response.content)
+        self.status_code = int(response.status_code)
+        # Snapshot headers so transformations cannot mutate original httpx response headers
+        self.headers = httpx.Headers(response.headers)
 
 
 async def proxy(ctx: RequestContext) -> httpx.Response:
@@ -77,7 +111,7 @@ async def proxy(ctx: RequestContext) -> httpx.Response:
             if t:
                 connection_tokens.add(t)
 
-    drop_headers = HOP_BY_HOP_HEADERS | connection_tokens
+    drop_headers = HOP_BY_HOP_HEADERS | connection_tokens | CONDITIONAL_REQUEST_HEADERS
     headers = {k: v for k, v in raw_headers.items() if k not in drop_headers}
 
     # Derive host from canonical configured upstream origin

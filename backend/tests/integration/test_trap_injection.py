@@ -79,7 +79,7 @@ def setup_test_env(tmp_path, monkeypatch, custom_origin):
 
 @pytest.mark.asyncio
 async def test_offense_response_transformation():
-    """Client request reaches origin and receives transformed response."""
+    """Client request reaches origin and receives transformed response with registry-bound canary."""
     ua = "Mozilla/5.0 offense-test"
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
@@ -88,3 +88,10 @@ async def test_offense_response_transformation():
         assert b"docs/architecture" in resp.content
         assert b"sb-canary" in resp.content
         assert b"SB-CANARY-" in resp.content
+
+        # Assert registry-bound mutation in durable store
+        with closing(db.get_connection()) as conn:
+            bindings = conn.execute("SELECT * FROM session_canary_bindings").fetchall()
+            assert len(bindings) >= 1
+            canary_id = bindings[0]["canary_id"]
+            assert canary_id.encode("utf-8") in resp.content or bindings[0]["value"].encode("utf-8") in resp.content
