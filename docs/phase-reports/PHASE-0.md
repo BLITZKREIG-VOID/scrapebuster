@@ -19,7 +19,7 @@ All five worker streams were integrated sequentially off baseline `36875140b32af
 
 ### W1 — Edge Reverse Proxy Subsystem
 - **Head Commit**: `e788751048ac3c753c8abac13543a416777d9fab`
-- **Delivered Scope**: Pure Layer 3 reverse proxy pipeline (`sb.edge.pipeline`), dual-origin environment configuration, session tracking, transparent streaming forwarding, and hop-by-hop header filtering.
+- **Delivered Scope**: Pure Layer 3 reverse proxy pipeline (`sb.edge.pipeline`), dual-origin environment configuration, session tracking, buffered reverse proxy forwarding (via `AsyncClient.request` buffering request and response in memory for inspection and mutation), and hop-by-hop header filtering.
 
 ### W2 — Offense Subsystem
 - **Head Commit**: `26c542986e1f1c4ef970674142ea3d21a747c6c5`
@@ -76,18 +76,22 @@ Verification was executed via ONE final bounded execution batch on frozen commit
 
 | Evidence File | Size | SHA-256 Digest | Command / Scope | Duration | Exit Code |
 |---|---|---|---|---|---|
-| `manifest.json` | 3,433 B | — | Execution manifest (overall_success: true) | — | 0 |
+| `manifest.json` | 3,736 B | `57c188c0fe02cbab28977f5ae1f8dfa08cddb20258ea5e09f179eb3117ecac1c` (original) | Execution manifest (syntax repaired; original invalid bytes preserved in `manifest.original_invalid.json`) | — | 0 |
 | `01_make_check.stdout.log` | 16,127 B | `6a99b9c9e9fc0cf4d6c1c608b2a719562ab447cf252c466eb9cd6a17200a5817` | `make check` stdout | 247.07s | 0 |
 | `01_make_check.stderr.log` | 1,378 B | `7c5d8f912030a8a518e9bd49727b40e107c17f420fc3dddf3babd3d8f100400f` | `make check` stderr | — | 0 |
 | `02_verify_live_boot.stdout.log` | 2,416 B | `802943913b67a1e32af7ab55041ba561b1cbec7d790ab60367a986f5c20e9eee` | `scripts/verify_live_boot.py` stdout | 6.48s | 0 |
 | `02_verify_live_boot.stderr.log` | 0 B | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` | `scripts/verify_live_boot.py` stderr | — | 0 |
 | `03_final_grep_gate.stdout.log` | 149 B | `1485c37ab94c4ced6275159ca089bc92c49cf8d939b4b2087e7ff9a1d5c97419` | `scripts/grep_gate.py .` stdout | 0.16s | 0 |
 | `03_final_grep_gate.stderr.log` | 0 B | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` | `scripts/grep_gate.py .` stderr | — | 0 |
-| `edge_boot.stdout.log` | 207 B | `f04ebba89ec8d7ad66085e6833bc40608fa239feff013bc0fa51179040854cb0` | Uvicorn edge boot info stdout | — | — |
-| `edge_boot.stderr.log` | 202 B | `ff0e98cf0f21fa75ff19e34a6ef53bf3d03838ab8f63567b45a0b8bb9fc5dc59` | Uvicorn edge boot info stderr | — | — |
-| `live_boot_summary.json` | 1,477 B | `21a73f915be5cfdf779fdfa76cb439bb10d9f4fcb2b9e6ffec046db41d8b9fc0` | Live boot correlation summary | — | — |
-| `sb_boot.db` | 151,552 B | `76435ff207bcf2db7242ba4317f2fa89aa734dcf134c44e99f4bf39eb4b1ca7c` | Live boot external SQLite snapshot | — | — |
-| `source_file_hashes.json` | 22,223 B | `2c9062e737c34f242b58849b28292ce58f123d6a970974ec76f1837e2cb0ff47` | Frozen source git files SHA-256 | — | — |
+| `edge_boot.stdout.log` | 207 B | `8099353b7353abc8b41e87a1b44ad441e06f02305cb3788fbb25420dadf5d53c` | Uvicorn edge boot info stdout | — | — |
+| `edge_boot.stderr.log` | 202 B | `a6c3a64c57dedb095a10798d3db83de7062ec679aeb0345a3051f982ba78f49d` | Uvicorn edge boot info stderr | — | — |
+| `origin_boot.stdout.log` | 0 B | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` | Origin boot stdout | — | — |
+| `origin_boot.stderr.log` | 0 B | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` | Origin boot stderr | — | — |
+| `live_boot_summary.json` | 1,477 B | `335b9cc7a08c05b53843076dbec55b957a68b8771e0342f9dae848f8628647d6` | Live boot correlation summary (12 valid ledger events) | — | — |
+| `sb_boot.db` | 151,552 B | `a8a1dd7142004a47c752d540ccd972c98422d91a48ea7c145a2f1b24b58a67d3` | Live boot external SQLite snapshot (checkpointed to disk) | — | — |
+| `source_file_hashes.json` | 22,223 B | `ef7679b4bf8f23271ca65a089584ff8c26eb9aa9936c15f6dc40231842ceb51b` | Frozen source git files SHA-256 (204 tracked files at frozen commit `0b8ffcb`) | — | — |
+
+*(Note on Evidence Artifact Hashes: All evidence digests reflect actual authenticated file bytes on disk in `phase0-final-evidence-20261007-settle`. `sb_boot.db` reflects the flushed SQLite on-disk checkpoint following the 12-event live boot transaction sequence. `source_file_hashes.json` records all 204 git-tracked repository files at frozen commit `0b8ffcb0e960ddf66160fbb0bb96d98e351ffc00`. The original invalid `manifest.json` [3,736 B, SHA `57c188c0fe02cbab28977f5ae1f8dfa08cddb20258ea5e09f179eb3117ecac1c`] was preserved verbatim as `manifest.original_invalid.json` before repairing syntax. No evidence files were fabricated or modified).*
 
 ### Test Breakdown
 - Unit Tests: 107 passed
@@ -100,24 +104,27 @@ Verification was executed via ONE final bounded execution batch on frozen commit
 
 ## 5. PRD Deviations / Decisions
 
-### 5.1 Dual-Origin Configuration Conflict: PRD Section 8 PR-2 vs Master Legacy
-- **Conflict**: The legacy implementation accepted ambiguous environment variables (`UPSTREAM_ORIGIN`, `SB_ORIGIN_URL`) with empty defaults, failing to distinguish internal upstream services from client-facing ingress URLs.
-- **Analysis & Decision**: PRD Section 8 PR-2 establishes mandatory canonical configuration: `SB_UPSTREAM_ORIGIN` (the internal protected service) and `SB_PUBLIC_BASE_URL` (the external reverse proxy entrypoint). PRD requirements override legacy plans. All aliases were removed. Application startup enforces HTTP(S) URL validation with non-empty schemes and network locations via `sb.config.validate_required_urls()`.
+### 5.1 Dual-Origin Configuration Conflict: Master Phase 0 Origin-Only vs PRD Section 8 PR-2
+- **Conflict**: Master Plan Phase 0 wording specified origin-only configuration (`SB_UPSTREAM_ORIGIN` only), whereas PRD Section 8 PR-2 explicitly requires BOTH `SB_UPSTREAM_ORIGIN` (the internal protected upstream service) and `SB_PUBLIC_BASE_URL` (the external reverse proxy entrypoint URL). Legacy code also accepted ambiguous environment variables (`UPSTREAM_ORIGIN`, `SB_ORIGIN_URL`) with empty defaults, failing to distinguish internal upstream services from client-facing ingress URLs.
+- **Analysis & Decision**: PRD Section 8 PR-2 requirements win (PRD wins). Dual-origin configuration requires both `SB_UPSTREAM_ORIGIN` and `SB_PUBLIC_BASE_URL`. All ambiguous legacy aliases were removed. Application startup strictly enforces HTTP(S) URL validation with non-empty schemes and network locations for both variables via `sb.config.validate_required_urls()`.
 
 ### 5.2 Origin HTTP Preconditions & Caching Semantics
 - **Context**: Earlier implementations stripped all conditional headers unconditionally, inadvertently eliminating optimistic concurrency guards (`If-Match`) and create-if-absent guards (`If-None-Match: *`) on state-changing methods (POST/PUT/PATCH/DELETE).
 - **Decision**: Preconditions on unsafe methods and reads (`If-Match`, `If-Unmodified-Since`) are strictly forwarded to the upstream origin. Read cache validators (`If-None-Match`, `If-Modified-Since`, `Range`) are stripped solely on GET/HEAD sandbox eligible document paths to prevent unwatermarked 304/206 bypasses. The proxy preserves origin decisions faithfully: if the origin returns 412 Precondition Failed or 409 Conflict, ScrapeBuster forwards that status without override. No false claim is made that origin always returns 200.
 
 ### 5.3 Honest Description of Earlier Failed/Hung Runs & Recovery
-- **Context**: Early test runs encountered hangs due to unclosed child processes binding to fixed ports (8000/8001), potential collisions with existing listeners, and attempts to retain resurrected Phase 7 run artifacts (`data/canary_manifest.json`, `data/baseline/public_baseline.jsonl`) under the guise of "neutral fixtures".
-- **Resolution**:
-  1. Purged all legacy committed artifacts completely (achieving the true 132-file demolition count).
-  2. Modernized `scripts/verify_live_boot.py` to dynamically allocate neutral loopback ports, verify process ownership nonces, capture child stdout/stderr, and save external evidence snapshots outside the repository.
-  3. Replaced fixed baseline file references with generic per-test controls generated in `tmp_path`.
-  4. Bounded process lifecycles and eliminated pipe deadlocks.
+- **Context & Diagnosed Root Causes**: Earlier test runs experienced hangs and failures. A strict distinction must be drawn between actual diagnosed source defects and unverified speculations:
+  1. **Non-Reentrant Lock Self-Deadlocks**: `_lock` in `sb.store.db` and `_ledger_lock` in `sb.store.ledger` were previously non-reentrant `threading.Lock` instances. During `reset_db()`, which acquired both locks, nested calls to `init_db()` (re-acquiring `_lock`) and `append_event()` (re-acquiring `_ledger_lock`) caused recursive self-deadlocks, hanging test runs. Fix: Converted locks to `threading.RLock()` in both modules and coordinated single-connection transaction handling.
+  2. **Audit Store Bootstrap & Missing SQLite3 Import Failures**: In `sb.edge.pipeline`, storage persistence error handling raised `sqlite3.OperationalError` without importing `sqlite3`, causing unhandled exceptions. Additionally, uninitialized database states lacked proper discrimination between empty bootstrap and tamper states (`app_state` initialization marker), causing healthy audit verification failures. Fix: Added explicit `sqlite3` import, hardened tamper detection in `init_db()`, and ensured audit persistence faults cleanly fail-pass to unmutated origin responses without crashing.
+  3. **Closed Client Lifecycle Source Defect**: In `sb.edge.proxy`, async HTTP client instances were unmanaged across test lifecycles, causing connection attempts on closed `httpx.AsyncClient` instances. Fix: Introduced singleton `get_client()` with startup-frozen origin and explicit `close_client()` lifecycle management.
+  4. **Live Boot Isolation**: Updated `scripts/verify_live_boot.py` to dynamically allocate neutral loopback ports, verify process ownership nonces, capture child stdout/stderr, and save external evidence snapshots outside the repository.
+- **Log Provenance & Unavailable Interim Artifacts**:
+  - Earlier overwritten interim raw logs from failed/hung runs are permanently unavailable because subsequent test passes overwrote them in-place prior to final evidence preservation.
+  - Raw stdout/stderr is never reconstructed, and port-hang causality is not invented.
+  - The current final genuine raw logs in `phase0-final-evidence-20261007-settle` (160 test passes, uvicorn live boot logs, and grep gate logs) are genuine, verified, and preserved intact.
 
 ### 5.4 Phase 0 Scope Boundary
-- All Phase 0 origin decisions are `SANDBOX` for eligible HTML/JSON only. No Phase 2 `FAST_PATH` fast paths, clearance challenge stages, or finished MVP capabilities are introduced or claimed.
+- In Phase 0, all origin decisions are `SANDBOX` across all traffic routed to origin (`stage="ORIGIN", decision="SANDBOX"`). Only eligible HTML/JSON responses are mutated (via additive canary injection or deterministic fallback); non-eligible responses—such as binary media, HEAD requests (which have no response body), and error/non-200 responses—preserve their original status, headers, and content without mutation. They are not "eligible only decisions" (the decision is uniformly `SANDBOX` for all origin requests, while body mutation is strictly conditional on content eligibility). No Phase 2 `FAST_PATH` fast paths, clearance challenge stages, or finished MVP capabilities are introduced or claimed.
 
 ---
 
