@@ -97,9 +97,10 @@ def test_control_endpoints_resolve_without_entering_edge(runtime_client):
     for response in requests:
         _assert_json(response)
 
-    # Unknown v1 API paths are API 404s, not upstream pages.
-    _assert_json(client.get("/api/v1/not-a-control-route"), expected_status=404)
-    assert proxied_paths == []
+    # Unregistered /api/v1 origin paths forward to upstream and mutate per finding (3)
+    resp = client.get("/api/v1/not-a-control-route")
+    assert resp.status_code == 200
+    assert proxied_paths == ["/api/v1/not-a-control-route"]
 
 
 def test_provenance_endpoint_families_resolve_as_api(runtime_client, tmp_path: Path):
@@ -131,9 +132,11 @@ def test_demo_routes_resolve_at_their_single_application_prefix(runtime_client):
 
     _assert_json(client.get("/api/v1/demo/status"))
     _assert_json(client.post("/api/v1/demo/reset"))
-    _assert_json(client.get("/api/v1/api/v1/demo/status"), expected_status=404)
-
-    assert proxied_paths == []
+    # Unregistered subpaths forward to upstream per finding (3)
+    proxied_paths.clear()
+    resp = client.get("/api/v1/api/v1/demo/status")
+    assert resp.status_code == 200
+    assert proxied_paths == ["/api/v1/api/v1/demo/status"]
 
 
 def test_favicon_keeps_route_surface(runtime_client):
@@ -159,8 +162,8 @@ def test_unmatched_site_paths_reach_edge_and_control_routes_precede_catch_all(
         index for index, route in enumerate(app.routes)
         if getattr(route, "name", None) == "catch_all"
     )
-    api_fallback_index = paths.index("/api/v1/{path:path}")
-    assert api_fallback_index < catch_all_index
+    # Never broad /api exemption; known routes precede catch-all
+    assert "/api/v1/{path:path}" not in paths
 
     required = {
         "/api/v1/health",

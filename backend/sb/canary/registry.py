@@ -72,148 +72,26 @@ def _ensure_bindings_table(conn: sqlite3.Connection) -> None:
 
 
 def reserve_canary_sequence(session_id: str) -> int:
-    """Atomically reserve next canary sequence counter for a session.
-
-    Delegates to sb.store.reserve_canary_sequence if available; otherwise uses
-    durable SQLite sequence table.
-    """
+    """Atomically reserve next canary sequence counter for a session."""
     clean_session = str(session_id or "anonymous")
-    try:
-        import sb.store
-        if hasattr(sb.store, "reserve_canary_sequence"):
-            return sb.store.reserve_canary_sequence(clean_session)
-    except Exception:
-        pass
+    from sb.store.canaries import reserve_canary_sequence as store_reserve
 
-    with closing(db.get_connection()) as conn, conn:
-        _ensure_bindings_table(conn)
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS canary_sequences (
-                session_id TEXT PRIMARY KEY,
-                seq INT NOT NULL
-            )
-            """
-        )
-        row = conn.execute(
-            "SELECT seq FROM canary_sequences WHERE session_id = ?",
-            (clean_session,),
-        ).fetchone()
-        if row is None:
-            count_row = conn.execute(
-                "SELECT count(*) as c FROM session_canary_bindings WHERE session_id = ?",
-                (clean_session,),
-            ).fetchone()
-            current_count = count_row["c"] if count_row else 0
-            new_seq = current_count + 1
-            conn.execute(
-                "INSERT INTO canary_sequences (session_id, seq) VALUES (?, ?)",
-                (clean_session, new_seq),
-            )
-            return new_seq
-        else:
-            new_seq = row["seq"] + 1
-            conn.execute(
-                "UPDATE canary_sequences SET seq = ? WHERE session_id = ?",
-                (new_seq, clean_session),
-            )
-            return new_seq
+    return store_reserve(clean_session)
 
 
 def append_event(kind: str, record: dict) -> dict:
-    """Append a chained event to the ledger.
+    """Append a chained event to the authoritative forensic ledger."""
+    from sb.store.ledger import append_event as store_append
 
-    Delegates to sb.store.ledger.append_event if available; otherwise persists
-    to local SQLite ledger_events table with cryptographic hash chaining.
-    """
-    try:
-        from sb.store import ledger as store_ledger
-        if hasattr(store_ledger, "append_event"):
-            return store_ledger.append_event(kind, record)
-    except Exception:
-        pass
-
-    with closing(db.get_connection()) as conn, conn:
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS ledger_events (
-                seq INTEGER PRIMARY KEY AUTOINCREMENT,
-                kind TEXT NOT NULL,
-                record TEXT NOT NULL,
-                prev_hash TEXT NOT NULL,
-                hash TEXT NOT NULL,
-                ts TEXT NOT NULL
-            )
-            """
-        )
-        last_row = conn.execute(
-            "SELECT seq, hash FROM ledger_events ORDER BY seq DESC LIMIT 1"
-        ).fetchone()
-        prev_hash = last_row["hash"] if last_row else "0" * 64
-        timestamp = now_iso()
-        record_json = json.dumps(record, sort_keys=True)
-        payload = f"{prev_hash}:{kind}:{record_json}:{timestamp}"
-        event_hash = hashlib.sha256(payload.encode("utf-8")).hexdigest()
-        cursor = conn.execute(
-            """
-            INSERT INTO ledger_events (kind, record, prev_hash, hash, ts)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (kind, record_json, prev_hash, event_hash, timestamp),
-        )
-        seq = cursor.lastrowid
-        return {
-            "seq": seq,
-            "kind": kind,
-            "record": record,
-            "prev_hash": prev_hash,
-            "hash": event_hash,
-            "ts": timestamp,
-        }
+    return store_append(kind, record)
 
 
 def verify_chain() -> dict:
     """Verify cryptographic integrity of the hash-chained ledger."""
-    try:
-        from sb.store import ledger as store_ledger
-        if hasattr(store_ledger, "verify_chain"):
-            return store_ledger.verify_chain()
-    except Exception:
-        pass
+    from sb.store.ledger import verify_chain as store_verify
 
-    with closing(db.get_connection()) as conn, conn:
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS ledger_events (
-                seq INTEGER PRIMARY KEY AUTOINCREMENT,
-                kind TEXT NOT NULL,
-                record TEXT NOT NULL,
-                prev_hash TEXT NOT NULL,
-                hash TEXT NOT NULL,
-                ts TEXT NOT NULL
-            )
-            """
-        )
-        rows = conn.execute("SELECT * FROM ledger_events ORDER BY seq ASC").fetchall()
-        expected_prev = "0" * 64
-        errors: list[str] = []
-        for r in rows:
-            if r["prev_hash"] != expected_prev:
-                errors.append(f"Broken chain at seq {r['seq']}: expected prev {expected_prev}, got {r['prev_hash']}")
-            payload = f"{r['prev_hash']}:{r['kind']}:{r['record']}:{r['ts']}"
-            computed = hashlib.sha256(payload.encode("utf-8")).hexdigest()
-            if r["hash"] != computed:
-                errors.append(f"Hash mismatch at seq {r['seq']}: expected {computed}, got {r['hash']}")
-            expected_prev = r["hash"]
+    return store_verify()
 
-        status = "VALID" if not errors else "TAMPERED"
-        head = expected_prev if rows else "0" * 64
-        return {
-            "result": status,
-            "count": len(rows),
-            "head": head,
-            "errors": errors,
-        }
 
 
 def load_definitions(path: Path | None = None) -> list[dict]:
@@ -387,15 +265,8 @@ def list_session_bindings(session_id: str | None = None) -> list[SessionCanaryBi
 
 
 def reset_session_bindings() -> None:
-    """Reset session canary bindings in SQLite durable storage and clear in-memory cache."""
+    """Clear in-memory cache of session bindings. Durable SQLite bindings are preserved."""
     _session_bindings_cache.clear()
-    with closing(db.get_connection()) as conn, conn:
-        _ensure_bindings_table(conn)
-        conn.execute("DELETE FROM session_canary_bindings")
-        try:
-            conn.execute("DELETE FROM canary_sequences")
-        except sqlite3.OperationalError:
-            pass
 
 
 def upsert_canary(record: dict | Canary) -> Canary:

@@ -23,7 +23,22 @@ except ImportError:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Application lifespan: validate config, initialize DB, install hooks, cleanup on shutdown."""
+    from .config import validate_required_urls
+    from .offense import install as install_offense_hooks
+    from .store.db import init_db
+
+    # Enforce canonical SB_UPSTREAM_ORIGIN and SB_PUBLIC_BASE_URL (PRD PR-2)
+    validate_required_urls()
+
+    # Ensure schema, ledger, and triggers are initialized before first request/verify
+    init_db()
+
+    # Install W2 offense hooks
+    install_offense_hooks()
+
     yield
+
     from .edge.proxy import _client
 
     if _client is not None:
@@ -31,14 +46,6 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="ScapeBusters", lifespan=lifespan)
-
-# Install W2 offense hooks (no silent pass, no legacy trap fallback)
-try:
-    from .offense import install as install_offense_hooks
-
-    install_offense_hooks()
-except Exception as exc:
-    logger.error("W2 offense hooks installation failed: %s", exc)
 
 api_v1_router = APIRouter(prefix="/api/v1")
 api_v1_router.include_router(health_router, tags=["health"])

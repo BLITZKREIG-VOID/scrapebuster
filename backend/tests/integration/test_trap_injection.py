@@ -66,7 +66,8 @@ def setup_test_env(tmp_path, monkeypatch, custom_origin):
     db.reset_db()
     seed_canaries()
 
-    monkeypatch.setattr(proxy_module, "SB_ORIGIN_URL", custom_origin)
+    monkeypatch.setattr(proxy_module, "SB_UPSTREAM_ORIGIN", custom_origin)
+    monkeypatch.setenv("SB_UPSTREAM_ORIGIN", custom_origin)
     monkeypatch.setattr(proxy_module, "_client", None)
 
     sessions.reset()
@@ -84,4 +85,6 @@ async def test_offense_response_transformation():
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
         resp = await client.get("/docs/architecture", headers={"user-agent": ua})
         assert resp.status_code == 200
-        assert b"Doc /docs/architecture" in resp.content
+        assert b"docs/architecture" in resp.content
+        assert b"sb-canary" in resp.content
+        assert b"SB-CANARY-" in resp.content

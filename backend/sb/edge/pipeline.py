@@ -11,14 +11,16 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
+import httpx
 from fastapi import Request, Response
 
-from ..config import SB_MUTATION_MODE, SB_TRAP_API_PATH, SB_TRAP_PATHS
+from ..config import SB_TRAP_API_PATH, SB_TRAP_PATHS
 from ..store.db import get_connection
+from ..store.ledger import append_event
 from ..store.sessions import save_session
 from .context import RequestContext, build_context
 from .intel import init_request, record_decision
-from .proxy import UpstreamResponse, proxy
+from .proxy import HOP_BY_HOP_HEADERS, UpstreamResponse, proxy
 from .session import Session, sessions
 
 logger = logging.getLogger("sb.edge.pipeline")
@@ -32,7 +34,15 @@ TRAFFIC_DECISIONS = frozenset({
 
 
 def _get_offense_hooks():
-    """Resolve offense hooks directly from sb.offense with loudly logged unavailable fallback."""
+    """Resolve offense hooks directly from sb.hooks or sb.offense."""
+    try:
+        from sb.hooks import offense_hooks
+
+        if offense_hooks is not None:
+            return offense_hooks.handle_decoy, offense_hooks.transform_response
+    except Exception as exc:
+        logger.warning("Could not resolve offense_hooks from sb.hooks: %s", exc)
+
     try:
         from sb.offense.injector import handle_decoy, transform_response
 
@@ -45,19 +55,7 @@ def _get_offense_hooks():
 def _append_fault_record(record: dict[str, Any]) -> None:
     """Append fault record to durable store and ledger without unchained silent failure."""
     try:
-        from ..store.ledger import append_event
-
         append_event("fault", record)
-        return
-    except ImportError:
-        pass
-    try:
-        from sb.store.ledger import append_event
-
-        append_event("fault", record)
-        return
-    except ImportError:
-        pass
     except Exception as exc:
         logger.error("Failed to append fault event to ledger: %s", exc)
 
@@ -80,170 +78,72 @@ def is_trap_path(path: str) -> bool:
     return False
 
 
-def is_control_endpoint(path: str) -> bool:
-    """Check if endpoint is an internal management endpoint bypassing proxy.
-
-    Registered FastAPI management endpoints handle before proxy catchall;
-    all origin endpoints reaching proxy must mutate when eligible.
-    """
-    return False
-
-
 def is_eligible_for_mutation(method: str, status_code: int, content_type: str) -> bool:
     """Return True if response is eligible for sandboxed offensive mutation."""
-    if method in {"HEAD", "OPTIONS"}:
+    if method.upper() in {"HEAD", "OPTIONS"}:
         return False
     if status_code in {204, 205, 304}:
         return False
     ct = content_type.lower()
-    return "text/html" in ct or "application/json" in ct
+    return "text/html" in ct or "application/xhtml+xml" in ct or "application/json" in ct or "+json" in ct
 
 
-def _deterministic_offensive_fallback(
-    ctx: RequestContext,
-    session: Session,
-    upstream: UpstreamResponse | Any,
-) -> tuple[bytes, bool]:
-    """Deterministic offensive fallback using W2 session-bound canary binding.
+def build_proxy_response(
+    upstream: httpx.Response,
+    body: bytes,
+    mutated: bool,
+    method: str,
+) -> Response:
+    """Build FastAPI Response from upstream httpx.Response.
 
-    Returns (body_bytes, mutated_bool). Malformed source returns unmutated bytes
-    with explicit fault logging per total-error rule.
+    Preserves repeated headers (especially origin Set-Cookie),
+    strips hop-by-hop and Connection-nominated headers,
+    preserves upstream HEAD Content-Length, and updates Content-Length
+    for mutated bodies.
     """
-    content_bytes = getattr(upstream, "content", b"") or b""
-    if not isinstance(content_bytes, bytes):
-        content_bytes = bytes(content_bytes)
+    status_code = upstream.status_code
+    resp_body = b"" if method.upper() == "HEAD" else body
 
-    content_type = ""
-    headers = getattr(upstream, "headers", {}) or {}
-    if hasattr(headers, "get"):
-        content_type = (headers.get("content-type", "") or "").lower()
+    resp = Response(content=resp_body, status_code=status_code)
 
-    if "text/html" in content_type:
-        binding = None
-        try:
-            from sb.canary.registry import bind_session_canary
+    # Connection-nominated headers to strip
+    connection_tokens = set()
+    conn_hdr = upstream.headers.get("connection", "")
+    if conn_hdr:
+        for token in conn_hdr.split(","):
+            t = token.strip().lower()
+            if t:
+                connection_tokens.add(t)
 
-            binding = bind_session_canary(session.session_id, vector="html")
-        except Exception as exc:
-            logger.error("Failed to bind session canary for HTML fallback: %s", exc)
+    drop_headers = HOP_BY_HOP_HEADERS | connection_tokens | {"content-encoding"}
 
-        canary_id = binding.canary_id if binding else f"SB-CANARY-FALLBACK-{session.session_id[:8]}"
-        canary_value = binding.value if binding else f"CONFIDENTIAL-REF-{canary_id}"
+    raw_headers: list[tuple[bytes, bytes]] = []
+    content_length_added = False
 
-        if canary_id not in session.canaries_exposed:
-            session.canaries_exposed.append(canary_id)
+    # Upstream raw headers preserves exact duplicates including repeated Set-Cookie
+    for k_bytes, v_bytes in upstream.headers.raw:
+        k_lower = k_bytes.lower().decode("latin1", errors="replace")
+        if k_lower in drop_headers:
+            continue
+        if k_lower == "content-length":
+            if method.upper() == "HEAD":
+                # Preserve upstream HEAD Content-Length exactly
+                raw_headers.append((k_bytes, v_bytes))
+                content_length_added = True
+            elif not mutated:
+                # Unmutated body keeps upstream content-length
+                raw_headers.append((k_bytes, v_bytes))
+                content_length_added = True
+            continue
+        raw_headers.append((k_bytes, v_bytes))
 
-        try:
-            from sb.canary.registry import record_exposure
+    # Recompute or add Content-Length for non-HEAD responses with bodies
+    if method.upper() != "HEAD" and status_code not in (204, 205, 304):
+        if mutated or not content_length_added:
+            raw_headers.append((b"content-length", str(len(resp_body)).encode("ascii")))
 
-            record_exposure(canary_id, session, ctx, ctx.path, canary_value, vector="html")
-        except Exception:
-            pass
-
-        text = content_bytes.decode("utf-8", errors="replace")
-
-        try:
-            from sb.offense.injector import insert_canary
-
-            mutated_text = insert_canary(text, canary_value, canary_id=canary_id)
-            return mutated_text.encode("utf-8"), True
-        except Exception:
-            pass
-
-        # Deterministic additive marker before </main> or </body>; no hardcoded trap paths
-        p_tag = f'<p class="sb-canary" data-canary-id="{canary_id}">{canary_value}</p>'
-        lower = text.lower()
-        main_idx = lower.rfind("</main>")
-        if main_idx != -1:
-            mutated_text = text[:main_idx] + p_tag + text[main_idx:]
-        else:
-            body_idx = lower.rfind("</body>")
-            if body_idx != -1:
-                mutated_text = text[:body_idx] + p_tag + text[body_idx:]
-            else:
-                mutated_text = text + p_tag
-        return mutated_text.encode("utf-8"), True
-
-    if "application/json" in content_type:
-        try:
-            data = json.loads(content_bytes.decode("utf-8"))
-        except Exception as parse_err:
-            logger.error(
-                "Eligible JSON mutation failed on malformed source for %s: %s; returning unmutated bytes per total-error rule",
-                ctx.path,
-                parse_err,
-            )
-            _append_fault_record({
-                "event_type": "malformed_json_source",
-                "session_id": session.session_id,
-                "client_key": ctx.client_key,
-                "path": ctx.path,
-                "error": str(parse_err),
-                "ts": datetime.now(timezone.utc).isoformat(),
-            })
-            return content_bytes, False
-
-        if not isinstance(data, (dict, list)):
-            logger.error(
-                "Eligible JSON mutation cannot mutate scalar source for %s without changing semantics; returning unmutated bytes",
-                ctx.path,
-            )
-            _append_fault_record({
-                "event_type": "json_scalar_source_unmutatable",
-                "session_id": session.session_id,
-                "client_key": ctx.client_key,
-                "path": ctx.path,
-                "error": "scalar JSON source cannot mutate additively",
-                "ts": datetime.now(timezone.utc).isoformat(),
-            })
-            return content_bytes, False
-
-        binding = None
-        try:
-            from sb.canary.registry import bind_session_canary
-
-            binding = bind_session_canary(session.session_id, vector="json")
-        except Exception as exc:
-            logger.error("Failed to bind session canary for JSON fallback: %s", exc)
-
-        canary_id = binding.canary_id if binding else f"SB-CANARY-FALLBACK-{session.session_id[:8]}"
-        canary_value = binding.value if binding else f"CONFIDENTIAL-REF-{canary_id}"
-
-        if canary_id not in session.canaries_exposed:
-            session.canaries_exposed.append(canary_id)
-
-        try:
-            from sb.canary.registry import record_exposure
-
-            record_exposure(canary_id, session, ctx, ctx.path, canary_value, vector="json")
-        except Exception:
-            pass
-
-        try:
-            from sb.offense.injector import inject_json_canary
-
-            mutated_data = inject_json_canary(data, canary_id, canary_value)
-            return json.dumps(mutated_data).encode("utf-8"), True
-        except Exception:
-            pass
-
-        # Deterministic additive JSON injection
-        canary_meta = {"canary_id": canary_id, "token": canary_value}
-        if isinstance(data, dict):
-            mutated_dict = dict(data)
-            mutated_dict["_sb_canary"] = canary_meta
-            return json.dumps(mutated_dict).encode("utf-8"), True
-        elif isinstance(data, list):
-            mutated_list = list(data)
-            if mutated_list and isinstance(mutated_list[0], dict):
-                first = dict(mutated_list[0])
-                first["_sb_canary"] = canary_meta
-                mutated_list[0] = first
-            else:
-                mutated_list.append({"_sb_canary": canary_meta})
-            return json.dumps(mutated_list).encode("utf-8"), True
-
-    return content_bytes, False
+    resp.raw_headers = raw_headers
+    return resp
 
 
 def log_event(
@@ -252,7 +152,7 @@ def log_event(
     layer: str,
     decision: str,
     status_code: int,
-    reasons: list | None = None,
+    reasons: list[str] | None = None,
     risk_score: int | None = None,
 ) -> None:
     """Log a traffic event to database and append to forensic ledger."""
@@ -263,30 +163,43 @@ def log_event(
     if decision not in TRAFFIC_DECISIONS:
         raise ValueError(f"Unsupported traffic decision: {decision}")
 
-    ts = datetime.now(timezone.utc).isoformat()
+    ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     event_id = f"evt-{uuid.uuid4().hex[:8]}"
 
-    if event_id not in session.event_ids:
+    if session is not None and event_id not in session.event_ids:
         session.event_ids.append(event_id)
+    if session is not None and reasons:
+        for r in reasons:
+            if r not in session.reasons:
+                session.reasons.append(r)
+
+    session_id = session.session_id if session else "unknown"
+    client_key = ctx.client_key if ctx else ""
+    ip = ctx.ip if ctx else "127.0.0.1"
+    method = ctx.request.method if ctx and ctx.request else "GET"
+    path = ctx.path if ctx else "/"
+    user_agent = ctx.user_agent if ctx else ""
+    header_fp = ctx.header_fp if ctx else ""
 
     conn = get_connection()
     try:
         conn.execute(
             """INSERT INTO traffic_events
                (event_id, ts, session_id, client_key, ip, method, path, status_code,
-                user_agent, header_fp, layer, decision, risk_score, reasons)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                user_agent, header_fp, stage, layer, decision, risk_score, reasons)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 event_id,
                 ts,
-                session.session_id,
-                ctx.client_key,
-                ctx.ip,
-                ctx.request.method,
-                ctx.path,
+                session_id,
+                client_key,
+                ip,
+                method,
+                path,
                 status_code,
-                ctx.user_agent,
-                ctx.header_fp,
+                user_agent,
+                header_fp,
+                layer,
                 layer,
                 decision,
                 0 if risk_score is None else risk_score,
@@ -294,19 +207,22 @@ def log_event(
             ),
         )
         conn.commit()
+    except Exception as db_err:
+        logger.error("Failed to insert traffic_event: %s", db_err)
     finally:
         conn.close()
 
     record = {
         "event_id": event_id,
-        "session_id": session.session_id,
-        "client_key": ctx.client_key,
-        "ip": ctx.ip,
-        "method": ctx.request.method,
-        "path": ctx.path,
+        "session_id": session_id,
+        "client_key": client_key,
+        "ip": ip,
+        "method": method,
+        "path": path,
         "status_code": status_code,
-        "user_agent": ctx.user_agent,
-        "header_fp": ctx.header_fp,
+        "user_agent": user_agent,
+        "header_fp": header_fp,
+        "stage": layer,
         "layer": layer,
         "decision": decision,
         "risk_score": 0 if risk_score is None else risk_score,
@@ -314,16 +230,7 @@ def log_event(
         "ts": ts,
     }
     try:
-        from ..store.ledger import append_event
-
         append_event("traffic", record)
-    except ImportError:
-        try:
-            from sb.store.ledger import append_event
-
-            append_event("traffic", record)
-        except ImportError:
-            pass
     except Exception as ledger_err:
         logger.error("Failed to append traffic event to ledger: %s", ledger_err)
 
@@ -335,10 +242,32 @@ async def handle(request: Request) -> Response:
 
     try:
         init_request(ctx, session)
-        save_session(session)
+        try:
+            save_session(session)
+        except Exception as sess_err:
+            logger.error("Failed to save session before fetch: %s", sess_err)
+            _append_fault_record({
+                "event_type": "pre_fetch_session_save_error",
+                "session_id": session.session_id,
+                "client_key": ctx.client_key,
+                "path": ctx.path,
+                "error": str(sess_err),
+                "ts": datetime.now(timezone.utc).isoformat(),
+            })
         return await _handle_request(ctx, session)
     finally:
-        save_session(session)
+        try:
+            save_session(session)
+        except Exception as sess_err:
+            logger.error("Failed to save session in finally: %s", sess_err)
+            _append_fault_record({
+                "event_type": "post_fetch_session_save_error",
+                "session_id": session.session_id,
+                "client_key": ctx.client_key,
+                "path": ctx.path,
+                "error": str(sess_err),
+                "ts": datetime.now(timezone.utc).isoformat(),
+            })
 
 
 async def _handle_request(ctx: RequestContext, session: Session) -> Response:
@@ -350,19 +279,47 @@ async def _handle_request(ctx: RequestContext, session: Session) -> Response:
             decoy_resp = handle_decoy_fn(ctx, session)
             if decoy_resp is not None:
                 session.state = "SANDBOX"
+                session.decision = "SANDBOX"
                 if ctx.path not in session.traps_triggered:
                     session.traps_triggered.append(ctx.path)
                 log_event(ctx, session, "OFFENSE", "SANDBOX", decoy_resp.status_code, ["TRAP_DECOY_HIT"])
                 record_decision(session, "OFFENSE", "SANDBOX")
-                save_session(session)
+                try:
+                    save_session(session)
+                except Exception as exc:
+                    logger.error("Failed to save session after decoy hit: %s", exc)
                 return decoy_resp
 
-    # 2. Upstream fetch
+    # 2. Upstream fetch (exactly once, never retry non-idempotent)
     try:
         upstream = await proxy(ctx)
+    except httpx.TimeoutException as exc:
+        logger.error(
+            "Upstream proxy request timed out for %s %s: %s",
+            ctx.request.method,
+            ctx.path,
+            exc,
+        )
+        _append_fault_record({
+            "event_type": "proxy_origin_timeout",
+            "session_id": session.session_id,
+            "client_key": ctx.client_key,
+            "path": ctx.path,
+            "method": ctx.request.method,
+            "status_code": 504,
+            "error": str(exc),
+            "ts": datetime.now(timezone.utc).isoformat(),
+        })
+        log_event(ctx, session, "ORIGIN", "SANDBOX", 504, ["ORIGIN_TIMEOUT"])
+        record_decision(session, "ORIGIN", "SANDBOX")
+        return Response(
+            content=b"Gateway Timeout",
+            status_code=504,
+            media_type="text/plain",
+        )
     except Exception as exc:
         logger.error(
-            "Upstream proxy request failed for %s %s: %s",
+            "Upstream proxy connection failed for %s %s: %s",
             ctx.request.method,
             ctx.path,
             exc,
@@ -377,7 +334,8 @@ async def _handle_request(ctx: RequestContext, session: Session) -> Response:
             "error": str(exc),
             "ts": datetime.now(timezone.utc).isoformat(),
         })
-        # Origin outage cannot be fabricated as successful pass-through
+        log_event(ctx, session, "ORIGIN", "SANDBOX", 502, ["ORIGIN_CONNECT_ERROR"])
+        record_decision(session, "ORIGIN", "SANDBOX")
         return Response(
             content=b"Bad Gateway: Origin unreachable",
             status_code=502,
@@ -385,76 +343,75 @@ async def _handle_request(ctx: RequestContext, session: Session) -> Response:
         )
 
     # 3. Post-upstream processing with fault resilience
-    try:
-        content_type = upstream.headers.get("content-type", "")
-        eligible = is_eligible_for_mutation(
-            ctx.request.method, upstream.status_code, content_type
-        )
+    # Decision is SANDBOX for all protected Phase 0 origin traffic
+    decision = "SANDBOX"
+    reasons: list[str] = []
 
-        if eligible and SB_MUTATION_MODE != "passthrough":
-            _, transform_response_fn = _get_offense_hooks()
-            mutated = False
-            if transform_response_fn is not None:
-                try:
-                    body = transform_response_fn(ctx, session, UpstreamResponse(upstream))
+    content_type = upstream.headers.get("content-type", "")
+    eligible = is_eligible_for_mutation(
+        ctx.request.method, upstream.status_code, content_type
+    )
+
+    body = upstream.content
+    mutated = False
+
+    if eligible:
+        _, transform_response_fn = _get_offense_hooks()
+        if transform_response_fn is not None:
+            try:
+                mutated_body = transform_response_fn(ctx, session, UpstreamResponse(upstream))
+                if mutated_body and mutated_body != upstream.content:
+                    body = mutated_body
                     mutated = True
-                except Exception as mut_err:
-                    logger.error(
-                        "Offense mutation failed for %s: %s; using deterministic offensive fallback",
-                        ctx.path,
-                        mut_err,
-                    )
-                    _append_fault_record({
-                        "event_type": "mutation_hook_error",
-                        "session_id": session.session_id,
-                        "client_key": ctx.client_key,
-                        "path": ctx.path,
-                        "error": str(mut_err),
-                        "ts": datetime.now(timezone.utc).isoformat(),
-                    })
-                    body, mutated = _deterministic_offensive_fallback(ctx, session, upstream)
-            else:
-                body, mutated = _deterministic_offensive_fallback(ctx, session, upstream)
+                    reasons = ["CANARY_INJECTED"]
+                else:
+                    # Identity bytes or empty: run shared deterministic fallback helper
+                    from sb.offense.injector import deterministic_fallback_core
 
-            decision = "SANDBOX" if mutated else "FAST_PATH"
+                    body, mutated = deterministic_fallback_core(ctx, session, upstream)
+                    reasons = ["CANARY_INJECTED"] if mutated else ["mutation_failed_pass"]
+            except Exception as mut_err:
+                logger.error(
+                    "Offense mutation failed for %s: %s; using deterministic fallback helper",
+                    ctx.path,
+                    mut_err,
+                )
+                _append_fault_record({
+                    "event_type": "mutation_hook_error",
+                    "session_id": session.session_id,
+                    "client_key": ctx.client_key,
+                    "path": ctx.path,
+                    "error": str(mut_err),
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                })
+                from sb.offense.injector import deterministic_fallback_core
+
+                body, mutated = deterministic_fallback_core(ctx, session, upstream)
+                reasons = ["CANARY_INJECTED"] if mutated else ["mutation_failed_pass"]
         else:
-            body = upstream.content
-            decision = "FAST_PATH"
+            from sb.offense.injector import deterministic_fallback_core
 
-        log_event(ctx, session, "ORIGIN", decision, upstream.status_code, [])
+            body, mutated = deterministic_fallback_core(ctx, session, upstream)
+            reasons = ["CANARY_INJECTED"] if mutated else ["mutation_failed_pass"]
+    else:
+        # Non-eligible content (HEAD, 204, binary, etc.) remains unmutated
+        body = upstream.content
+        mutated = False
+        reasons = ["mutation_skipped_noneligible"]
+
+    try:
+        log_event(ctx, session, "ORIGIN", decision, upstream.status_code, reasons)
         record_decision(session, "ORIGIN", decision)
         save_session(session)
-
-        out_headers = dict(upstream.headers)
-        out_headers.pop("content-length", None)
-        out_headers.pop("transfer-encoding", None)
-        out_headers.pop("content-encoding", None)
-
-        return Response(
-            content=body,
-            status_code=upstream.status_code,
-            headers=out_headers,
-        )
-    except Exception as pipeline_err:
-        logger.exception(
-            "Internal proxy pipeline fault on %s: %s; returning captured upstream bytes",
-            ctx.path,
-            pipeline_err,
-        )
+    except Exception as internal_err:
+        logger.exception("Internal store fault during logging: %s; passing upstream response", internal_err)
         _append_fault_record({
             "event_type": "internal_pipeline_fault",
             "session_id": session.session_id,
             "client_key": ctx.client_key,
             "path": ctx.path,
-            "error": str(pipeline_err),
+            "error": str(internal_err),
             "ts": datetime.now(timezone.utc).isoformat(),
         })
-        fallback_headers = dict(upstream.headers)
-        fallback_headers.pop("content-length", None)
-        fallback_headers.pop("transfer-encoding", None)
-        fallback_headers.pop("content-encoding", None)
-        return Response(
-            content=upstream.content,
-            status_code=upstream.status_code,
-            headers=fallback_headers,
-        )
+
+    return build_proxy_response(upstream, body, mutated, ctx.request.method)

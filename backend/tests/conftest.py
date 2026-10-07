@@ -4,7 +4,6 @@ import os
 # Set before any test module imports sb.config.
 os.environ.setdefault("SB_UPSTREAM_ORIGIN", "http://127.0.0.1:8001")
 os.environ.setdefault("SB_PUBLIC_BASE_URL", "http://127.0.0.1:8000")
-os.environ.setdefault("UPSTREAM_ORIGIN", "http://127.0.0.1:8001")
 
 import threading
 import time

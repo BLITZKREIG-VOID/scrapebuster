@@ -1,8 +1,9 @@
+import os
 from urllib.parse import urlsplit
 
 import httpx
 
-from ..config import SB_ORIGIN_URL, SB_UPSTREAM_ORIGIN
+from ..config import SB_UPSTREAM_ORIGIN
 from .context import RequestContext
 
 # Global async client for proxying
@@ -12,7 +13,7 @@ _client = None
 def get_client() -> httpx.AsyncClient:
     global _client
     if _client is None:
-        origin = SB_UPSTREAM_ORIGIN or SB_ORIGIN_URL
+        origin = os.getenv("SB_UPSTREAM_ORIGIN", SB_UPSTREAM_ORIGIN)
         _client = httpx.AsyncClient(base_url=origin, follow_redirects=False)
     return _client
 
@@ -46,14 +47,26 @@ async def proxy(ctx: RequestContext) -> httpx.Response:
     request = ctx.request
     method = request.method
 
-    # Strip any scheme/host to ensure path cannot select arbitrary upstream
-    raw_path = urlsplit(request.url.path).path
-    if not raw_path.startswith("/"):
-        raw_path = "/" + raw_path
-    url = raw_path
+    # Preserve raw encoded path/query bytes from ASGI scope where available
+    scope = getattr(request, "scope", {})
+    raw_path_bytes = scope.get("raw_path") if isinstance(scope, dict) else None
+    if raw_path_bytes:
+        path = raw_path_bytes.decode("latin1")
+        if not path.startswith("/"):
+            path = "/" + path
+    else:
+        raw_path = urlsplit(request.url.path).path
+        if not raw_path.startswith("/"):
+            raw_path = "/" + raw_path
+        path = raw_path
 
-    if request.url.query:
-        url += f"?{request.url.query}"
+    query_bytes = scope.get("query_string") if isinstance(scope, dict) else None
+    if query_bytes:
+        url = f"{path}?{query_bytes.decode('latin1')}"
+    elif request.url.query:
+        url = f"{path}?{request.url.query}"
+    else:
+        url = path
 
     # Filter hop-by-hop headers, including Connection token-nominated headers
     raw_headers = {k.lower(): v for k, v in request.headers.items()}
@@ -67,8 +80,8 @@ async def proxy(ctx: RequestContext) -> httpx.Response:
     drop_headers = HOP_BY_HOP_HEADERS | connection_tokens
     headers = {k: v for k, v in raw_headers.items() if k not in drop_headers}
 
-    # Derive host from configured upstream origin
-    origin = SB_UPSTREAM_ORIGIN or SB_ORIGIN_URL
+    # Derive host from canonical configured upstream origin
+    origin = os.getenv("SB_UPSTREAM_ORIGIN", SB_UPSTREAM_ORIGIN)
     if origin:
         netloc = urlsplit(origin).netloc
         if netloc:

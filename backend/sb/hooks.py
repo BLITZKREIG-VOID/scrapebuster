@@ -10,10 +10,6 @@ class OffenseHooks(Protocol):
     def reset(self) -> None: ...
 
 
-# Backward-compatibility alias for edge pipeline and tests during migration
-TrapHooks = OffenseHooks
-
-
 class NoOpOffenseHooks:
     def classify_request(self, ctx: Any, session: Any) -> Any | None:
         return None
@@ -29,10 +25,8 @@ class NoOpOffenseHooks:
         pass
 
 
-NoOpTrapHooks = NoOpOffenseHooks
-
 offense_hooks: OffenseHooks = NoOpOffenseHooks()
-trap_hooks: OffenseHooks = offense_hooks
+
 
 # Registry for components that need a reset hook during demo/reset
 _reset_hooks: list[Any] = []

@@ -13,7 +13,6 @@ import {
 } from '../api/client';
 import type {
   TrafficEvent,
-  SessionSummary,
   VerifyResult,
 } from '../types/contracts';
 import {
@@ -268,7 +267,6 @@ export default function Overview() {
   const totalTraffic = Object.values(overviewData?.counts ?? {}).reduce((sum, count) => sum + count, 0);
   const sessions = sessionData?.sessions ?? [];
   const sandboxCount = overviewData?.counts?.SANDBOX ?? 0;
-  const fastPathCount = overviewData?.counts?.FAST_PATH ?? 0;
   const registeredCanaries = overviewData
     ? overviewData.canaries.active + overviewData.canaries.exposed + overviewData.canaries.observed
     : null;
@@ -778,7 +776,7 @@ export default function Overview() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {(['fast_path', 'sandbox', 'canary_exposed', 'provenance'] as const).map((tier) => {
               const meta = LADDER_EXPLANATIONS[tier];
-              const count = overviewData?.ladder[tier] ?? 0;
+              const count = overviewData?.ladder?.[tier] ?? 0;
 
               const isPurpleTier = tier === 'sandbox' || tier === 'canary_exposed';
               const isCyanTier = tier === 'provenance';

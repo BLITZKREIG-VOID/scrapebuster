@@ -5,7 +5,6 @@ before dependencies are installed.
 """
 from __future__ import annotations
 
-import json
 import os
 import re
 import shutil
@@ -15,8 +14,6 @@ import subprocess
 import sys
 from pathlib import Path
 from urllib.parse import urlsplit
-import urllib.error
-import urllib.request
 
 REPO = Path(__file__).resolve().parents[1]
 

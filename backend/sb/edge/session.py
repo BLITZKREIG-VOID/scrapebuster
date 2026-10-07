@@ -17,6 +17,7 @@ class Session:
     client_key: str = ""
     state: str = "SANDBOX"
     classification: str = "UNKNOWN"
+    decision: str = "SANDBOX"
     risk_score: int = 0
     reasons: list[str] = field(default_factory=list)
     event_ids: list[str] = field(default_factory=list)
@@ -36,6 +37,7 @@ class Session:
         client_key: str = "",
         state: str = "SANDBOX",
         classification: str = "UNKNOWN",
+        decision: str = "SANDBOX",
         risk_score: int = 0,
         reasons: list[str] | None = None,
         event_ids: list[str] | None = None,
@@ -54,6 +56,7 @@ class Session:
         self.client_key = client_key
         self.state = state or "SANDBOX"
         self.classification = classification
+        self.decision = decision or "SANDBOX"
         self.risk_score = risk_score
         self.reasons = reasons if reasons is not None else []
         self.event_ids = event_ids if event_ids is not None else []
@@ -66,18 +69,6 @@ class Session:
         self.pages = pages if pages is not None else []
         self.traps_triggered = traps_triggered if traps_triggered is not None else []
         self.canaries_exposed = canaries_exposed if canaries_exposed is not None else []
-
-    def __getattr__(self, name: str) -> Any:
-        # Graceful compatibility fallback for legacy store queries until W3 store merge
-        if name in ("l1_score", "l2_score"):
-            return 0
-        if name in ("l1_reasons", "l2_signals", "layer_path"):
-            return []
-        if name == "block_until":
-            return ""
-        if name == "decision":
-            return getattr(self, "state", "SANDBOX")
-        raise AttributeError(f"'Session' object has no attribute '{name}'")
 
 
 class SessionsManager:

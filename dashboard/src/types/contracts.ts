@@ -3,7 +3,7 @@ export type Decision = 'FAST_PATH' | 'SANDBOX';
 export type Layer = 'ORIGIN' | 'EDGE';
 export type ComponentStatus = 'ok' | 'down' | 'disabled' | 'unknown' | 'not_checked';
 export type CanaryStatus = 'DRAFT' | 'ACTIVE' | 'EXPOSED' | 'OBSERVED';
-export type DemoMode = 'live' | 'neutral';
+export type DemoMode = 'live' | 'neutral' | 'golden';
 export type DemoPhase = 'READY' | 'RUNNING' | 'COMPLETE' | 'PAUSED' | 'FAILED';
 
 export interface Health {

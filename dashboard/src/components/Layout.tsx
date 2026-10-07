@@ -157,7 +157,7 @@ export default function Layout() {
       title: `${event.decision} · ${event.stage || event.layer || 'ORIGIN'}`,
       desc: `Session ${event.session_id} · ${event.method} ${event.path} · risk ${event.risk_score}`,
       time: new Date(event.ts).toLocaleTimeString(),
-      type: 'warning' as const,
+      type: 'warning' as 'warning' | 'threat' | 'info',
       link: '/dashboard/traffic',
     }));
 

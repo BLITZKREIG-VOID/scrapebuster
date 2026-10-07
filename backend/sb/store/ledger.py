@@ -3,10 +3,12 @@
 Implements:
 - sb.store.ledger.append_event(kind: str, record: dict) -> dict
 - sb.store.ledger.verify_chain() -> dict
-- Single canonical JSON SHA256 H_prev||record byte encoding
+- Hash canonical full event envelope {seq, kind, ts, record}
+- Single canonical JSON SHA256 H_prev||envelope byte encoding
 - Explicit sequence and prev_hash/hash
-- Atomic transactional tail + insert
+- Atomic transactional BEGIN IMMEDIATE tail + insert across connections/processes
 - Append-only forensic ledger table database update/delete guard
+- Missing forensic table => TAMPERED, empty initialized table => VALID 0
 """
 
 from __future__ import annotations
@@ -34,58 +36,34 @@ def _json_default(obj: Any) -> Any:
 
 
 def canonical_json_bytes(record: Any) -> bytes:
-    """Encode record into canonical UTF-8 JSON bytes with sorted keys and compact separators."""
+    """Encode record into canonical UTF-8 JSON bytes with sorted keys, compact separators, and allow_nan=False."""
     return json.dumps(
         record,
         sort_keys=True,
         separators=(",", ":"),
         ensure_ascii=False,
+        allow_nan=False,
         default=_json_default,
     ).encode("utf-8")
 
 
-def _compute_hash(prev_hash: str, record_bytes: bytes) -> str:
-    """Compute SHA-256 over canonical byte concatenation: H_prev || record."""
-    payload = prev_hash.encode("utf-8") + record_bytes
+def _compute_hash(prev_hash: str, envelope_bytes: bytes) -> str:
+    """Compute SHA-256 over canonical byte concatenation: H_prev || envelope_bytes.
+
+    prev_hash encoding documented:
+        UTF-8 encoded hex string of the previous event hash (or GENESIS = '0'*64 for seq 1).
+    envelope encoding:
+        Canonical UTF-8 JSON bytes of {'seq': seq, 'kind': kind, 'ts': ts, 'record': record}.
+    """
+    payload = prev_hash.encode("utf-8") + envelope_bytes
     return hashlib.sha256(payload).hexdigest()
-
-
-def _ensure_ledger_table(conn: sqlite3.Connection) -> None:
-    """Ensure forensic_ledger table and update/delete guard triggers exist."""
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS forensic_ledger (
-            seq INTEGER PRIMARY KEY,
-            kind TEXT NOT NULL,
-            record TEXT NOT NULL,
-            prev_hash TEXT NOT NULL,
-            hash TEXT NOT NULL,
-            ts TEXT NOT NULL
-        )
-        """
-    )
-    conn.execute(
-        """
-        CREATE TRIGGER IF NOT EXISTS prevent_ledger_update
-        BEFORE UPDATE ON forensic_ledger
-        BEGIN
-            SELECT RAISE(ABORT, 'forensic_ledger is append-only: updates prohibited');
-        END
-        """
-    )
-    conn.execute(
-        """
-        CREATE TRIGGER IF NOT EXISTS prevent_ledger_delete
-        BEFORE DELETE ON forensic_ledger
-        BEGIN
-            SELECT RAISE(ABORT, 'forensic_ledger is append-only: deletes prohibited');
-        END
-        """
-    )
 
 
 def append_event(kind: str, record: dict) -> dict[str, Any]:
     """Append one event to the append-only forensic ledger.
+
+    Atomically executes BEGIN IMMEDIATE tail + insert across connections and processes.
+    Raises OperationalError if forensic_ledger table is missing (never silently recreates lost history).
 
     Returns event metadata:
         {
@@ -102,45 +80,65 @@ def append_event(kind: str, record: dict) -> dict[str, Any]:
     if not isinstance(record, dict):
         raise TypeError(f"record must be a dict, got {type(record).__name__}")
 
-    record_bytes = canonical_json_bytes(record)
-    record_str = record_bytes.decode("utf-8")
-
     with _ledger_lock:
         conn = get_connection()
         try:
-            with conn:
-                _ensure_ledger_table(conn)
+            conn.isolation_level = None  # Autocommit mode to allow explicit BEGIN IMMEDIATE
+            conn.execute("BEGIN IMMEDIATE")
 
-                row = conn.execute(
-                    "SELECT seq, hash FROM forensic_ledger ORDER BY seq DESC LIMIT 1"
-                ).fetchone()
+            # Check table exists; missing established table must fail visibly
+            tbl_check = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='forensic_ledger'"
+            ).fetchone()
+            if tbl_check is None:
+                conn.execute("ROLLBACK")
+                raise sqlite3.OperationalError("forensic_ledger table missing: cannot append to uninitialized or dropped ledger")
 
-                if row is not None:
-                    seq = int(row["seq"]) + 1
-                    prev_hash = str(row["hash"])
-                else:
-                    seq = 1
-                    prev_hash = GENESIS
+            row = conn.execute(
+                "SELECT seq, hash FROM forensic_ledger ORDER BY seq DESC LIMIT 1"
+            ).fetchone()
 
-                curr_hash = _compute_hash(prev_hash, record_bytes)
-                ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            if row is not None:
+                seq = int(row["seq"]) + 1
+                prev_hash = str(row["hash"])
+            else:
+                seq = 1
+                prev_hash = GENESIS
 
-                conn.execute(
-                    """
-                    INSERT INTO forensic_ledger (seq, kind, record, prev_hash, hash, ts)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    """,
-                    (seq, kind, record_str, prev_hash, curr_hash, ts),
-                )
+            ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            envelope = {
+                "seq": seq,
+                "kind": kind,
+                "ts": ts,
+                "record": record,
+            }
+            envelope_bytes = canonical_json_bytes(envelope)
+            curr_hash = _compute_hash(prev_hash, envelope_bytes)
+            record_str = canonical_json_bytes(record).decode("utf-8")
 
-                return {
-                    "seq": seq,
-                    "kind": kind,
-                    "record": record,
-                    "prev_hash": prev_hash,
-                    "hash": curr_hash,
-                    "ts": ts,
-                }
+            conn.execute(
+                """
+                INSERT INTO forensic_ledger (seq, kind, record, prev_hash, hash, ts)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (seq, kind, record_str, prev_hash, curr_hash, ts),
+            )
+            conn.execute("COMMIT")
+
+            return {
+                "seq": seq,
+                "kind": kind,
+                "record": record,
+                "prev_hash": prev_hash,
+                "hash": curr_hash,
+                "ts": ts,
+            }
+        except Exception:
+            try:
+                conn.execute("ROLLBACK")
+            except Exception:
+                pass
+            raise
         finally:
             conn.close()
 
@@ -148,9 +146,10 @@ def append_event(kind: str, record: dict) -> dict[str, Any]:
 def verify_chain() -> dict[str, Any]:
     """Verify cryptographic integrity of the forensic ledger (Hard Rule 6).
 
-    Verifies strict sequence continuity (1, 2, 3...), prev_hash chaining from GENESIS,
-    and single canonical JSON SHA-256 H_prev||record byte encoding integrity.
-    Never invents VALID on errors or discrepancies.
+    Reconstructs full event envelope {seq, kind, ts, record} for each row.
+    Detects record and metadata tampering (altered seq, kind, ts, or prev_hash).
+    Missing forensic table => TAMPERED.
+    Empty initialized table => VALID (count 0).
 
     Returns:
         {
@@ -168,10 +167,10 @@ def verify_chain() -> dict[str, Any]:
             ).fetchone()
             if tbl_check is None:
                 return {
-                    "result": "VALID",
+                    "result": "TAMPERED",
                     "count": 0,
                     "head": GENESIS,
-                    "errors": [],
+                    "errors": ["Forensic table missing: forensic_ledger table does not exist"],
                 }
 
             rows = conn.execute(
@@ -196,6 +195,7 @@ def verify_chain() -> dict[str, Any]:
                 r_raw = str(r["record"])
                 r_prev = str(r["prev_hash"])
                 r_hash = str(r["hash"])
+                r_ts = str(r["ts"])
 
                 if r_seq != expected_seq:
                     errors.append(f"Sequence gap at seq {r_seq}: expected {expected_seq}")
@@ -207,12 +207,23 @@ def verify_chain() -> dict[str, Any]:
 
                 try:
                     rec_obj = json.loads(r_raw)
-                    rec_bytes = canonical_json_bytes(rec_obj)
                 except Exception as exc:
                     errors.append(f"Invalid record JSON encoding at seq {r_seq}: {exc}")
-                    rec_bytes = r_raw.encode("utf-8")
+                    rec_obj = r_raw
 
-                computed_hash = _compute_hash(r_prev, rec_bytes)
+                envelope = {
+                    "seq": r_seq,
+                    "kind": r_kind,
+                    "ts": r_ts,
+                    "record": rec_obj,
+                }
+                try:
+                    envelope_bytes = canonical_json_bytes(envelope)
+                except Exception as exc:
+                    errors.append(f"Failed to canonicalize envelope at seq {r_seq}: {exc}")
+                    envelope_bytes = b""
+
+                computed_hash = _compute_hash(r_prev, envelope_bytes)
                 if r_hash != computed_hash:
                     errors.append(
                         f"Hash mismatch at seq {r_seq}: computed {computed_hash}, recorded {r_hash}"

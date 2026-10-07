@@ -30,25 +30,27 @@ grep-gate:
 	python scripts/grep_gate.py .
 
 check:
-	python -m ruff check backend/sb/main.py backend/sb/contracts.py backend/sb/store backend/sb/edge backend/sb/api scripts/check_contracts.py scripts/export_schemas.py
+	python -m ruff check backend/sb scripts
+	python -c "import shutil; shutil.rmtree('dashboard/node_modules', ignore_errors=True); shutil.rmtree('dashboard/dist', ignore_errors=True)"
 	python scripts/grep_gate.py .
 	python scripts/check_ownership.py
 	python scripts/check_contracts.py
-	PYTHONPATH=backend python -m pytest backend/tests/unit/ -q
-	PYTHONPATH=backend python -m pytest backend/tests/contract/ -q
-	PYTHONPATH=backend python -m pytest backend/tests/integration/ -q
-	if [ -d dashboard ]; then cd dashboard && npm run typecheck && npm run build; fi
+	python -m pytest -o pythonpath=backend backend/tests/unit/ -q
+	python -m pytest -o pythonpath=backend backend/tests/contract/ -q
+	python -m pytest -o pythonpath=backend backend/tests/integration/ -q
+	python scripts/check_dashboard.py
+	python scripts/grep_gate.py .
 
 test: test-unit test-contract test-integration
 
 test-unit:
-	PYTHONPATH=backend python -m pytest backend/tests/unit/ -v
+	python -m pytest -o pythonpath=backend backend/tests/unit/ -v
 
 test-contract:
-	PYTHONPATH=backend python -m pytest backend/tests/contract/ -v
+	python -m pytest -o pythonpath=backend backend/tests/contract/ -v
 
 test-integration:
-	PYTHONPATH=backend python -m pytest backend/tests/integration/ -v
+	python -m pytest -o pythonpath=backend backend/tests/integration/ -v
 
 preflight:
 	python scripts/preflight.py

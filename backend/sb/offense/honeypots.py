@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
-from typing import Any
 
 
 @dataclass(frozen=True)
@@ -17,14 +16,23 @@ class Honeypot:
 
 
 def get_configured_trap_paths() -> list[str]:
-    """Retrieve configured trap paths from sb.config or env var SB_TRAP_PATHS.
+    """Retrieve configured trap paths from env var SB_TRAP_PATHS or sb.config.
 
     Defaults to empty list, avoiding default claims on customer origin paths.
     """
+    raw = os.getenv("SB_TRAP_PATHS")
+    if raw is not None:
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, list):
+                return [str(p) for p in parsed]
+        except Exception:
+            pass
+
     try:
         from sb import config
         val = getattr(config, "SB_TRAP_PATHS", None)
-        if val is not None:
+        if val:
             if isinstance(val, (list, tuple)):
                 return [str(p) for p in val]
             if isinstance(val, str):
@@ -33,22 +41,18 @@ def get_configured_trap_paths() -> list[str]:
                     return [str(p) for p in parsed]
     except Exception:
         pass
-
-    raw = os.getenv("SB_TRAP_PATHS", "[]")
-    try:
-        parsed = json.loads(raw)
-        if isinstance(parsed, list):
-            return [str(p) for p in parsed]
-    except Exception:
-        pass
     return []
 
 
 def get_configured_trap_api_path() -> str:
-    """Retrieve configured decoy API path from sb.config or env var SB_TRAP_API_PATH.
+    """Retrieve configured decoy API path from env var SB_TRAP_API_PATH or sb.config.
 
     Defaults to empty string.
     """
+    raw = os.getenv("SB_TRAP_API_PATH")
+    if raw is not None:
+        return raw
+
     try:
         from sb import config
         val = getattr(config, "SB_TRAP_API_PATH", None)
@@ -56,7 +60,7 @@ def get_configured_trap_api_path() -> str:
             return str(val)
     except Exception:
         pass
-    return os.getenv("SB_TRAP_API_PATH", "")
+    return ""
 
 
 def get_hidden_link_html() -> str:

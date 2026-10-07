@@ -7,7 +7,6 @@ import json
 import sqlite3
 from typing import Any
 
-from .canaries import reserve_canary_sequence
 from .db import get_connection
 from .ledger import append_event
 

@@ -29,6 +29,16 @@ from sb.store import db
 logger = logging.getLogger(__name__)
 
 
+def _append_fault_record(record: dict[str, Any]) -> None:
+    """Loudly append fault record to durable ledger without silent swallow."""
+    try:
+        from sb.store.ledger import append_event
+
+        append_event("fault", record)
+    except Exception as exc:
+        logger.error("Failed to append fault record to ledger: %s", exc)
+
+
 def placements() -> dict[str, Canary]:
     """Map placement paths and keys to Canary models."""
     mapping: dict[str, Canary] = {}
@@ -60,7 +70,7 @@ def insert_hidden_link(html: str) -> str:
 def insert_canary(html: str, block_text: str, canary_id: str | None = None) -> str:
     """Insert canary markup additively before </main>, or before </body> as fallback.
 
-    Additive-safe: returns unchanged if text already present or no insertion boundary.
+    Additive-safe: returns unchanged if text already present.
     """
     if block_text in html:
         return html
@@ -134,12 +144,187 @@ def _note_exposure(session: Any, canary_id: str) -> None:
             logger.warning("Could not persist canary exposure to session store: %s", exc)
 
 
-def deterministic_fallback(ctx: Any, session: Any, upstream: Any) -> bytes:
-    """Deterministic fallback returning unmodified upstream content."""
+def deterministic_fallback_core(
+    ctx: Any,
+    session: Any,
+    upstream: Any,
+) -> tuple[bytes, bool]:
+    """Genuine deterministic session-bound registered HTML/JSON fallback.
+
+    Chains actual binding/injection outcomes exactly once.
+    Returns (mutated_bytes, mutated_bool).
+    Preserves binary, HEAD, 204/304 semantics.
+    """
     if upstream is None:
-        return b""
-    content = getattr(upstream, "content", b"")
-    return content if isinstance(content, bytes) else bytes(content or b"")
+        return b"", False
+
+    status_code = getattr(upstream, "status_code", 200)
+    if status_code in (204, 304):
+        content = getattr(upstream, "content", b"") or b""
+        return (content if isinstance(content, bytes) else bytes(content or b"")), False
+
+    method = getattr(ctx, "method", "")
+    if not method and hasattr(ctx, "request"):
+        method = getattr(ctx.request, "method", "")
+    if str(method).upper() == "HEAD":
+        content = getattr(upstream, "content", b"") or b""
+        return (content if isinstance(content, bytes) else bytes(content or b"")), False
+
+    content_bytes = getattr(upstream, "content", b"") or b""
+    if not isinstance(content_bytes, bytes):
+        content_bytes = bytes(content_bytes or b"")
+
+    if not content_bytes:
+        return b"", False
+
+    headers = getattr(upstream, "headers", {}) or {}
+    content_type = ""
+    if hasattr(headers, "get"):
+        content_type = headers.get("content-type", "") or ""
+    elif isinstance(headers, Mapping):
+        for k, v in headers.items():
+            if str(k).lower() == "content-type":
+                content_type = str(v)
+                break
+
+    ct_lower = content_type.lower()
+    is_html = "text/html" in ct_lower or "application/xhtml+xml" in ct_lower
+    is_json = "application/json" in ct_lower or "+json" in ct_lower
+
+    if not is_html and not is_json:
+        # Non-eligible binary or plain content passes through untouched
+        return content_bytes, False
+
+    session_id = getattr(session, "session_id", None) or getattr(ctx, "session_id", None) or "anon"
+    raw_path = getattr(ctx, "path", "") or ""
+
+    if is_html:
+        try:
+            binding = registry.bind_session_canary(
+                session_id=str(session_id),
+                vector="TEXT",
+            )
+            html_text = content_bytes.decode("utf-8", errors="replace")
+            html_text = insert_hidden_link(html_text)
+            block_text = f"Security Verification Token: {binding.value}"
+            mutated_text = insert_canary(html_text, block_text, canary_id=binding.canary_id)
+            mutated_bytes = mutated_text.encode("utf-8")
+
+            # Record exposure and injection outcome exactly once
+            registry.record_exposure(
+                canary_id=binding.canary_id,
+                session=session,
+                ctx=ctx,
+                resource=raw_path,
+                block_text=block_text,
+                vector="TEXT",
+                outcome="success",
+            )
+            _note_exposure(session, binding.canary_id)
+            registry.record_injection_outcome(
+                canary_id=binding.canary_id,
+                vector="TEXT",
+                session_id=str(session_id),
+                time=registry.now_iso(),
+                outcome="success",
+                resource=raw_path,
+            )
+
+            return mutated_bytes, True
+        except Exception as exc:
+            logger.error("HTML deterministic fallback error for %s: %s", raw_path, exc)
+            _append_fault_record({
+                "event_type": "html_deterministic_fallback_error",
+                "session_id": str(session_id),
+                "client_key": getattr(ctx, "client_key", ""),
+                "path": raw_path,
+                "error": str(exc),
+                "ts": registry.now_iso(),
+            })
+            return content_bytes, False
+
+    if is_json:
+        try:
+            data = json.loads(content_bytes.decode("utf-8"))
+        except Exception as parse_err:
+            logger.error(
+                "Eligible JSON mutation failed on malformed source for %s: %s; returning unmutated bytes per total-error rule",
+                raw_path,
+                parse_err,
+            )
+            _append_fault_record({
+                "event_type": "malformed_json_source",
+                "session_id": str(session_id),
+                "client_key": getattr(ctx, "client_key", ""),
+                "path": raw_path,
+                "error": str(parse_err),
+                "ts": registry.now_iso(),
+            })
+            return content_bytes, False
+
+        if not isinstance(data, (dict, list)):
+            logger.error(
+                "Eligible JSON mutation cannot mutate scalar source for %s without changing semantics; returning unmutated bytes",
+                raw_path,
+            )
+            _append_fault_record({
+                "event_type": "json_scalar_source_unmutatable",
+                "session_id": str(session_id),
+                "client_key": getattr(ctx, "client_key", ""),
+                "path": raw_path,
+                "error": "scalar JSON source cannot mutate additively",
+                "ts": registry.now_iso(),
+            })
+            return content_bytes, False
+
+        try:
+            binding = registry.bind_session_canary(
+                session_id=str(session_id),
+                vector="API",
+            )
+            mutated_data = inject_json_canary(data, binding.canary_id, binding.value)
+            mutated_bytes = json.dumps(mutated_data, ensure_ascii=False).encode("utf-8")
+
+            # Record exposure and injection outcome exactly once
+            registry.record_exposure(
+                canary_id=binding.canary_id,
+                session=session,
+                ctx=ctx,
+                resource=raw_path,
+                block_text=binding.value,
+                vector="API",
+                outcome="success",
+            )
+            _note_exposure(session, binding.canary_id)
+            registry.record_injection_outcome(
+                canary_id=binding.canary_id,
+                vector="API",
+                session_id=str(session_id),
+                time=registry.now_iso(),
+                outcome="success",
+                resource=raw_path,
+            )
+
+            return mutated_bytes, True
+        except Exception as exc:
+            logger.error("JSON deterministic fallback error for %s: %s", raw_path, exc)
+            _append_fault_record({
+                "event_type": "json_deterministic_fallback_error",
+                "session_id": str(session_id),
+                "client_key": getattr(ctx, "client_key", ""),
+                "path": raw_path,
+                "error": str(exc),
+                "ts": registry.now_iso(),
+            })
+            return content_bytes, False
+
+    return content_bytes, False
+
+
+def deterministic_fallback(ctx: Any, session: Any, upstream: Any) -> bytes:
+    """Genuine deterministic session-bound registered HTML/JSON fallback returning bytes."""
+    body, _ = deterministic_fallback_core(ctx, session, upstream)
+    return body
 
 
 def transform_response(ctx: Any, session: Any, upstream: Any) -> bytes:
@@ -193,7 +378,6 @@ def transform_response(ctx: Any, session: Any, upstream: Any) -> bytes:
     raw_path = getattr(ctx, "path", "") or ""
 
     if is_html:
-        binding = None
         try:
             html_text = content_bytes.decode("utf-8", errors="replace")
             html_text = insert_hidden_link(html_text)
@@ -203,21 +387,9 @@ def transform_response(ctx: Any, session: Any, upstream: Any) -> bytes:
                 vector="TEXT",
             )
             block_text = f"Security Verification Token: {binding.value}"
-            html_text = insert_canary(html_text, block_text, canary_id=binding.canary_id)
+            mutated_text = insert_canary(html_text, block_text, canary_id=binding.canary_id)
 
-            # Record exposure only AFTER actual response injection succeeds
-            registry.record_exposure(
-                canary_id=binding.canary_id,
-                session=session,
-                ctx=ctx,
-                resource=raw_path,
-                block_text=block_text,
-                vector="TEXT",
-                outcome="success",
-            )
-            _note_exposure(session, binding.canary_id)
-
-            # Inject placed seed canary if path matches placement
+            # Placements check
             norm_path = raw_path.rstrip("/") if raw_path != "/" else "/"
             placements_map = placements()
             if norm_path in placements_map:
@@ -225,7 +397,7 @@ def transform_response(ctx: Any, session: Any, upstream: Any) -> bytes:
                 db_canary = registry.get(seed_canary.canary_id)
                 if db_canary:
                     seed_text = registry.injected_block_text(db_canary)
-                    html_text = insert_canary(html_text, seed_text, canary_id=db_canary.canary_id)
+                    mutated_text = insert_canary(mutated_text, seed_text, canary_id=db_canary.canary_id)
                     registry.record_exposure(
                         canary_id=db_canary.canary_id,
                         session=session,
@@ -237,37 +409,83 @@ def transform_response(ctx: Any, session: Any, upstream: Any) -> bytes:
                     )
                     _note_exposure(session, db_canary.canary_id)
 
-            return html_text.encode("utf-8")
+            mutated_bytes = mutated_text.encode("utf-8")
+
+            # Verify transform is not None/invalid/identity bytes
+            if not mutated_bytes or mutated_bytes == content_bytes:
+                logger.warning("Primary HTML transform yielded identity bytes; falling back")
+                return deterministic_fallback(ctx, session, upstream)
+
+            registry.record_exposure(
+                canary_id=binding.canary_id,
+                session=session,
+                ctx=ctx,
+                resource=raw_path,
+                block_text=block_text,
+                vector="TEXT",
+                outcome="success",
+            )
+            _note_exposure(session, binding.canary_id)
+            registry.record_injection_outcome(
+                canary_id=binding.canary_id,
+                vector="TEXT",
+                session_id=str(session_id),
+                time=registry.now_iso(),
+                outcome="success",
+                resource=raw_path,
+            )
+
+            return mutated_bytes
         except Exception as exc:
-            logger.warning("Deterministic fallback for HTML mutation error: %s", exc)
-            try:
-                registry.record_injection_outcome(
-                    canary_id=binding.canary_id if binding else None,
-                    vector="TEXT",
-                    session_id=str(session_id),
-                    time=registry.now_iso(),
-                    outcome="fallback",
-                    error=str(exc),
-                    resource=raw_path,
-                )
-            except Exception:
-                pass
+            logger.warning("Primary HTML mutation error: %s; using deterministic fallback", exc)
             return deterministic_fallback(ctx, session, upstream)
 
     if is_json:
-        binding = None
         try:
-            json_text = content_bytes.decode("utf-8", errors="replace")
-            data = json.loads(json_text)
+            data = json.loads(content_bytes.decode("utf-8"))
+        except Exception as parse_err:
+            logger.error(
+                "Eligible JSON mutation failed on malformed source for %s: %s; returning unmutated bytes per total-error rule",
+                raw_path,
+                parse_err,
+            )
+            _append_fault_record({
+                "event_type": "malformed_json_source",
+                "session_id": str(session_id),
+                "client_key": getattr(ctx, "client_key", ""),
+                "path": raw_path,
+                "error": str(parse_err),
+                "ts": registry.now_iso(),
+            })
+            return content_bytes
 
+        if not isinstance(data, (dict, list)):
+            logger.error(
+                "Eligible JSON mutation cannot mutate scalar source for %s without changing semantics; returning unmutated bytes",
+                raw_path,
+            )
+            _append_fault_record({
+                "event_type": "json_scalar_source_unmutatable",
+                "session_id": str(session_id),
+                "client_key": getattr(ctx, "client_key", ""),
+                "path": raw_path,
+                "error": "scalar JSON source cannot mutate additively",
+                "ts": registry.now_iso(),
+            })
+            return content_bytes
+
+        try:
             binding = registry.bind_session_canary(
                 session_id=str(session_id),
                 vector="API",
             )
             mutated_data = inject_json_canary(data, binding.canary_id, binding.value)
-            serialized = json.dumps(mutated_data, ensure_ascii=False)
+            mutated_bytes = json.dumps(mutated_data, ensure_ascii=False).encode("utf-8")
 
-            # Record exposure only AFTER actual response injection succeeds
+            if not mutated_bytes or mutated_bytes == content_bytes:
+                logger.warning("Primary JSON transform yielded identity bytes; falling back")
+                return deterministic_fallback(ctx, session, upstream)
+
             registry.record_exposure(
                 canary_id=binding.canary_id,
                 session=session,
@@ -278,22 +496,18 @@ def transform_response(ctx: Any, session: Any, upstream: Any) -> bytes:
                 outcome="success",
             )
             _note_exposure(session, binding.canary_id)
+            registry.record_injection_outcome(
+                canary_id=binding.canary_id,
+                vector="API",
+                session_id=str(session_id),
+                time=registry.now_iso(),
+                outcome="success",
+                resource=raw_path,
+            )
 
-            return serialized.encode("utf-8")
+            return mutated_bytes
         except Exception as exc:
-            logger.warning("Deterministic fallback for JSON mutation error: %s", exc)
-            try:
-                registry.record_injection_outcome(
-                    canary_id=binding.canary_id if binding else None,
-                    vector="API",
-                    session_id=str(session_id),
-                    time=registry.now_iso(),
-                    outcome="fallback",
-                    error=str(exc),
-                    resource=raw_path,
-                )
-            except Exception:
-                pass
+            logger.warning("Primary JSON mutation error: %s; using deterministic fallback", exc)
             return deterministic_fallback(ctx, session, upstream)
 
     return content_bytes
@@ -373,5 +587,5 @@ class ScapeBustersOffenseHooks:
         return transform_response(ctx, session, upstream)
 
     def reset(self) -> None:
-        """Reset durable session bindings and counters."""
+        """Reset durable session bindings cache and in-memory indices."""
         registry.reset_session_bindings()

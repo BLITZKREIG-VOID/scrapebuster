@@ -53,7 +53,7 @@ def test_classify_human_likely():
     session = Session(session_id="sess-test-key", client_key="test-key")
     ctx = make_ctx()
     init_request(ctx, session)
-    record_decision(session, "ORIGIN", "ALLOW")
+    record_decision(session, "ORIGIN", "SANDBOX")
 
     assert classify_session(session) == "HUMAN_LIKELY"
     assert session.classification == "HUMAN_LIKELY"

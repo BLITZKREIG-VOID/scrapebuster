@@ -85,7 +85,7 @@ async def test_traffic_overview_aggregates_from_persisted_rows(origin_server):
 def test_traffic_logger_rejects_literals_outside_api_contract():
     from sb.edge.pipeline import log_event
 
-    with pytest.raises(ValueError, match="Unsupported traffic layer"):
-        log_event(None, None, "L4", "ALLOW", 200)
+    with pytest.raises(ValueError, match="Unsupported traffic"):
+        log_event(None, None, "INVALID_LAYER", "SANDBOX", 200)
     with pytest.raises(ValueError, match="Unsupported traffic decision"):
         log_event(None, None, "ORIGIN", "INVALID_DECISION", 200)

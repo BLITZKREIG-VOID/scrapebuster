@@ -23,9 +23,9 @@ _temp_db_fd, _temp_db_path = tempfile.mkstemp(suffix=".db", prefix="sb_stability
 os.close(_temp_db_fd)
 os.environ["SB_DB_PATH"] = _temp_db_path
 
-from sb.canary import hashing, registry, seed
-from sb.provenance import dataset, doberman, llm
-from sb.store import db
+from sb.canary import hashing, registry, seed  # noqa: E402
+from sb.provenance import dataset, doberman, llm  # noqa: E402
+from sb.store import db  # noqa: E402
 
 
 def main(argv: list[str] | None = None) -> int:
