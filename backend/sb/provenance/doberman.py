@@ -158,6 +158,24 @@ def run_probe(
                         ),
                     )
 
+                from sb.store.ledger import append_event
+                append_event(
+                    "probe_result",
+                    {
+                        "result_id": result_id,
+                        "probe_id": probe_id,
+                        "canary_id": canary.canary_id,
+                        "target": target_role,
+                        "dataset_id": ds_id,
+                        "prompt": prompt,
+                        "retrieved": retrieved,
+                        "response_text": response_text,
+                        "response_sha256": response_sha256,
+                        "latency_ms": int(result.latency_ms),
+                        "ts": ts,
+                    },
+                )
+
             # After all canaries:
             # model.mode = the single mode if all results share it, else "mixed";
             # add "modes": {canary_id: mode};
@@ -182,6 +200,20 @@ def run_probe(
                     """,
                     (finished_at, json.dumps(model_data), "DONE", probe_id),
                 )
+            from sb.store.ledger import append_event
+            append_event(
+                "probe_run",
+                {
+                    "probe_id": probe_id,
+                    "target": target_role,
+                    "dataset_id": ds_id,
+                    "dataset_sha256": ds_sha256,
+                    "started_at": started_at,
+                    "finished_at": finished_at,
+                    "model": model_data,
+                    "status": "DONE",
+                },
+            )
 
         except Exception:
             finished_at = registry.now_iso()
@@ -194,6 +226,19 @@ def run_probe(
                     """,
                     (finished_at, "FAILED", probe_id),
                 )
+            from sb.store.ledger import append_event
+            append_event(
+                "probe_run",
+                {
+                    "probe_id": probe_id,
+                    "target": target_role,
+                    "dataset_id": ds_id,
+                    "dataset_sha256": ds_sha256,
+                    "started_at": started_at,
+                    "finished_at": finished_at,
+                    "status": "FAILED",
+                },
+            )
             raise
 
     return (probe_ids[0], probe_ids[1])

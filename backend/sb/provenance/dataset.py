@@ -118,6 +118,19 @@ def ingest(
             (dataset_id, role, str(dest_path), sha256, len(records), now),
         )
 
+    from sb.store.ledger import append_event
+    append_event(
+        "dataset_ingested",
+        {
+            "dataset_id": dataset_id,
+            "role": role,
+            "path": str(dest_path),
+            "sha256": sha256,
+            "records": len(records),
+            "ingested_at": now,
+        },
+    )
+
     _RECORDS_CACHE[dataset_id] = records
 
     from sb.provenance import rag

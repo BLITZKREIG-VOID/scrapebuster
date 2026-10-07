@@ -50,7 +50,7 @@ def _create_test_finding(case_id: str, canary_id: str) -> dict[str, Any]:
         "finding_id": f"{case_id}-F1",
         "canary_id": canary_id,
         "exact_match": True,
-        "context_match": {"matched": True, "terms": ["nimbus", "warden"]},
+        "context_match": {"matched": True, "terms": ["sentinel", "warden"]},
         "uniqueness": "UNIQUE",
         "temporal": {"order_ok": True},
         "integrity": "VALID",

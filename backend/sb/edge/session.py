@@ -1,5 +1,11 @@
+"""Edge session model and management for Phase0.
+
+State is SANDBOX by default; old perimeter blocking-state fields and timers removed.
+"""
+
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from typing import Any
 
 from .context import RequestContext
@@ -8,14 +14,13 @@ from .context import RequestContext
 @dataclass
 class Session:
     session_id: str
-    client_key: str
-    state: str = "NEW"
+    client_key: str = ""
+    state: str = "SANDBOX"
     classification: str = "UNKNOWN"
-    l1_score: int = 0
-    l1_reasons: list[str] = field(default_factory=list)
-    l2_score: int = 0
-    l2_signals: list[str] = field(default_factory=list)
-    layer_path: list[dict[str, Any]] = field(default_factory=list)
+    decision: str = "SANDBOX"
+    risk_score: int = 0
+    reasons: list[str] = field(default_factory=list)
+    event_ids: list[str] = field(default_factory=list)
     ip: str = ""
     user_agent: str = ""
     header_fp: str = ""
@@ -25,28 +30,53 @@ class Session:
     pages: list[str] = field(default_factory=list)
     traps_triggered: list[str] = field(default_factory=list)
     canaries_exposed: list[str] = field(default_factory=list)
-    block_until: str = ""  # ISO-8601 UTC timestamp; empty means no scheduled unblock
 
-    def block_expired(self) -> bool:
-        """Return True if the block TTL has elapsed (session may resume)."""
-        if not self.block_until:
-            # A malformed/missing TTL must not strand a session in BLOCKED forever.
-            return True
-        try:
-            until = datetime.fromisoformat(self.block_until)
-            if until.tzinfo is None:
-                until = until.replace(tzinfo=timezone.utc)
-            return datetime.now(timezone.utc) >= until
-        except (TypeError, ValueError):
-            return True
-        
-    def mark_trapped(self, trap: Any):
-        self.state = "TRAPPED"
+    def __init__(
+        self,
+        session_id: str,
+        client_key: str = "",
+        state: str = "SANDBOX",
+        classification: str = "UNKNOWN",
+        decision: str = "SANDBOX",
+        risk_score: int = 0,
+        reasons: list[str] | None = None,
+        event_ids: list[str] | None = None,
+        ip: str = "",
+        user_agent: str = "",
+        header_fp: str = "",
+        first_seen: str = "",
+        last_seen: str = "",
+        request_count: int = 0,
+        pages: list[str] | None = None,
+        traps_triggered: list[str] | None = None,
+        canaries_exposed: list[str] | None = None,
+        **extra: Any,
+    ):
+        self.session_id = session_id
+        self.client_key = client_key
+        self.state = state or "SANDBOX"
+        self.classification = classification
+        self.decision = decision or "SANDBOX"
+        self.risk_score = risk_score
+        self.reasons = reasons if reasons is not None else []
+        self.event_ids = event_ids if event_ids is not None else []
+        self.ip = ip
+        self.user_agent = user_agent
+        self.header_fp = header_fp
+        self.first_seen = first_seen
+        self.last_seen = last_seen
+        self.request_count = request_count
+        self.pages = pages if pages is not None else []
+        self.traps_triggered = traps_triggered if traps_triggered is not None else []
+        self.canaries_exposed = canaries_exposed if canaries_exposed is not None else []
+
 
 class SessionsManager:
+    """In-memory session manager with persistent store fallback."""
+
     def __init__(self):
-        self._sessions = {}
-        
+        self._sessions: dict[str, Session] = {}
+
     def get_or_create(self, ctx: RequestContext) -> Session:
         sid = f"ck-{ctx.client_key}"
         if sid not in self._sessions:
@@ -56,8 +86,9 @@ class SessionsManager:
                 session_id=sid, client_key=ctx.client_key
             )
         return self._sessions[sid]
-        
+
     def reset(self):
         self._sessions.clear()
+
 
 sessions = SessionsManager()

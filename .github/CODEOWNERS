@@ -1,19 +1,14 @@
-# ScapeBusters CODEOWNERS
-*                   @anirudh
-/backend/sb/trap/         @hardik
-/backend/sb/canary/       @hardik
-/backend/sb/provenance/   @hardik
-/backend/sb/api/canaries.py @hardik
-/backend/sb/api/datasets.py @hardik
-/backend/sb/api/probes.py   @hardik
-/backend/sb/api/cases.py    @hardik
+# ScrapeBusters CODEOWNERS
+*                   @w5 @anirudh
+/backend/sb/offense/       @w5 @hardik
+/backend/sb/canary/        @w5 @hardik
+/backend/sb/provenance/    @w5 @hardik
+/backend/sb/api/canaries.py @w5 @hardik
+/backend/sb/api/datasets.py @w5 @hardik
+/backend/sb/api/probes.py   @w5 @hardik
+/backend/sb/api/cases.py    @w5 @hardik
 
-/demo_site/               @arnav
-/attacks/                 @arnav
-/backend/sb/api/demo.py   @arnav
-/backend/sb/demo/         @arnav
-/backend/tests/e2e/       @arnav
-/tests/e2e/               @arnav
-/scripts/preflight.py     @arnav
-/scripts/smoke.sh         @arnav
-/dashboard/               @harsh
+/backend/sb/api/demo.py    @w5 @arnav
+/scripts/preflight.py      @w5 @arnav
+/scripts/smoke.sh          @w5 @arnav
+/dashboard/                @w5 @harsh

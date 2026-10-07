@@ -11,8 +11,9 @@
       "path": "/",
       "status_code": 200,
       "user_agent": "Demo Browser",
+      "stage": "offense",
       "layer": "ORIGIN",
-      "decision": "ALLOW",
+      "decision": "SANDBOX",
       "risk_score": 0,
       "reasons": []
     }

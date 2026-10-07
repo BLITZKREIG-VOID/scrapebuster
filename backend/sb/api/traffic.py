@@ -28,6 +28,10 @@ async def get_traffic_events(
             reasons_raw = row["reasons"]
             reasons = json.loads(reasons_raw) if reasons_raw else []
             
+            decision_val = row["decision"]
+            stage_val = row["stage"] if "stage" in row.keys() else None
+            layer_val = row["layer"] if "layer" in row.keys() else None
+
             event = TrafficEvent(
                 seq=row["seq"],
                 event_id=row["event_id"],
@@ -39,9 +43,10 @@ async def get_traffic_events(
                 path=row["path"],
                 status_code=row["status_code"],
                 user_agent=row["user_agent"],
-                layer=row["layer"], # type: ignore
-                decision=row["decision"], # type: ignore
-                risk_score=row["risk_score"],
+                stage=stage_val,
+                layer=layer_val,
+                decision=decision_val, # type: ignore
+                risk_score=row["risk_score"] or 0,
                 reasons=reasons
             )
             events.append(event)

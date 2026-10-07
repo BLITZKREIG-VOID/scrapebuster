@@ -73,6 +73,7 @@
       "title": "Run Id"
     },
     "phase": {
+      "default": "READY",
       "enum": [
         "READY",
         "RUNNING",
@@ -84,10 +85,7 @@
       "type": "string"
     },
     "mode": {
-      "enum": [
-        "live",
-        "golden"
-      ],
+      "default": "live",
       "title": "Mode",
       "type": "string"
     },
@@ -99,11 +97,6 @@
       "type": "array"
     }
   },
-  "required": [
-    "phase",
-    "mode",
-    "steps"
-  ],
   "title": "DemoStatus",
   "type": "object"
 }

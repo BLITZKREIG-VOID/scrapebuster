@@ -28,7 +28,7 @@ export default function AboutModal({ open, onOpenChange }: AboutModalProps) {
                   ScrapeBuster — Offensive Data Provenance
                 </DialogTitle>
                 <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/30 uppercase tracking-widest font-semibold">
-                  [POC Build - Hackathon Edition]
+                  [Phase 0 Release]
                 </span>
               </div>
               <span className="text-xs text-slate-400 font-mono mt-0.5">
@@ -55,8 +55,8 @@ export default function AboutModal({ open, onOpenChange }: AboutModalProps) {
                 <Shield size={14} />
               </div>
               <div>
-                <span className="font-semibold text-slate-200 font-mono">L1 / L2 Edge: </span>
-                <span className="text-slate-400">Behavioral proxy blocking standard botnets with fingerprinting, header analysis, and interaction heuristics.</span>
+                <span className="font-semibold text-slate-200 font-mono">Edge Proxy: </span>
+                <span className="text-slate-400">Transparent reverse proxy with session tracking and pass-through routing.</span>
               </div>
             </div>
 
@@ -65,8 +65,8 @@ export default function AboutModal({ open, onOpenChange }: AboutModalProps) {
                 <Sparkles size={14} />
               </div>
               <div>
-                <span className="font-semibold text-slate-200 font-mono">L3 Trap: </span>
-                <span className="text-slate-400">Dynamic honeypots serving poisoned RAG data and synthetic watermarked knowledge anchors.</span>
+                <span className="font-semibold text-slate-200 font-mono">Offense Injection: </span>
+                <span className="text-slate-400">Unconditional session-bound canaries and deterministic synthetic knowledge anchors.</span>
               </div>
             </div>
 

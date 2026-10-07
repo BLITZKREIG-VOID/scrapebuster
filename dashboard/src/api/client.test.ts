@@ -8,7 +8,7 @@ describe('live backend API client', () => {
     expect(API_MODE).toBe('live');
   });
 
-  it('preserves the raw-array cases response from the frozen Phase 6 contract', async () => {
+  it('preserves the raw-array cases response from the contract', async () => {
     const cases = [{
       case_id: 'CASE-LIVE-001',
       run_id: 'RUN-LIVE-001',
@@ -28,8 +28,8 @@ describe('live backend API client', () => {
     const health = { status: 'ok', components: { db: 'ok', upstream: 'not_checked' } };
     const overview = {
       run_id: 'RUN-LIVE-001',
-      counts: { ALLOW: 0, ESCALATE: 0, CHALLENGE: 0, PASS: 0, RESTRICT: 0, THROTTLE: 0, BLOCK: 0, TRAP: 0 },
-      ladder: { safe: 0, suspicious: 0, challenge_restrict: 0, block: 0, trap: 0, provenance: 0 },
+      counts: { FAST_PATH: 0, SANDBOX: 0 },
+      ladder: { fast_path: 0, sandbox: 0, canary_exposed: 0, provenance: 0 },
       sessions_by_class: {}, canaries: { active: 0, exposed: 0, observed: 0 }, cases: { total: 0, detected: 0 },
       pipeline: [], latest_case: null,
     };

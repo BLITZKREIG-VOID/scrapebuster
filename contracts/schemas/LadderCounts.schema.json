@@ -1,38 +1,27 @@
 {
+  "additionalProperties": true,
   "properties": {
-    "safe": {
-      "title": "Safe",
+    "fast_path": {
+      "default": 0,
+      "title": "Fast Path",
       "type": "integer"
     },
-    "suspicious": {
-      "title": "Suspicious",
+    "sandbox": {
+      "default": 0,
+      "title": "Sandbox",
       "type": "integer"
     },
-    "challenge_restrict": {
-      "title": "Challenge Restrict",
-      "type": "integer"
-    },
-    "block": {
-      "title": "Block",
-      "type": "integer"
-    },
-    "trap": {
-      "title": "Trap",
+    "canary_exposed": {
+      "default": 0,
+      "title": "Canary Exposed",
       "type": "integer"
     },
     "provenance": {
+      "default": 0,
       "title": "Provenance",
       "type": "integer"
     }
   },
-  "required": [
-    "safe",
-    "suspicious",
-    "challenge_restrict",
-    "block",
-    "trap",
-    "provenance"
-  ],
   "title": "LadderCounts",
   "type": "object"
 }

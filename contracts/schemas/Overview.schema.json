@@ -82,44 +82,14 @@
     "DecisionCounts": {
       "additionalProperties": true,
       "properties": {
-        "ALLOW": {
+        "FAST_PATH": {
           "default": 0,
-          "title": "Allow",
+          "title": "Fast Path",
           "type": "integer"
         },
-        "ESCALATE": {
+        "SANDBOX": {
           "default": 0,
-          "title": "Escalate",
-          "type": "integer"
-        },
-        "CHALLENGE": {
-          "default": 0,
-          "title": "Challenge",
-          "type": "integer"
-        },
-        "PASS": {
-          "default": 0,
-          "title": "Pass",
-          "type": "integer"
-        },
-        "RESTRICT": {
-          "default": 0,
-          "title": "Restrict",
-          "type": "integer"
-        },
-        "THROTTLE": {
-          "default": 0,
-          "title": "Throttle",
-          "type": "integer"
-        },
-        "BLOCK": {
-          "default": 0,
-          "title": "Block",
-          "type": "integer"
-        },
-        "TRAP": {
-          "default": 0,
-          "title": "Trap",
+          "title": "Sandbox",
           "type": "integer"
         }
       },
@@ -127,40 +97,29 @@
       "type": "object"
     },
     "LadderCounts": {
+      "additionalProperties": true,
       "properties": {
-        "safe": {
-          "title": "Safe",
+        "fast_path": {
+          "default": 0,
+          "title": "Fast Path",
           "type": "integer"
         },
-        "suspicious": {
-          "title": "Suspicious",
+        "sandbox": {
+          "default": 0,
+          "title": "Sandbox",
           "type": "integer"
         },
-        "challenge_restrict": {
-          "title": "Challenge Restrict",
-          "type": "integer"
-        },
-        "block": {
-          "title": "Block",
-          "type": "integer"
-        },
-        "trap": {
-          "title": "Trap",
+        "canary_exposed": {
+          "default": 0,
+          "title": "Canary Exposed",
           "type": "integer"
         },
         "provenance": {
+          "default": 0,
           "title": "Provenance",
           "type": "integer"
         }
       },
-      "required": [
-        "safe",
-        "suspicious",
-        "challenge_restrict",
-        "block",
-        "trap",
-        "provenance"
-      ],
       "title": "LadderCounts",
       "type": "object"
     },

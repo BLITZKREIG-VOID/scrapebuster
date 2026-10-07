@@ -1,4 +1,4 @@
-// All dashboard runtime reads and writes use the Phase 6 live backend API.
+// All dashboard runtime reads and writes use the live backend API.
 import type {
   Canary,
   CanaryDetail,

@@ -13,7 +13,6 @@ import {
 } from '../api/client';
 import type {
   TrafficEvent,
-  SessionSummary,
   VerifyResult,
 } from '../types/contracts';
 import {
@@ -44,64 +43,34 @@ import { SkeletonTable } from '../components/SkeletonTable';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../components/ui/tooltip';
 
 const REASON_HUMAN_MAP: Record<string, string> = {
-  'L1_AUTOMATION_UA': 'Automation client signature detected in User-Agent header',
-  'L1_MISSING_BROWSER_HEADERS': 'Missing standard browser headers (Accept, Sec-Fetch-*)',
-  'L1_HEADER_FP_ANOMALY': 'Anomalous HTTP header order inconsistent with stated client',
-  'L1_RATE_SOFT': 'Soft request-rate window exceeded',
-  'L1_RATE_HARD': 'Hard request-rate window exceeded',
-  'L1_REPEAT_THROTTLE': 'Repeated rate-limit decisions',
-  'L1_UNVERIFIED_SESSION': 'Unverified session attempting access to guarded resource',
-  'L2_WEBDRIVER': 'Navigator webdriver automation flag active',
-  'L2_HEADLESS_UA': 'Headless browser runtime signature (Chrome-Lighthouse / Puppeteer)',
-  'L2_UA_MISMATCH': 'User-Agent string mismatch between HTTP header and navigator DOM',
-  'L2_ZERO_VIEWPORT': 'Zero or anomalous screen viewport geometry detected',
-  'L2_SOFTWARE_GL': 'Software WebGL renderer detected (Mesa / SwiftShader)',
-  'L2_NO_LANGUAGES': 'No system language preferences reported by client',
-  'L2_NO_INTERACTION': 'No mouse, keyboard, or touch interaction prior to submission',
-  'L2_FAST_SUBMIT': 'Form submission timing signal recorded by Layer 2',
-  'L2_POW_INVALID': 'Proof-of-work cryptographic challenge missing or failed',
-  'L2_NO_JS': 'Failed JavaScript execution verification challenge',
-  'L3_L2_SUSPICIOUS_BAND': 'Behavioral risk band signal recorded by Layer 3',
-  'TRAP-LINK-01': 'Hidden zero-pixel honeypot hyperlink traversed by scraper crawler',
-  'TRAP-ROBOTS-01': 'Robots.txt disallowed honeypot endpoint accessed',
+  'OFFENSE_DECOY_TRIGGERED': 'Offensive decoy honeytoken accessed',
+  'OFFENSE_MUTATION_ELIGIBLE': 'Eligible HTML/JSON body routed to sandbox mutation',
+  'CANARY_EXPOSURE_DETECTED': 'Data canary exposed in response body',
+  'TRAP-LINK-01': 'Offensive honeypot hyperlink traversed by scraper crawler',
+  'TRAP-ROBOTS-01': 'Disallowed honeypot endpoint accessed',
   'TRAP-DECOY-01': 'Synthetic decoy endpoint accessed',
 };
 
 const LADDER_EXPLANATIONS: Record<string, { label: string; desc: string; threshold: string }> = {
-  ALLOW: {
-    label: 'ALLOW Tier',
-    desc: 'The backend accepted the request at Layer 1.',
-    threshold: 'Decision and count reported by backend',
+  fast_path: {
+    label: 'FAST_PATH Routing',
+    desc: 'The proxy routed request directly to upstream origin unmutated.',
+    threshold: 'Verified origin pass-through',
   },
-  PASS: {
-    label: 'PASS Tier',
-    desc: 'The backend allowed the request to continue after behavioral checks.',
-    threshold: 'Decision and count reported by backend',
+  sandbox: {
+    label: 'SANDBOX Infiltration',
+    desc: 'The proxy routed request through offensive mutation and canary injection.',
+    threshold: 'Active offensive mutation',
   },
-  CHALLENGE: {
-    label: 'CHALLENGE Tier',
-    desc: 'The backend issued a challenge for this request.',
-    threshold: 'Decision and count reported by backend',
+  canary_exposed: {
+    label: 'Canaries Exposed',
+    desc: 'Unique session-bound cryptographic honeytokens injected into scraped responses.',
+    threshold: 'Decoy honeytokens exposed',
   },
-  THROTTLE: {
-    label: 'THROTTLE Tier',
-    desc: 'The backend throttled requests based on its rate window.',
-    threshold: 'Decision and count reported by backend',
-  },
-  RESTRICT: {
-    label: 'RESTRICT Tier',
-    desc: 'The backend restricted the session after behavioral evaluation.',
-    threshold: 'Decision and count reported by backend',
-  },
-  BLOCK: {
-    label: 'BLOCK Tier',
-    desc: 'The backend blocked the request before origin access.',
-    threshold: 'Decision and count reported by backend',
-  },
-  TRAP: {
-    label: 'TRAP Tier (L3 Honeypot)',
-    desc: 'The backend routed this request into a trap path.',
-    threshold: 'Decision and count reported by backend',
+  provenance: {
+    label: 'Provenance Attribution',
+    desc: 'Doberman model probes confirmed canary extraction in AI training/RAG datasets.',
+    threshold: 'Cryptographic proof confirmed',
   },
 };
 
@@ -297,22 +266,14 @@ export default function Overview() {
 
   const totalTraffic = Object.values(overviewData?.counts ?? {}).reduce((sum, count) => sum + count, 0);
   const sessions = sessionData?.sessions ?? [];
-  const botsBlocked = sessionData
-    ? sessions.filter((session: SessionSummary) =>
-        ['BOT_BASIC', 'AUTOMATION'].includes(session.classification) &&
-        ['BLOCKED', 'RESTRICTED'].includes(session.state)
-      ).length
-    : null;
+  const sandboxCount = overviewData?.counts?.SANDBOX ?? 0;
   const registeredCanaries = overviewData
     ? overviewData.canaries.active + overviewData.canaries.exposed + overviewData.canaries.observed
     : null;
   const isZeroData = !isInitialLoading && !eventsError && totalTraffic === 0 && events.length === 0;
 
-  // Four Security Outcomes (Derived dynamically from live sessions & overview counts)
-  const botBasicSession = sessions.find((s) => s.classification === 'BOT_BASIC');
-  const automationSession = sessions.find((s) => s.classification === 'AUTOMATION');
-  const sophisticatedSession = sessions.find((s) => s.classification === 'SOPHISTICATED_SCRAPER');
-  const humanSession = sessions.find((s) => s.classification === 'HUMAN_LIKELY');
+  // Active Sessions for pipeline display
+  const primarySession = sessions.length > 0 ? sessions[0] : null;
 
   // Provenance & Findings derivations (Differential negative control checks)
   const findings = caseDetail?.findings ?? [];
@@ -329,10 +290,10 @@ export default function Overview() {
           <div className="space-y-1">
             <div className="flex items-center gap-2.5 flex-wrap">
               <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold font-mono tracking-wider uppercase bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
-                Active Perimeter Guard
+                Offensive Provenance
               </span>
               <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold font-mono tracking-wider uppercase bg-slate-800 text-slate-300 border border-slate-700">
-                Target: CampusCart (Configured Production Target)
+                Target: Upstream Origin
               </span>
               <span
                 className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold font-mono tracking-wider uppercase border ${
@@ -345,10 +306,10 @@ export default function Overview() {
               </span>
             </div>
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-100 tracking-tight font-display">
-              SCRAPEBUSTER LIVE DEFENSE
+              SCRAPEBUSTER OFFENSIVE DEFENSE
             </h1>
             <p className="text-xs font-mono text-slate-400">
-              Autonomous 3-Layer Scraper Neutralization & Cryptographic AI Provenance Attribution
+              Autonomous Offense Injection & Cryptographic AI Provenance Attribution
             </p>
           </div>
 
@@ -409,12 +370,12 @@ export default function Overview() {
           </div>
         </div>
 
-        {/* 2. Four Security Outcomes (Derived directly from live sessions & overview counts) */}
+        {/* 2. Core Architecture Pipeline Outcomes */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-bold text-slate-300 uppercase tracking-wider font-mono flex items-center gap-2">
               <ShieldCheck size={14} className="text-cyan-400" />
-              Four Security Outcomes (Edge Wire to AI Provenance)
+              Operational Pipeline Architecture
             </h2>
             <span className="text-[10px] font-mono text-slate-500 uppercase">
               Live Session State Matrix
@@ -422,176 +383,116 @@ export default function Overview() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {/* Outcome 1: L1 Basic Bot */}
-            <div className="p-3.5 rounded-xl border border-red-500/30 bg-slate-950/80 flex flex-col justify-between space-y-2 shadow-sm">
+            {/* Outcome 1: Edge Proxy */}
+            <div className="p-3.5 rounded-xl border border-cyan-500/30 bg-slate-950/80 flex flex-col justify-between space-y-2 shadow-sm">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <div className="text-[10px] font-mono font-bold text-red-400 uppercase tracking-wider">
-                    L1 Edge Defense
+                  <div className="text-[10px] font-mono font-bold text-cyan-400 uppercase tracking-wider">
+                    Edge Proxy
                   </div>
                   <div className="text-sm font-bold text-slate-100 font-sans">
-                    Basic Bot (BOT_BASIC)
+                    Session Ingestion
                   </div>
                 </div>
-                <span
-                  className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider border shrink-0 ${
-                    botBasicSession
-                      ? 'bg-red-500/10 text-red-400 border-red-500/30'
-                      : 'bg-slate-800/60 text-slate-400 border-slate-700'
-                  }`}
-                >
-                  {botBasicSession ? botBasicSession.state : 'NO SESSION'}
+                <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider border bg-cyan-500/10 text-cyan-400 border-cyan-500/30">
+                  {primarySession ? primarySession.state : 'ONLINE'}
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 font-sans leading-tight">
-                Deterministic wire block at Layer 1 perimeter before origin or honeypot reach.
+                Transparent reverse proxy routing incoming traffic and tracking session profiles.
               </p>
               <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] font-mono text-slate-400">
-                {botBasicSession ? (
+                {primarySession ? (
                   <button
-                    onClick={() => setSelectedSessionId(botBasicSession.session_id)}
+                    onClick={() => setSelectedSessionId(primarySession.session_id)}
                     className="text-cyan-400 hover:text-cyan-300 font-semibold truncate max-w-[130px] cursor-pointer text-left"
-                    title={`View session ${botBasicSession.session_id}`}
+                    title={`View session ${primarySession.session_id}`}
                   >
-                    {botBasicSession.session_id.substring(0, 11)}…
+                    {primarySession.session_id.substring(0, 11)}…
                   </button>
                 ) : (
-                  <span>NO SESSION</span>
+                  <span>ACTIVE</span>
                 )}
                 <span className="font-bold text-slate-200">
-                  {botBasicSession ? `${botBasicSession.request_count} reqs` : `${overviewData?.counts?.BLOCK ?? 0} blocks`}
+                  {sessions.length} sessions
                 </span>
               </div>
             </div>
 
-            {/* Outcome 2: L2 Headless Automation */}
-            <div className="p-3.5 rounded-xl border border-amber-500/30 bg-slate-950/80 flex flex-col justify-between space-y-2 shadow-sm">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="text-[10px] font-mono font-bold text-amber-400 uppercase tracking-wider">
-                    L2 Behavioral
-                  </div>
-                  <div className="text-sm font-bold text-slate-100 font-sans">
-                    Headless Automation
-                  </div>
-                </div>
-                <span
-                  className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider border shrink-0 ${
-                    automationSession
-                      ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                      : 'bg-slate-800/60 text-slate-400 border-slate-700'
-                  }`}
-                >
-                  {automationSession ? automationSession.state : 'NO SESSION'}
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400 font-sans leading-tight">
-                Browser fingerprint anomaly detected; session restricted via rate and proof-of-work challenges.
-              </p>
-              <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] font-mono text-slate-400">
-                {automationSession ? (
-                  <button
-                    onClick={() => setSelectedSessionId(automationSession.session_id)}
-                    className="text-cyan-400 hover:text-cyan-300 font-semibold truncate max-w-[130px] cursor-pointer text-left"
-                    title={`View session ${automationSession.session_id}`}
-                  >
-                    {automationSession.session_id.substring(0, 11)}…
-                  </button>
-                ) : (
-                  <span>NO SESSION</span>
-                )}
-                <span className="font-bold text-slate-200">
-                  {automationSession
-                    ? `${automationSession.request_count} reqs`
-                    : `${(overviewData?.counts?.RESTRICT ?? 0) + (overviewData?.counts?.CHALLENGE ?? 0)} challenge/restrict events`}
-                </span>
-              </div>
-            </div>
-
-            {/* Outcome 3: L3 Sophisticated Scraper */}
+            {/* Outcome 2: Offense Mutation */}
             <div className="p-3.5 rounded-xl border border-purple-500/30 bg-slate-950/80 flex flex-col justify-between space-y-2 shadow-sm">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <div className="text-[10px] font-mono font-bold text-purple-400 uppercase tracking-wider">
-                    L3 Honeypot Trap
+                    Offense Mutation
                   </div>
                   <div className="text-sm font-bold text-slate-100 font-sans">
-                    Sophisticated Scraper
+                    Sandbox Pipeline
                   </div>
                 </div>
-                <span
-                  className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider border shrink-0 ${
-                    sophisticatedSession
-                      ? 'bg-purple-500/10 text-purple-400 border-purple-500/30'
-                      : 'bg-slate-800/60 text-slate-400 border-slate-700'
-                  }`}
-                >
-                  {sophisticatedSession ? sophisticatedSession.state : 'NO SESSION'}
+                <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider border bg-purple-500/10 text-purple-400 border-purple-500/30">
+                  ACTIVE
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 font-sans leading-tight">
-                Trap responses replace origin content with watermarked synthetic canaries.
+                Eligible HTML and JSON responses mutated with session-bound canaries.
               </p>
               <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] font-mono text-slate-400">
-                {sophisticatedSession ? (
-                  <button
-                    onClick={() => setSelectedSessionId(sophisticatedSession.session_id)}
-                    className="text-cyan-400 hover:text-cyan-300 font-semibold truncate max-w-[130px] cursor-pointer text-left"
-                    title={`View session ${sophisticatedSession.session_id}`}
-                  >
-                    {sophisticatedSession.session_id.substring(0, 11)}…
-                  </button>
-                ) : (
-                  <span>NO SESSION</span>
-                )}
+                <span>SANDBOX ROUTE</span>
                 <span className="font-bold text-slate-200">
-                  {sophisticatedSession
-                    ? `${sophisticatedSession.request_count} reqs; registry ${(overviewData?.canaries?.exposed ?? 0) + (overviewData?.canaries?.observed ?? 0)} exposed/observed`
-                    : `${overviewData?.counts?.TRAP ?? 0} trapped`}
+                  {sandboxCount} mutated
                 </span>
               </div>
             </div>
 
-            {/* Outcome 4: Origin Gate Human User */}
+            {/* Outcome 3: Doberman Probing */}
+            <div className="p-3.5 rounded-xl border border-amber-500/30 bg-slate-950/80 flex flex-col justify-between space-y-2 shadow-sm">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <div className="text-[10px] font-mono font-bold text-amber-400 uppercase tracking-wider">
+                    Doberman Interrogator
+                  </div>
+                  <div className="text-sm font-bold text-slate-100 font-sans">
+                    Differential Probing
+                  </div>
+                </div>
+                <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider border bg-amber-500/10 text-amber-400 border-amber-500/30">
+                  {probeData?.probes?.length ? 'PROBING' : 'READY'}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 font-sans leading-tight">
+                Automated differential probe queries extracting candidate theft signals.
+              </p>
+              <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] font-mono text-slate-400">
+                <span>RUNS COMPLETED</span>
+                <span className="font-bold text-slate-200">
+                  {probeData?.probes?.length ?? 0} runs
+                </span>
+              </div>
+            </div>
+
+            {/* Outcome 4: Provenance Attribution */}
             <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-slate-950/80 flex flex-col justify-between space-y-2 shadow-sm">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <div className="text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-wider">
-                    Origin Protection
+                    Provenance Attribution
                   </div>
                   <div className="text-sm font-bold text-slate-100 font-sans">
-                    Human-like Browser
+                    Chain-of-Custody
                   </div>
                 </div>
-                <span
-                  className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider border shrink-0 ${
-                    humanSession
-                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                      : 'bg-slate-800/60 text-slate-400 border-slate-700'
-                  }`}
-                >
-                  {humanSession ? humanSession.state : 'NO SESSION'}
+                <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider border bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
+                  {hasProvenanceSignal ? 'DETECTED' : 'MONITORING'}
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 font-sans leading-tight">
-                Verified human interactions forward cleanly to CampusCart origin with zero honeypot pollution.
+                Deterministic LLM provenance verified with cryptographic SHA-256 evidence seals.
               </p>
               <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] font-mono text-slate-400">
-                {humanSession ? (
-                  <button
-                    onClick={() => setSelectedSessionId(humanSession.session_id)}
-                    className="text-cyan-400 hover:text-cyan-300 font-semibold truncate max-w-[130px] cursor-pointer text-left"
-                    title={`View session ${humanSession.session_id}`}
-                  >
-                    {humanSession.session_id.substring(0, 11)}…
-                  </button>
-                ) : (
-                  <span>NO SESSION</span>
-                )}
+                <span>PROVEN CASES</span>
                 <span className="font-bold text-slate-200">
-                  {humanSession
-                    ? `${humanSession.request_count} reqs`
-                    : `${(overviewData?.counts?.ALLOW ?? 0) + (overviewData?.counts?.PASS ?? 0)} allowed`}
+                  {overviewData?.cases?.detected ?? 0} detected
                 </span>
               </div>
             </div>
@@ -814,11 +715,11 @@ export default function Overview() {
             icon={<Activity size={16} className="text-cyan-400" />}
           />
           <KPICard
-            title="Bots Neutralized"
-            value={botsBlocked === null ? '—' : botsBlocked.toLocaleString()}
-            sub="BOT_BASIC blocked + automation restricted"
-            isDanger={(botsBlocked ?? 0) > 0}
-            icon={<ShieldAlert size={16} className={(botsBlocked ?? 0) > 0 ? 'text-red-500' : 'text-slate-400'} />}
+            title="Sandbox Route Volume"
+            value={sandboxCount.toLocaleString()}
+            sub="Deceptive routing & canary injection"
+            isDanger={sandboxCount > 0}
+            icon={<ShieldAlert size={16} className={sandboxCount > 0 ? 'text-purple-400' : 'text-slate-400'} />}
           />
           <KPICard
             title="Registered Canaries"
@@ -853,17 +754,17 @@ export default function Overview() {
           <div className="flex items-center gap-2">
             <Layers size={16} className="text-cyan-400" />
             <h2 className="text-xs font-semibold text-slate-300 uppercase tracking-wider font-mono">
-              6-Tier Perimeter Defense Ladder
+              4-Stage Offensive Pipeline Ladder
             </h2>
           </div>
           <span className="text-[10px] font-mono text-slate-500 uppercase">
-            Threshold Enforcement Matrix
+            Active Offense & Provenance Matrix
           </span>
         </div>
 
         {isInitialLoading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            {Array.from({ length: 6 }).map((_, i) => (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="p-3 rounded-lg border border-slate-800/80 bg-slate-950/60 space-y-2">
                 <Skeleton className="h-3 w-16 bg-slate-800" />
                 <Skeleton className="h-6 w-20 bg-slate-800" />
@@ -872,13 +773,13 @@ export default function Overview() {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            {(['ALLOW', 'PASS', 'CHALLENGE', 'THROTTLE', 'RESTRICT', 'BLOCK'] as const).map((tier) => {
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {(['fast_path', 'sandbox', 'canary_exposed', 'provenance'] as const).map((tier) => {
               const meta = LADDER_EXPLANATIONS[tier];
-              const count = overviewData?.counts[tier] ?? 0;
+              const count = overviewData?.ladder?.[tier] ?? 0;
 
-              const isRedTier = tier === 'BLOCK';
-              const isAmberTier = tier === 'CHALLENGE' || tier === 'THROTTLE' || tier === 'RESTRICT';
+              const isPurpleTier = tier === 'sandbox' || tier === 'canary_exposed';
+              const isCyanTier = tier === 'provenance';
 
               return (
                 <Tooltip key={tier}>
@@ -887,14 +788,14 @@ export default function Overview() {
                       <div className="flex items-center justify-between text-[10px] font-mono font-semibold">
                         <span
                           className={
-                            isRedTier
-                              ? 'text-red-400 font-bold'
-                              : isAmberTier
-                              ? 'text-amber-400'
+                            isCyanTier
+                              ? 'text-cyan-400 font-bold'
+                              : isPurpleTier
+                              ? 'text-purple-400 font-bold'
                               : 'text-emerald-400'
                           }
                         >
-                          {tier}
+                          {meta.label.toUpperCase()}
                         </span>
                         <HelpCircle size={11} className="text-slate-600 group-hover:text-slate-400" />
                       </div>
@@ -904,7 +805,7 @@ export default function Overview() {
                       <div className="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden border border-slate-800/80">
                         <div
                           className={`h-full animate-pulse ${
-                            isRedTier ? 'bg-red-500' : isAmberTier ? 'bg-amber-400' : 'bg-emerald-400'
+                            isCyanTier ? 'bg-cyan-400' : isPurpleTier ? 'bg-purple-500' : 'bg-emerald-400'
                           }`}
                           style={{ width: `${Math.min(100, Math.max(15, (count / (totalTraffic || 1)) * 100))}%` }}
                         />
@@ -960,7 +861,7 @@ export default function Overview() {
                   No traffic ingested yet
                 </h3>
                 <p className="text-xs font-mono text-slate-400 max-w-md">
-                  Run Step 1 in Demo Controller or point traffic to proxy on port{' '}
+                  Point traffic to proxy on port{' '}
                   <span className="text-cyan-400 font-bold">:8000</span> to populate live telemetry.
                 </p>
               </div>
@@ -1123,9 +1024,7 @@ function KPICard({
 }
 
 function getDecisionBadgeStyle(d: string) {
-  if (d === 'ALLOW' || d === 'PASS') return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
-  if (d === 'BLOCK') return 'bg-red-500/10 text-red-400 border-red-500/40 font-bold';
-  if (d === 'THROTTLE' || d === 'RESTRICT') return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
-  if (d === 'TRAP') return 'bg-purple-500/10 text-purple-400 border-purple-500/30';
+  if (d === 'FAST_PATH') return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+  if (d === 'SANDBOX') return 'bg-purple-500/10 text-purple-400 border-purple-500/30 font-bold';
   return 'bg-slate-800 text-slate-400 border-slate-700';
 }

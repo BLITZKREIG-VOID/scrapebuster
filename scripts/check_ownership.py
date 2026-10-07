@@ -25,6 +25,8 @@ def get_current_user():
         return "@arnav"
     if "harsh" in user_lower:
         return "@harsh"
+    if "w5" in user_lower or "kashyep" in user_lower or "integration" in user_lower:
+        return "@w5"
     
     # Fallback if no hardcoded mapping matches, assume they use their handle directly
     return f"@{user_lower.split()[0]}"

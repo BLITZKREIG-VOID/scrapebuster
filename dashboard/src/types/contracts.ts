@@ -1,11 +1,9 @@
-// Mirrors the frozen Phase 6 response contracts in backend/sb/contracts.py.
-export type Decision =
-  | 'ALLOW' | 'ESCALATE' | 'CHALLENGE' | 'PASS'
-  | 'RESTRICT' | 'THROTTLE' | 'BLOCK' | 'TRAP';
-export type Layer = 'L1' | 'L2' | 'L3' | 'ORIGIN';
+// Mirrors the canonical response contracts in backend/sb/contracts.py.
+export type Decision = 'FAST_PATH' | 'SANDBOX';
+export type Layer = 'ORIGIN' | 'EDGE';
 export type ComponentStatus = 'ok' | 'down' | 'disabled' | 'unknown' | 'not_checked';
 export type CanaryStatus = 'DRAFT' | 'ACTIVE' | 'EXPOSED' | 'OBSERVED';
-export type DemoMode = 'live' | 'golden';
+export type DemoMode = 'live' | 'neutral' | 'golden';
 export type DemoPhase = 'READY' | 'RUNNING' | 'COMPLETE' | 'PAUSED' | 'FAILED';
 
 export interface Health {
@@ -24,7 +22,8 @@ export interface TrafficEvent {
   path: string;
   status_code: number;
   user_agent: string;
-  layer: Layer;
+  stage?: string;
+  layer?: string;
   decision: Decision;
   risk_score: number;
   reasons: string[];
@@ -42,13 +41,6 @@ export interface SessionSummary {
   state: string;
 }
 
-export interface LayerPathEntry {
-  layer: string;
-  decision: string;
-  ts?: string | null;
-  [key: string]: unknown;
-}
-
 export interface SessionDetail extends SessionSummary {
   client_key: string;
   ip: string;
@@ -56,14 +48,13 @@ export interface SessionDetail extends SessionSummary {
   header_fp: string;
   first_seen: string;
   last_seen: string;
-  l1_score: number;
-  l1_reasons: string[];
-  l2_score: number;
-  l2_signals: string[];
-  layer_path: LayerPathEntry[];
+  decision: Decision;
+  risk_score: number;
+  reasons: string[];
   pages: string[];
   traps_triggered: string[];
   canaries_exposed: string[];
+  event_ids: string[];
 }
 
 export interface ExposureEvent {
@@ -238,13 +229,12 @@ export interface DemoResetResponse {
 export interface Overview {
   run_id: string;
   counts: Record<Decision, number>;
-  ladder: {
-    safe: number;
-    suspicious: number;
-    challenge_restrict: number;
-    block: number;
-    trap: number;
-    provenance: number;
+  ladder?: {
+    fast_path?: number;
+    sandbox?: number;
+    canary_exposed?: number;
+    provenance?: number;
+    [key: string]: number | undefined;
   };
   sessions_by_class: Record<string, number>;
   canaries: { active: number; exposed: number; observed: number };

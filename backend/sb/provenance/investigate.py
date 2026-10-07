@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Callable
 from contextlib import closing
 from datetime import datetime, timezone
@@ -17,40 +18,49 @@ from sb.store import db
 GENERATE_FN: Callable[..., Any] | None = None
 
 SESSION_JSON_COLUMNS: tuple[str, ...] = (
-    "l1_reasons",
-    "l2_signals",
-    "layer_path",
+    "reasons",
     "pages",
     "traps_triggered",
     "canaries_exposed",
+    "event_ids",
 )
 
 
 def current_run_id() -> str:
-    """Read demo_state row key 'run_id'; if absent, create RUN-YYYYMMDD-HHMMSS (UTC now),
-    INSERT OR IGNORE it into demo_state, and return it.
+    """Read app_state/demo_state row key 'run_id'; if absent, create RUN-YYYYMMDD-HHMMSS (UTC now),
+    insert it, and return it.
     """
     with closing(db.get_connection()) as conn, conn:
-        row = conn.execute("SELECT value FROM demo_state WHERE key = 'run_id'").fetchone()
-        if row is not None and row["value"]:
-            return str(row["value"])
+        row = None
+        for tbl in ("app_state", "demo_state"):
+            try:
+                row = conn.execute(f"SELECT value FROM {tbl} WHERE key = 'run_id'").fetchone()
+                if row is not None and row["value"]:
+                    return str(row["value"])
+            except Exception:
+                continue
 
         new_run_id = datetime.now(timezone.utc).strftime("RUN-%Y%m%d-%H%M%S")
-        conn.execute(
-            "INSERT OR IGNORE INTO demo_state (key, value) VALUES ('run_id', ?)",
-            (new_run_id,),
-        )
-        row = conn.execute("SELECT value FROM demo_state WHERE key = 'run_id'").fetchone()
-        return str(row["value"])
+        for tbl in ("app_state", "demo_state"):
+            try:
+                conn.execute(
+                    f"INSERT OR IGNORE INTO {tbl} (key, value) VALUES ('run_id', ?)",
+                    (new_run_id,),
+                )
+            except Exception:
+                continue
+        return new_run_id
 
 
 def _load_baseline_texts(baseline_path: Path | str | None = None) -> list[str]:
-    b_path = (
-        Path(baseline_path)
-        if baseline_path is not None
-        else Path(__file__).resolve().parents[3] / "data" / "baseline" / "public_baseline.jsonl"
-    )
-    if not b_path.is_file():
+    """Load baseline texts from explicit path or SB_BASELINE_PATH; defaults to empty list."""
+    b_path: Path | None = None
+    if baseline_path is not None:
+        b_path = Path(baseline_path)
+    elif os.environ.get("SB_BASELINE_PATH"):
+        b_path = Path(os.environ["SB_BASELINE_PATH"])
+
+    if b_path is None or not b_path.is_file():
         return []
     texts: list[str] = []
     with b_path.open("r", encoding="utf-8") as f:
@@ -234,6 +244,23 @@ def investigate(
                 statement,
             ),
         )
+
+    from sb.store.ledger import append_event
+    append_event(
+        "case_created",
+        {
+            "case_id": case_id,
+            "run_id": run_id,
+            "created_at": created_at,
+            "status": status,
+            "confidence": confidence,
+            "primary_canary_id": primary_canary_id,
+            "session_ids": session_ids,
+            "probe_ids": [target_probe_id, control_probe_id],
+            "findings": [f.model_dump() for f in findings],
+            "statement": statement,
+        },
+    )
 
     # 10. Gather bundle data
     publications: list[dict[str, Any]] = [

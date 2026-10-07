@@ -16,8 +16,8 @@ export default function Welcome() {
 
 
       {/* 3. Corner Text (z-20) */}
-      <div className="absolute bottom-6 left-6 text-xs font-mono text-slate-500 z-20 pointer-events-none">SYS.BOOT_SEQ // OK<br/>L3.TRAP_STATUS // STANDBY</div>
-      <div className="absolute bottom-6 right-6 text-xs font-mono text-slate-500 text-right z-20 pointer-events-none">SECURE ENCLAVE ACTIVE<br/>v0.9.4-hackathon</div>
+      <div className="absolute bottom-6 left-6 text-xs font-mono text-slate-500 z-20 pointer-events-none">SYS.BOOT_SEQ // OK<br/>OFFENSE_PIPELINE // READY</div>
+      <div className="absolute bottom-6 right-6 text-xs font-mono text-slate-500 text-right z-20 pointer-events-none">SECURE ENCLAVE ACTIVE<br/>v3.0.0-phase0</div>
 
       {/* 4. Main Content (z-30) */}
       <div className="relative z-30 flex flex-col items-center animate-in fade-in zoom-in-95 duration-1000 ease-out fill-mode-forwards">

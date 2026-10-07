@@ -1,30 +1,54 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, FastAPI, Request
-from fastapi.responses import JSONResponse
 
 from .api.canaries import router as canaries_router
 from .api.cases import router as cases_router
 from .api.datasets import router as datasets_router
-from .api.demo import router as demo_router
 from .api.health import router as health_router
 from .api.overview import router as overview_router
 from .api.probes import router as probes_router
 from .api.sessions import router as sessions_router
 from .api.traffic import router as traffic_router
 from .edge.pipeline import handle
-from .trap import install as install_trap_hooks
+
+logger = logging.getLogger("sb.main")
+
+try:
+    from .api.demo import router as demo_router
+except ImportError:
+    demo_router = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    yield
-    from .edge.proxy import _client
-    if _client is not None:
-        await _client.aclose()
+    """Application lifespan: validate config, initialize DB, install hooks, cleanup on shutdown."""
+    from .config import validate_required_urls
+    from .edge.proxy import close_client
+    from .offense import install as install_offense_hooks
+    from .store.db import init_db
+
+    try:
+        # Enforce canonical SB_UPSTREAM_ORIGIN and SB_PUBLIC_BASE_URL (PRD PR-2)
+        validate_required_urls()
+
+        # Ensure schema, ledger, and triggers are initialized before first request/verify
+        # Startup corrupt-store must not crash application (best-effort degraded origin operation)
+        try:
+            init_db()
+        except Exception as db_err:
+            logger.error("Database initialization failed at startup (store degraded): %s", db_err)
+
+        # Install W2 offense hooks
+        install_offense_hooks()
+
+        yield
+    finally:
+        await close_client()
+
 
 app = FastAPI(title="ScapeBusters", lifespan=lifespan)
-install_trap_hooks()
 
 api_v1_router = APIRouter(prefix="/api/v1")
 api_v1_router.include_router(health_router, tags=["health"])
@@ -36,133 +60,11 @@ api_v1_router.include_router(datasets_router, tags=["datasets"])
 api_v1_router.include_router(probes_router, tags=["probes"])
 api_v1_router.include_router(cases_router, tags=["cases"])
 app.include_router(api_v1_router)
-# demo_router owns /api/v1/demo. Mount it at application level to avoid
-# accidentally adding a second /api/v1 prefix.
-app.include_router(demo_router)
 
+# Mount demo control API if available (W4 rewrites demo API)
+if demo_router is not None:
+    app.include_router(demo_router)
 
-@app.api_route(
-    "/api/v1/{path:path}",
-    methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"],
-    include_in_schema=False,
-)
-async def api_v1_not_found(path: str):
-    """Keep unknown versioned API paths inside the control plane."""
-    return JSONResponse(content={"detail": "Not Found"}, status_code=404)
-
-@app.api_route("/_sb/{path:path}", methods=["GET", "POST"], include_in_schema=False)
-async def sb_namespace(path: str, request: Request):
-    if path in {"challenge.js", "static/challenge.js"}:
-        import os
-
-        from fastapi.responses import FileResponse
-        js_path = os.path.join(os.path.dirname(__file__), "edge", "static", "challenge.js")
-        return FileResponse(js_path, media_type="application/javascript")
-            
-    if path == "verify":
-        from .edge.context import build_context
-        from .edge.intel import init_request, record_decision
-        from .edge.layer2 import verify_submission
-        from .edge.pipeline import log_event
-        from .edge.session import sessions
-        from .store.sessions import save_session
-        
-        ctx = build_context(request)
-        session = sessions.get_or_create(ctx)
-        init_request(ctx, session)
-        save_session(session)
-        
-        try:
-            body = await request.json()
-        except (TypeError, ValueError):
-            body = {}
-        if not isinstance(body, dict):
-            body = {}
-        cid = body.get("challenge_id")
-        nonce = body.get("nonce")
-        signals = body.get("signals", {})
-        
-        res = verify_submission(
-            challenge_id=cid,
-            nonce=nonce,
-            signals=signals,
-            session=session,
-            request_ua=ctx.user_agent,
-            elapsed_ms=signals.get("elapsed_ms") if isinstance(signals, dict) else None,
-        )
-        session.l2_score = res.score
-        session.l2_signals = list(res.reasons)
-        
-        if res.band == "PASS" or res.band == "TRAP":
-            if res.band == "PASS":
-                session.state = "VERIFIED"
-            else:
-                session.state = "TRAPPED"
-                
-            response = JSONResponse({"status": "ok"})
-            if res.clearance_cookie:
-                response.headers["Set-Cookie"] = res.clearance_cookie
-            log_event(ctx, session, "L2", res.band, 200, res.reasons, risk_score=res.score)
-            record_decision(session, "L2", res.band)
-            save_session(session)
-            return response
-            
-        else:
-            session.state = "RESTRICTED"
-            log_event(ctx, session, "L2", "RESTRICT", 403, res.reasons, risk_score=res.score)
-            record_decision(session, "L2", "RESTRICT")
-            save_session(session)
-            return JSONResponse({"status": "failed"}, status_code=403)
-            
-    # Legacy alias compatibility if needed
-    if path == "challenge/verify":
-        from .edge.context import build_context
-        from .edge.intel import init_request, record_decision
-        from .edge.layer2 import verify_submission
-        from .edge.pipeline import log_event
-        from .edge.session import sessions
-        from .store.sessions import save_session
-        
-        ctx = build_context(request)
-        session = sessions.get_or_create(ctx)
-        init_request(ctx, session)
-        save_session(session)
-        
-        try:
-            body = await request.json()
-        except (TypeError, ValueError):
-            body = {}
-        if not isinstance(body, dict):
-            body = {}
-        signals = body.get("signals", {})
-        res = verify_submission(
-            challenge_id=body.get("challenge_id"),
-            nonce=body.get("nonce", body.get("solution")),
-            signals=signals,
-            session=session,
-            request_ua=ctx.user_agent,
-            elapsed_ms=signals.get("elapsed_ms") if isinstance(signals, dict) else None,
-        )
-        session.l2_score = res.score
-        session.l2_signals = list(res.reasons)
-
-        if res.band in {"PASS", "TRAP"}:
-            session.state = "VERIFIED" if res.band == "PASS" else "TRAPPED"
-            response = JSONResponse({"status": "ok"})
-            if res.clearance_cookie:
-                response.headers["Set-Cookie"] = res.clearance_cookie
-            log_event(ctx, session, "L2", res.band, 200, res.reasons, risk_score=res.score)
-            record_decision(session, "L2", res.band)
-            save_session(session)
-            return response
-        else:
-            session.state = "RESTRICTED"
-            log_event(ctx, session, "L2", "RESTRICT", 403, res.reasons, risk_score=res.score)
-            record_decision(session, "L2", "RESTRICT")
-            save_session(session)
-            return JSONResponse({"status": "failed"}, status_code=403)
-            
-    return JSONResponse(content={"msg": f"SB stub for {path}"})
 
 @app.api_route(
     "/{path:path}",
@@ -170,5 +72,5 @@ async def sb_namespace(path: str, request: Request):
     include_in_schema=False,
 )
 async def catch_all(path: str, request: Request):
-    # Route through the edge pipeline
+    """Route all proxied traffic through the edge pipeline."""
     return await handle(request)
