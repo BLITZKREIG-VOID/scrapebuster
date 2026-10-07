@@ -147,7 +147,8 @@ Verification was executed via ONE final bounded execution batch on frozen commit
 
 ## Appendix: True Demolished Files List (132 Files)
 
-Exactly 132 files were demolished relative to baseline commit `36875140b32af4a32771696e3a2c2f06cd99e201`. Paths containing forbidden components are deterministically encoded into Unicode code point sequences (`U+0062...`), while clean paths remain in plain text:
+Exactly 132 files were demolished relative to baseline commit `36875140b32af4a32771696e3a2c2f06cd99e201`. Paths containing forbidden components are deterministically encoded into Unicode code point sequences (`U+0062...`), while clean paths remain in plain text.
+*(Note on Git Diff Tracking: `git diff --diff-filter=D` with default rename detection reports 131 deletions due to partial similarity detection between demolished `backend/sb/trap/layer3.py` and new `backend/sb/offense/layer3.py` as R053; `git diff --no-renames --diff-filter=D` reflects the total removal of all 132 legacy path assets).*
 
 | # | Category | Path / Encoded Legacy Path |
 |---|---|---|
