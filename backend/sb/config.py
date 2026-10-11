@@ -1,3 +1,4 @@
+import ipaddress
 import json
 import logging
 import os
@@ -9,6 +10,16 @@ logger = logging.getLogger("sb.config")
 # No alias compatibility: strictly SB_UPSTREAM_ORIGIN and SB_PUBLIC_BASE_URL
 SB_UPSTREAM_ORIGIN = os.getenv("SB_UPSTREAM_ORIGIN", "")
 SB_PUBLIC_BASE_URL = os.getenv("SB_PUBLIC_BASE_URL", "")
+
+# Phase 1: ASN, Trusted Proxies, Telemetry Tap, and TLS configuration
+SB_ASN_DB_PATH = os.getenv("SB_ASN_DB_PATH", "")
+SB_TRUSTED_PROXY_IPS = os.getenv("SB_TRUSTED_PROXY_IPS", "")
+SB_TELEMETRY_BATCH_SIZE = int(os.getenv("SB_TELEMETRY_BATCH_SIZE", "50"))
+SB_TELEMETRY_FLUSH_INTERVAL_MS = int(os.getenv("SB_TELEMETRY_FLUSH_INTERVAL_MS", "100"))
+SB_TELEMETRY_QUEUE_MAXSIZE = int(os.getenv("SB_TELEMETRY_QUEUE_MAXSIZE", "10000"))
+SB_TLS_CERT_PATH = os.getenv("SB_TLS_CERT_PATH", "")
+SB_TLS_KEY_PATH = os.getenv("SB_TLS_KEY_PATH", "")
+SB_TLS_PORT = int(os.getenv("SB_TLS_PORT", "8443"))
 
 # Persistence and runtime directories
 SB_DB_PATH = os.getenv("SB_DB_PATH", "backend/sb.db")
@@ -97,9 +108,70 @@ def is_trap_path(path: str, candidates: list[str] | None = None) -> bool:
         return False
 
 
-# Mutation mode: Phase 0 is pure SANDBOX mutation on all eligible origin HTML/JSON.
-# Passthrough escape removed; adaptive mode deferred to Phase 2.
-SB_MUTATION_MODE = "always"
+# Mutation mode & Phase 2 Adaptive AR Classifier and Dynamic Router configuration (PRD M2)
+SB_MUTATION_MODE = os.getenv("SB_MUTATION_MODE", "adaptive").strip().lower()
+SB_AR_ALPHA = float(os.getenv("SB_AR_ALPHA", "0.2"))
+SB_AR_ANOMALY_STREAK = int(os.getenv("SB_AR_ANOMALY_STREAK", "20"))
+SB_TRUST_THRESHOLD = float(os.getenv("SB_TRUST_THRESHOLD", "70.0"))
+SB_BASELINE_MIN_SAMPLES = int(os.getenv("SB_BASELINE_MIN_SAMPLES", "10"))
+SB_REDIS_URL = os.getenv("SB_REDIS_URL", "")
+
+
+def get_mutation_mode() -> str:
+    """Return runtime configured mutation mode: 'adaptive' or 'always'."""
+    val = os.getenv("SB_MUTATION_MODE")
+    if val is not None:
+        return val.strip().lower()
+    return SB_MUTATION_MODE
+
+
+def get_ar_alpha() -> float:
+    """Return EMA smoothing factor alpha (default 0.2)."""
+    try:
+        val = os.getenv("SB_AR_ALPHA")
+        if val is not None:
+            return float(val)
+    except Exception:
+        pass
+    return SB_AR_ALPHA
+
+
+def get_ar_anomaly_streak() -> int:
+    """Return threshold for consecutive zero-AR calls triggering sticky sandbox lock (default 20)."""
+    try:
+        val = os.getenv("SB_AR_ANOMALY_STREAK")
+        if val is not None:
+            return int(val)
+    except Exception:
+        pass
+    return SB_AR_ANOMALY_STREAK
+
+
+def get_trust_threshold() -> float:
+    """Return trust score threshold (0-100) above which sessions take FAST_PATH (default 70.0)."""
+    try:
+        val = os.getenv("SB_TRUST_THRESHOLD")
+        if val is not None:
+            return float(val)
+    except Exception:
+        pass
+    return SB_TRUST_THRESHOLD
+
+
+def get_baseline_min_samples() -> int:
+    """Return minimum samples required before route baseline is considered mature (default 10)."""
+    try:
+        val = os.getenv("SB_BASELINE_MIN_SAMPLES")
+        if val is not None:
+            return int(val)
+    except Exception:
+        pass
+    return SB_BASELINE_MIN_SAMPLES
+
+
+def get_redis_url() -> str:
+    """Return Redis connection URL, or empty string for embedded SQLite store."""
+    return os.getenv("SB_REDIS_URL", SB_REDIS_URL).strip()
 
 
 def validate_required_urls() -> None:
@@ -122,3 +194,64 @@ def validate_required_urls() -> None:
     p_parsed = urlparse(public_base)
     if p_parsed.scheme not in ("http", "https") or not p_parsed.netloc:
         raise ValueError(f"SB_PUBLIC_BASE_URL must be a valid HTTP(S) URL, got: {public_base!r}")
+
+
+def get_trusted_proxy_networks() -> list[ipaddress.IPv4Network | ipaddress.IPv6Network]:
+    """Parse runtime SB_TRUSTED_PROXY_IPS into a list of IP networks."""
+    raw = os.getenv("SB_TRUSTED_PROXY_IPS", SB_TRUSTED_PROXY_IPS).strip()
+    if not raw:
+        return []
+    networks: list[ipaddress.IPv4Network | ipaddress.IPv6Network] = []
+    # Support comma-separated or JSON list
+    items = raw.split(",") if not raw.startswith("[") else json.loads(raw)
+    for item in items:
+        token = str(item).strip()
+        if not token:
+            continue
+        try:
+            networks.append(ipaddress.ip_network(token, strict=False))
+        except ValueError as exc:
+            logger.warning("Invalid trusted proxy network '%s': %s", token, exc)
+    return networks
+
+
+def is_ip_in_trusted_proxies(ip_str: str) -> bool:
+    """Check if the given IP string matches any configured trusted proxy network."""
+    if not ip_str:
+        return False
+    try:
+        addr = ipaddress.ip_address(ip_str.strip())
+    except ValueError:
+        return False
+    for net in get_trusted_proxy_networks():
+        if addr in net:
+            return True
+    return False
+
+
+def get_asn_db_path() -> str:
+    """Return runtime configured ASN database path."""
+    return os.getenv("SB_ASN_DB_PATH", SB_ASN_DB_PATH).strip()
+
+
+def get_telemetry_batch_size() -> int:
+    """Return runtime configured telemetry batch size."""
+    try:
+        val = os.getenv("SB_TELEMETRY_BATCH_SIZE")
+        if val is not None:
+            return int(val)
+    except Exception:
+        pass
+    return SB_TELEMETRY_BATCH_SIZE
+
+
+def get_telemetry_flush_interval_ms() -> int:
+    """Return runtime configured telemetry flush interval in ms."""
+    try:
+        val = os.getenv("SB_TELEMETRY_FLUSH_INTERVAL_MS")
+        if val is not None:
+            return int(val)
+    except Exception:
+        pass
+    return SB_TELEMETRY_FLUSH_INTERVAL_MS
+

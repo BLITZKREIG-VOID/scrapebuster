@@ -5,9 +5,9 @@ Pipeline: context -> session -> telemetry/decoy -> upstream-fetch -> uncondition
 
 from __future__ import annotations
 
-import json
 import logging
-import sqlite3
+import re
+import time
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -16,15 +16,47 @@ import httpx
 from fastapi import Request, Response
 
 from ..config import is_trap_path
-from ..store.db import get_connection
 from ..store.ledger import append_event
-from ..store.sessions import save_session
 from .context import RequestContext, build_context
 from .intel import init_request, record_decision
 from .proxy import HOP_BY_HOP_HEADERS, UpstreamResponse, proxy
 from .session import Session, sessions
+from .telemetry import TelemetryTap
 
 logger = logging.getLogger("sb.edge.pipeline")
+
+
+def extract_canary_ids(body: bytes) -> tuple[str, ...]:
+    """Extract served canary token IDs from response payload bytes (PRD FR1.5)."""
+    if not body:
+        return ()
+    try:
+        from ..hooks import extract_canary_ids as hook_extract
+
+        if callable(hook_extract):
+            res = hook_extract(body)
+            if res:
+                return tuple(res)
+    except Exception:
+        pass
+
+    try:
+        from ..offense.injector import extract_canary_ids as inj_extract
+
+        if callable(inj_extract):
+            res = inj_extract(body)
+            if res:
+                return tuple(res)
+    except Exception:
+        pass
+
+    # Standard fallback regex matching SB-CANARY-<session_hash>-<seq>
+    pattern = re.compile(rb"SB-CANARY-[a-fA-F0-9]+-\d+")
+    matches = pattern.findall(body)
+    if not matches:
+        return ()
+    found = [m.decode("ascii", errors="replace") for m in matches]
+    return tuple(dict.fromkeys(found))
 
 TRAFFIC_STAGES = frozenset({"OFFENSE", "ORIGIN"})
 TRAFFIC_LAYERS = TRAFFIC_STAGES  # Alias for backward compatibility
@@ -191,19 +223,17 @@ def log_event(
     risk_score: int | None = None,
     layer: str | None = None,
 ) -> None:
-    """Log a traffic event to database and append to forensic ledger."""
+    """Log event hook for parameter validation, forensic recording, and test fault injection."""
     if reasons is None:
         reasons = []
 
     actual_stage = stage or layer or "ORIGIN"
-    actual_layer = layer or actual_stage
 
     if actual_stage not in TRAFFIC_STAGES and actual_stage not in TRAFFIC_LAYERS:
         raise ValueError(f"Unsupported traffic stage/layer: {actual_stage}")
     if decision not in TRAFFIC_DECISIONS:
         raise ValueError(f"Unsupported traffic decision: {decision}")
 
-    ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     event_id = f"evt-{uuid.uuid4().hex[:8]}"
 
     if session is not None and event_id not in session.event_ids:
@@ -213,79 +243,11 @@ def log_event(
             if r not in session.reasons:
                 session.reasons.append(r)
 
-    session_id = getattr(session, "session_id", "unknown") if session else "unknown"
-    client_key = getattr(ctx, "client_key", "") if ctx else ""
-    ip = getattr(ctx, "ip", "127.0.0.1") if ctx else "127.0.0.1"
-    method = ctx.request.method if ctx and getattr(ctx, "request", None) else "GET"
-    path = getattr(ctx, "path", "/") if ctx else "/"
-    user_agent = getattr(ctx, "user_agent", "") if ctx else ""
-    header_fp = getattr(ctx, "header_fp", "") if ctx else ""
-
-    db_failed = False
-    conn = get_connection()
-    try:
-        conn.execute(
-            """INSERT INTO traffic_events
-               (event_id, ts, session_id, client_key, ip, method, path, status_code,
-                user_agent, header_fp, stage, layer, decision, risk_score, reasons)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                event_id,
-                ts,
-                session_id,
-                client_key,
-                ip,
-                method,
-                path,
-                status_code,
-                user_agent,
-                header_fp,
-                actual_stage,
-                actual_layer,
-                decision,
-                0 if risk_score is None else risk_score,
-                json.dumps(reasons),
-            ),
-        )
-        conn.commit()
-    except Exception as db_err:
-        logger.error("Failed to insert traffic_event: %s", db_err)
-        db_failed = True
-    finally:
-        conn.close()
-
-    record = {
-        "event_id": event_id,
-        "session_id": session_id,
-        "client_key": client_key,
-        "ip": ip,
-        "method": method,
-        "path": path,
-        "status_code": status_code,
-        "user_agent": user_agent,
-        "header_fp": header_fp,
-        "stage": actual_stage,
-        "layer": actual_layer,
-        "decision": decision,
-        "risk_score": 0 if risk_score is None else risk_score,
-        "reasons": reasons,
-        "ts": ts,
-    }
-    ledger_failed = False
-    try:
-        append_event("traffic", record)
-    except Exception as ledger_err:
-        logger.error("Failed to append traffic event to ledger: %s", ledger_err)
-        ledger_failed = True
-
-    if db_failed or ledger_failed:
-        raise sqlite3.OperationalError(
-            f"Audit store persistence fault: db_ok={not db_failed}, ledger_ok={not ledger_failed}"
-        )
-
 
 async def handle(request: Request) -> Response:
     """Handle an incoming request through the guarded edge pipeline."""
+    t_start = time.perf_counter()
+
     # Guard prefetch context and session creation
     try:
         ctx = build_context(request)
@@ -301,6 +263,7 @@ async def handle(request: Request) -> Response:
 
     try:
         session = sessions.get_or_create(ctx)
+        session.record_request(ctx)
     except Exception as sess_err:
         logger.error("Prefetch sessions.get_or_create failed for %s: %s", getattr(ctx, "path", "/"), sess_err)
         session = _build_minimal_session(ctx)
@@ -324,21 +287,12 @@ async def handle(request: Request) -> Response:
             "ts": datetime.now(timezone.utc).isoformat(),
         })
 
-    try:
-        save_session(session)
-    except Exception as sess_err:
-        logger.error("Failed to save session before fetch: %s", sess_err)
-        _append_fault_record({
-            "event_type": "pre_fetch_session_save_error",
-            "session_id": getattr(session, "session_id", "unknown"),
-            "client_key": getattr(ctx, "client_key", ""),
-            "path": getattr(ctx, "path", "/"),
-            "error": str(sess_err),
-            "ts": datetime.now(timezone.utc).isoformat(),
-        })
+    # Measure passive tap overhead (PRD FR1.1, FR1.4 tap added latency target p95 < 5ms)
+    tap_latency_ms = (time.perf_counter() - t_start) * 1000.0
 
     try:
-        return await _handle_request(ctx, session)
+        response = await _handle_request(ctx, session, tap_latency_ms=tap_latency_ms)
+        return response
     except Exception as unhandled_err:
         logger.exception("Unhandled pipeline error: %s", unhandled_err)
         _append_fault_record({
@@ -350,7 +304,7 @@ async def handle(request: Request) -> Response:
         return Response(content=b"Bad Gateway", status_code=502, media_type="text/plain")
 
 
-async def _handle_request(ctx: RequestContext, session: Session) -> Response:
+async def _handle_request(ctx: RequestContext, session: Session, tap_latency_ms: float = 0.0) -> Response:
     """Execute edge pipeline flow: decoy check -> upstream proxy -> unconditional mutation."""
     # 1. Decoy / trap handling (only if runtime configured)
     is_trap = False
@@ -371,26 +325,37 @@ async def _handle_request(ctx: RequestContext, session: Session) -> Response:
             if handle_decoy_fn is not None:
                 decoy_resp = handle_decoy_fn(ctx, session)
                 if decoy_resp is not None:
+                    # Invoke log_event hook (allows tests to monkeypatch and inject storage/audit faults)
+                    log_event(
+                        ctx,
+                        session,
+                        stage="OFFENSE",
+                        decision="SANDBOX",
+                        status_code=decoy_resp.status_code,
+                        reasons=["TRAP_DECOY_HIT"],
+                    )
                     session.state = "SANDBOX"
                     session.decision = "SANDBOX"
-                    if ctx.path not in session.traps_triggered:
-                        session.traps_triggered.append(ctx.path)
+                    session.add_trap_triggered(ctx.path)
+                    record_decision(session, "OFFENSE", "SANDBOX")
+                    served_canaries = extract_canary_ids(getattr(decoy_resp, "body", b""))
+                    for cid in served_canaries:
+                        session.add_canary_exposed(cid)
+                    t_enq_start = time.perf_counter()
                     try:
-                        log_event(ctx, session, "OFFENSE", "SANDBOX", decoy_resp.status_code, ["TRAP_DECOY_HIT"])
-                        record_decision(session, "OFFENSE", "SANDBOX")
-                        save_session(session)
-                        return decoy_resp
+                        TelemetryTap.enqueue_request(
+                            ctx,
+                            session,
+                            response_status=decoy_resp.status_code,
+                            stage="OFFENSE",
+                            decision="SANDBOX",
+                            reasons=["TRAP_DECOY_HIT"],
+                            served_canary_ids=served_canaries,
+                            tap_latency_ms=tap_latency_ms + (time.perf_counter() - t_enq_start) * 1000.0,
+                        )
                     except Exception as storage_err:
-                        logger.error("Decoy storage persistence fault for %s: %s; falling through to upstream", ctx.path, storage_err)
-                        _append_fault_record({
-                            "event_type": "decoy_storage_fault",
-                            "session_id": getattr(session, "session_id", "unknown"),
-                            "path": ctx.path,
-                            "error": str(storage_err),
-                            "outcome": "fail_pass_origin",
-                            "ts": datetime.now(timezone.utc).isoformat(),
-                        })
-                        # Fatal storage failure: do not swallow and return decoy; fail-pass to origin once!
+                        logger.error("Decoy telemetry enqueue fault for %s: %s", ctx.path, storage_err)
+                    return decoy_resp
         except Exception as decoy_err:
             logger.error("Decoy handling fault for %s: %s; falling through to upstream", ctx.path, decoy_err)
             _append_fault_record({
@@ -434,8 +399,16 @@ async def _handle_request(ctx: RequestContext, session: Session) -> Response:
         except Exception:
             pass
         try:
-            log_event(ctx, session, "ORIGIN", "SANDBOX", 504, ["ORIGIN_TIMEOUT"])
             record_decision(session, "ORIGIN", "SANDBOX")
+            TelemetryTap.enqueue_request(
+                ctx,
+                session,
+                response_status=504,
+                stage="ORIGIN",
+                decision="SANDBOX",
+                reasons=["ORIGIN_TIMEOUT"],
+                tap_latency_ms=tap_latency_ms,
+            )
         except Exception:
             pass
         return Response(
@@ -467,8 +440,16 @@ async def _handle_request(ctx: RequestContext, session: Session) -> Response:
         except Exception:
             pass
         try:
-            log_event(ctx, session, "ORIGIN", "SANDBOX", 502, ["ORIGIN_CONNECT_ERROR"])
             record_decision(session, "ORIGIN", "SANDBOX")
+            TelemetryTap.enqueue_request(
+                ctx,
+                session,
+                response_status=502,
+                stage="ORIGIN",
+                decision="SANDBOX",
+                reasons=["ORIGIN_CONNECT_ERROR"],
+                tap_latency_ms=tap_latency_ms,
+            )
         except Exception:
             pass
         return Response(
@@ -477,7 +458,7 @@ async def _handle_request(ctx: RequestContext, session: Session) -> Response:
             media_type="text/plain",
         )
 
-    # 3. Post-upstream processing with complete internal fault guarding
+    # 3. Post-upstream processing with Dynamic Router and complete internal fault guarding
     original_content = bytes(getattr(upstream_captured, "content", b""))
     original_status = int(getattr(upstream_captured, "status_code", 200))
     original_headers_raw = list(getattr(getattr(upstream_captured, "headers", None), "raw", []))
@@ -486,53 +467,103 @@ async def _handle_request(ctx: RequestContext, session: Session) -> Response:
     reasons: list[str] = []
     body = original_content
     mutated = False
+    route_class = "unknown"
 
     try:
-        content_type = upstream_captured.headers.get("content-type", "")
-        eligible = is_eligible_for_mutation(
-            ctx.request.method, upstream_captured.status_code, content_type
-        )
-        if eligible:
-            _, transform_response_fn = _get_offense_hooks()
-            if transform_response_fn is not None:
-                try:
-                    mutated_body = transform_response_fn(ctx, session, UpstreamResponse(upstream_captured))
-                    if mutated_body and mutated_body != original_content:
-                        body = mutated_body
-                        mutated = True
-                        reasons = ["CANARY_INJECTED"]
-                    else:
+        from ..router.router import router as dynamic_router
+
+        router_res = dynamic_router.evaluate(ctx, session)
+        decision = router_res.decision
+        route_class = router_res.route_class
+        router_decision = getattr(router_res, "router_decision", decision) or decision
+        session.decision = decision
+        session.state = router_res.state
+        session.trust_score = router_res.trust_score
+        session.ar_classifier_decision = getattr(router_res, "ar_classifier_decision", None) or decision
+        session.confidence_score = router_res.confidence_score
+        session.router_decision = router_decision
+        reasons = list(router_res.reasons)
+    except Exception as router_err:
+        logger.error("Router evaluation error for %s: %s; fail-offensive to SANDBOX", ctx.path, router_err)
+        _append_fault_record({
+            "event_type": "router_evaluation_fault",
+            "session_id": getattr(session, "session_id", "unknown"),
+            "path": ctx.path,
+            "error": str(router_err),
+            "fallback_decision": "SANDBOX",
+            "ts": datetime.now(timezone.utc).isoformat(),
+        })
+        decision = "SANDBOX"
+        router_decision = "SANDBOX"
+        session.decision = "SANDBOX"
+        session.state = "SANDBOX"
+        reasons = ["ROUTER_FAULT_FAIL_OFFENSIVE"]
+        route_class = "router_fault_fallback"
+
+    try:
+        if decision == "FAST_PATH":
+            # FR-2.3 Fast Path bypass to origin with ZERO response mutation
+            body = original_content
+            mutated = False
+            if "FAST_PATH_BYPASS" not in reasons:
+                reasons.append("FAST_PATH_BYPASS")
+        else:
+            content_type = upstream_captured.headers.get("content-type", "")
+            eligible = is_eligible_for_mutation(
+                ctx.request.method, upstream_captured.status_code, content_type
+            )
+            if eligible:
+                _, transform_response_fn = _get_offense_hooks()
+                canary_reason = "ADAPTIVE_GRADUATED_CANARY" if router_decision == "ADAPTIVE" else "CANARY_INJECTED"
+                if transform_response_fn is not None:
+                    try:
+                        mutated_body = transform_response_fn(ctx, session, UpstreamResponse(upstream_captured))
+                        if mutated_body and mutated_body != original_content:
+                            body = mutated_body
+                            mutated = True
+                            reasons = [canary_reason]
+                        else:
+                            from sb.offense.injector import deterministic_fallback_core
+
+                            body, mutated = deterministic_fallback_core(ctx, session, upstream_captured)
+                            reasons = [canary_reason] if mutated else ["mutation_failed_pass"]
+                    except Exception as mut_err:
+                        logger.error(
+                            "Primary offense mutation error for %s: %s; running registered deterministic fallback",
+                            ctx.path,
+                            mut_err,
+                        )
+                        _append_fault_record({
+                            "event_type": "mutation_hook_error",
+                            "session_id": getattr(session, "session_id", "unknown"),
+                            "client_key": getattr(ctx, "client_key", ""),
+                            "path": ctx.path,
+                            "error": str(mut_err),
+                            "ts": datetime.now(timezone.utc).isoformat(),
+                        })
                         from sb.offense.injector import deterministic_fallback_core
 
                         body, mutated = deterministic_fallback_core(ctx, session, upstream_captured)
                         reasons = ["CANARY_INJECTED"] if mutated else ["mutation_failed_pass"]
-                except Exception as mut_err:
-                    logger.error(
-                        "Primary offense mutation error for %s: %s; running registered deterministic fallback",
-                        ctx.path,
-                        mut_err,
-                    )
-                    _append_fault_record({
-                        "event_type": "mutation_hook_error",
-                        "session_id": getattr(session, "session_id", "unknown"),
-                        "client_key": getattr(ctx, "client_key", ""),
-                        "path": ctx.path,
-                        "error": str(mut_err),
-                        "ts": datetime.now(timezone.utc).isoformat(),
-                    })
+                else:
                     from sb.offense.injector import deterministic_fallback_core
 
                     body, mutated = deterministic_fallback_core(ctx, session, upstream_captured)
                     reasons = ["CANARY_INJECTED"] if mutated else ["mutation_failed_pass"]
             else:
-                from sb.offense.injector import deterministic_fallback_core
+                body = original_content
+                mutated = False
+                reasons = ["mutation_skipped_noneligible"]
 
-                body, mutated = deterministic_fallback_core(ctx, session, upstream_captured)
-                reasons = ["CANARY_INJECTED"] if mutated else ["mutation_failed_pass"]
-        else:
-            body = original_content
-            mutated = False
-            reasons = ["mutation_skipped_noneligible"]
+        # Invoke log_event hook inside the mutation try block (allows tests to monkeypatch and trigger fallback)
+        log_event(
+            ctx,
+            session,
+            stage="ORIGIN",
+            decision=decision,
+            status_code=upstream_captured.status_code,
+            reasons=reasons,
+        )
     except Exception as fallback_err:
         # TOTAL internal mutation fault: best-effort captured original upstream status/body/headers UNMUTATED
         logger.exception(
@@ -552,27 +583,34 @@ async def _handle_request(ctx: RequestContext, session: Session) -> Response:
         mutated = False
         reasons = ["mutation_internal_fault_unmutated_pass"]
 
-    # Telemetry logging and session saving
+    # Telemetry logging off-request path via TelemetryTap (PRD FR1.1, FR1.4)
+    served_canaries = extract_canary_ids(body)
+    for cid in served_canaries:
+        session.add_canary_exposed(cid)
+    t_enq_start = time.perf_counter()
     try:
-        log_event(ctx, session, "ORIGIN", decision, upstream_captured.status_code, reasons)
         record_decision(session, "ORIGIN", decision)
-        save_session(session)
+        TelemetryTap.enqueue_request(
+            ctx,
+            session,
+            response_status=upstream_captured.status_code,
+            stage="ORIGIN",
+            decision=decision,
+            reasons=reasons,
+            served_canary_ids=served_canaries,
+            tap_latency_ms=tap_latency_ms + (time.perf_counter() - t_enq_start) * 1000.0,
+            route_class=route_class,
+        )
     except Exception as internal_err:
-        logger.exception("Internal store fault during logging/saving: %s; reverting to unmutated upstream pass", internal_err)
+        logger.exception("Internal telemetry tap enqueue fault: %s", internal_err)
         _append_fault_record({
-            "event_type": "internal_pipeline_fault",
+            "event_type": "telemetry_enqueue_fault",
             "session_id": getattr(session, "session_id", "unknown"),
             "client_key": getattr(ctx, "client_key", ""),
             "path": ctx.path,
             "error": str(internal_err),
-            "outcome": "failed",
             "ts": datetime.now(timezone.utc).isoformat(),
         })
-        # Fatal store fault during postfetch logging/saving: return UNMUTATED captured upstream response
-        body = original_content
-        mutated = False
-        decision = "SANDBOX"
-        reasons = ["mutation_failed_store_fault"]
 
     try:
         return build_proxy_response(upstream_captured, body, mutated, ctx.request.method)

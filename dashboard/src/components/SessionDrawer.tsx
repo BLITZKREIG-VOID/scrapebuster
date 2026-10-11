@@ -55,7 +55,7 @@ export default function SessionDrawer({ sessionId, onClose, reasonMap }: Props) 
           
           {detail && (
             <>
-              {/* Meta */}
+              {/* Durable Session 7-Tuple Meta */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-slate-900/50 p-3 rounded border border-slate-700">
                   <div className="text-[10px] uppercase font-bold text-slate-500 mb-1">Decision</div>
@@ -76,16 +76,93 @@ export default function SessionDrawer({ sessionId, onClose, reasonMap }: Props) 
                   <div className="text-sm font-medium text-slate-200">{detail.state}</div>
                 </div>
                 <div className="bg-slate-900/50 p-3 rounded border border-slate-700">
-                  <div className="text-[10px] uppercase font-bold text-slate-500 mb-1">Client Key / IP</div>
-                  <div className="text-sm font-mono text-slate-300">{detail.client_key} <span className="text-slate-500 text-xs">({detail.ip})</span></div>
+                  <div className="text-[10px] uppercase font-bold text-slate-500 mb-1">Trust Score (FR-2.2)</div>
+                  <div className={`text-sm font-bold font-mono ${detail.trust_score !== undefined && detail.trust_score >= 70 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    {detail.trust_score !== undefined ? `${detail.trust_score.toFixed(1)} / 100` : '—'}
+                  </div>
                 </div>
                 <div className="bg-slate-900/50 p-3 rounded border border-slate-700">
-                  <div className="text-[10px] uppercase font-bold text-slate-500 mb-1">Requests</div>
+                  <div className="text-[10px] uppercase font-bold text-slate-500 mb-1">Router Decision (FR-2.3)</div>
+                  <div className={`text-sm font-bold font-mono ${detail.router_decision === 'FAST_PATH' ? 'text-emerald-400' : 'text-purple-400'}`}>
+                    {detail.router_decision || detail.decision}
+                  </div>
+                </div>
+                <div className="bg-slate-900/50 p-3 rounded border border-slate-700">
+                  <div className="text-[10px] uppercase font-bold text-slate-500 mb-1">Client IP</div>
+                  <div className="text-sm font-mono text-slate-300">{detail.client_ip || detail.ip || '—'}</div>
+                </div>
+                <div className="bg-slate-900/50 p-3 rounded border border-slate-700">
+                  <div className="text-[10px] uppercase font-bold text-slate-500 mb-1">Autonomous System (ASN)</div>
+                  <div className="text-sm font-mono text-cyan-300">
+                    {detail.asn !== null && detail.asn !== undefined ? `AS${detail.asn}` : detail.asn_status || 'unavailable'}
+                  </div>
+                </div>
+                <div className="bg-slate-900/50 p-3 rounded border border-slate-700">
+                  <div className="text-[10px] uppercase font-bold text-slate-500 mb-1">TLS Fingerprint (JA3)</div>
+                  <div className="text-xs font-mono text-slate-300 truncate" title={detail.ja3_hash || 'none'}>
+                    {detail.ja3_hash ? `${detail.ja3_hash.slice(0, 16)}...` : `none (${detail.tls_source})`}
+                  </div>
+                </div>
+                <div className="bg-slate-900/50 p-3 rounded border border-slate-700">
+                  <div className="text-[10px] uppercase font-bold text-slate-500 mb-1">TLS Source</div>
+                  <div className="text-xs font-mono text-slate-300">{detail.tls_source}</div>
+                </div>
+                <div className="bg-slate-900/50 p-3 rounded border border-slate-700">
+                  <div className="text-[10px] uppercase font-bold text-slate-500 mb-1">Total Requests</div>
                   <div className="text-sm font-mono text-slate-300">{detail.request_count}</div>
+                </div>
+                <div className="bg-slate-900/50 p-3 rounded border border-slate-700">
+                  <div className="text-[10px] uppercase font-bold text-slate-500 mb-1">First Seen / Last Seen</div>
+                  <div className="text-[11px] font-mono text-slate-400">
+                    {detail.first_seen ? new Date(detail.first_seen).toLocaleTimeString() : '—'} /{' '}
+                    {detail.last_seen ? new Date(detail.last_seen).toLocaleTimeString() : '—'}
+                  </div>
                 </div>
                 <div className="bg-slate-900/50 p-3 rounded border border-slate-700 col-span-2">
                   <div className="text-[10px] uppercase font-bold text-slate-500 mb-1">User Agent</div>
                   <div className="text-xs font-mono text-slate-400 break-all">{detail.user_agent}</div>
+                </div>
+              </div>
+
+              {/* Asset Ratio Visualizer (FR1.3) */}
+              <div className="bg-slate-900/70 border border-slate-700/80 rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between text-xs font-mono">
+                  <span className="uppercase text-slate-400 font-bold">Asset Ratio (FR1.3)</span>
+                  <span className="text-cyan-400 font-bold">{detail.asset_ratio?.toFixed(4) ?? '0.0000'}</span>
+                </div>
+                <div className="w-full bg-slate-950 rounded-full h-3 flex overflow-hidden border border-slate-800">
+                  <div
+                    className="bg-teal-500 h-full transition-all duration-300"
+                    style={{
+                      width: `${
+                        detail.static_count + detail.api_count > 0
+                          ? (detail.static_count / (detail.static_count + detail.api_count)) * 100
+                          : 0
+                      }%`,
+                    }}
+                    title={`Static assets: ${detail.static_count}`}
+                  />
+                  <div
+                    className="bg-purple-500 h-full transition-all duration-300"
+                    style={{
+                      width: `${
+                        detail.static_count + detail.api_count > 0
+                          ? (detail.api_count / (detail.static_count + detail.api_count)) * 100
+                          : 0
+                      }%`,
+                    }}
+                    title={`API requests: ${detail.api_count}`}
+                  />
+                </div>
+                <div className="flex justify-between text-[11px] font-mono text-slate-400">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-teal-500 inline-block" />
+                    Static Assets: <strong className="text-slate-200">{detail.static_count ?? 0}</strong>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-purple-500 inline-block" />
+                    API Endpoints: <strong className="text-slate-200">{detail.api_count ?? 0}</strong>
+                  </span>
                 </div>
               </div>
 

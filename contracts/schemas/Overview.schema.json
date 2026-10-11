@@ -190,6 +190,41 @@
         }
       ],
       "default": null
+    },
+    "total_sessions": {
+      "default": 0,
+      "title": "Total Sessions",
+      "type": "integer"
+    },
+    "total_events": {
+      "default": 0,
+      "title": "Total Events",
+      "type": "integer"
+    },
+    "asset_ratio_avg": {
+      "default": 0.0,
+      "title": "Asset Ratio Avg",
+      "type": "number"
+    },
+    "ledger_valid": {
+      "default": true,
+      "title": "Ledger Valid",
+      "type": "boolean"
+    },
+    "ledger_status": {
+      "default": "VALID",
+      "title": "Ledger Status",
+      "type": "string"
+    },
+    "ledger_count": {
+      "default": 0,
+      "title": "Ledger Count",
+      "type": "integer"
+    },
+    "ledger_head": {
+      "default": "",
+      "title": "Ledger Head",
+      "type": "string"
     }
   },
   "required": [

@@ -6,7 +6,20 @@
       "ts": "2026-09-30T10:00:00+00:00",
       "session_id": "ck-0123456789abcdef",
       "client_key": "0123456789abcdef",
+      "client_ip": "127.0.0.1",
       "ip": "127.0.0.1",
+      "asn": null,
+      "asn_status": "loopback",
+      "ja3_hash": null,
+      "ja4_hash": null,
+      "http_version": "HTTP/1.1",
+      "header_order": [
+        "host",
+        "user-agent",
+        "accept"
+      ],
+      "header_fp": "abcdef0123456789",
+      "tls_source": "none",
       "method": "GET",
       "path": "/",
       "status_code": 200,
@@ -15,7 +28,8 @@
       "layer": "ORIGIN",
       "decision": "SANDBOX",
       "risk_score": 0,
-      "reasons": []
+      "reasons": [],
+      "canary_ids": []
     }
   ],
   "last_seq": 1

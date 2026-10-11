@@ -17,13 +17,11 @@ def get_current_user():
     # Normalize user (in case it has spaces or different casing locally)
     # E.g. "Anirudh Gupta" -> "anirudh"
     user_lower = user.lower()
-    if "anirudh" in user_lower or "anigupta" in user_lower:
+    if "w1" in user_lower or "anirudh" in user_lower or "anigupta" in user_lower:
         return "@anirudh"
-    if "hardik" in user_lower:
+    if "w2" in user_lower or "w3" in user_lower or "hardik" in user_lower:
         return "@hardik"
-    if "arnav" in user_lower:
-        return "@arnav"
-    if "harsh" in user_lower:
+    if "w4" in user_lower or "arnav" in user_lower or "harsh" in user_lower:
         return "@harsh"
     if "w5" in user_lower or "kashyep" in user_lower or "integration" in user_lower:
         return "@w5"
@@ -34,8 +32,11 @@ def get_current_user():
 def get_changed_files():
     files = set()
     try:
-        # Check diff against origin/main if it exists
-        out = subprocess.check_output(["git", "diff", "--name-only", "origin/main...HEAD"], text=True, stderr=subprocess.DEVNULL)
+        # Check diff against baseline main (or origin/main fallback)
+        try:
+            out = subprocess.check_output(["git", "diff", "--name-only", "main...HEAD"], text=True, stderr=subprocess.DEVNULL)
+        except subprocess.CalledProcessError:
+            out = subprocess.check_output(["git", "diff", "--name-only", "origin/main...HEAD"], text=True, stderr=subprocess.DEVNULL)
         files.update(out.strip().splitlines())
     except subprocess.CalledProcessError:
         pass

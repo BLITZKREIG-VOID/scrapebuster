@@ -5,6 +5,7 @@ from fastapi import APIRouter, FastAPI, Request
 
 from .api.canaries import router as canaries_router
 from .api.cases import router as cases_router
+from .api.classifier import router as classifier_router
 from .api.datasets import router as datasets_router
 from .api.health import router as health_router
 from .api.overview import router as overview_router
@@ -23,9 +24,10 @@ except ImportError:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan: validate config, initialize DB, install hooks, cleanup on shutdown."""
+    """Application lifespan: validate config, initialize DB, install hooks, manage telemetry worker, cleanup on shutdown."""
     from .config import validate_required_urls
     from .edge.proxy import close_client
+    from .edge.telemetry import TelemetryTap
     from .offense import install as install_offense_hooks
     from .store.db import init_db
 
@@ -43,8 +45,16 @@ async def lifespan(app: FastAPI):
         # Install W2 offense hooks
         install_offense_hooks()
 
+        # Start background telemetry tap worker (PRD FR1.1, FR1.4)
+        await TelemetryTap.start()
+
         yield
     finally:
+        # Gracefully flush and stop background telemetry worker
+        try:
+            await TelemetryTap.stop()
+        except Exception as tap_stop_err:
+            logger.error("Error stopping TelemetryTap: %s", tap_stop_err)
         await close_client()
 
 
@@ -54,6 +64,7 @@ api_v1_router = APIRouter(prefix="/api/v1")
 api_v1_router.include_router(health_router, tags=["health"])
 api_v1_router.include_router(traffic_router, tags=["traffic"])
 api_v1_router.include_router(sessions_router, tags=["sessions"])
+api_v1_router.include_router(classifier_router, tags=["classifier"])
 api_v1_router.include_router(overview_router, tags=["overview"])
 api_v1_router.include_router(canaries_router, tags=["canaries"])
 api_v1_router.include_router(datasets_router, tags=["datasets"])

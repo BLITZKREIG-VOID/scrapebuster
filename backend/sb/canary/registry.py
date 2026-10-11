@@ -2,37 +2,60 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import secrets
 import sqlite3
 from collections.abc import Mapping
-from contextlib import closing
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 import yaml
 from sb.canary import hashing
+from sb.canary._defs import (
+    CANARIES_YAML,
+    SessionCanaryBinding,
+    extract_canary_ids,
+    format_canary_id,
+    normalize_vector,
+    session_hash_for_canary,
+)
 from sb.contracts import Canary, ExposureEvent
 from sb.store import db
 
-CANARIES_YAML: Path = Path(__file__).resolve().parent / "canaries.yaml"
+__all__ = [
+    "CANARIES_YAML",
+    "InvalidTransition",
+    "SessionCanaryBinding",
+    "append_event",
+    "bind_session_canary",
+    "extract_canary_ids",
+    "format_canary_id",
+    "get",
+    "get_binding",
+    "get_publication",
+    "get_session_binding",
+    "injected_block_text",
+    "list_canaries",
+    "list_exposures",
+    "list_session_bindings",
+    "load_definitions",
+    "normalize_vector",
+    "now_iso",
+    "record_exposure",
+    "record_injection_outcome",
+    "record_publication",
+    "reserve_canary_sequence",
+    "reset_session_bindings",
+    "session_hash_for_canary",
+    "set_status",
+    "upsert_canary",
+    "verify_chain",
+]
 
 
 class InvalidTransition(ValueError):
     """Raised when an invalid status transition is attempted on a canary."""
-
-
-@dataclass(frozen=True)
-class SessionCanaryBinding:
-    """Runtime binding for session-bound canaries."""
-    canary_id: str
-    session_id: str
-    vector: str
-    ts: str
-    value: str
 
 
 _session_bindings_cache: dict[str, SessionCanaryBinding] = {}
@@ -41,19 +64,6 @@ _session_bindings_cache: dict[str, SessionCanaryBinding] = {}
 def now_iso() -> str:
     """Return current UTC timestamp in ISO-8601 format with microsecond precision and Z suffix."""
     return datetime.now(timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")
-
-
-def normalize_vector(vector: str) -> str:
-    """Normalize vector identifiers to PRD standard (API/TEXT/JSONLD/BEACON/DNS/HONEYKEY)."""
-    v = (vector or "").strip()
-    v_upper = v.upper()
-    if v_upper in ("HTML", "TEXT"):
-        return "TEXT"
-    if v_upper in ("JSON", "API"):
-        return "API"
-    if v_upper in ("JSONLD", "BEACON", "DNS", "HONEYKEY"):
-        return v_upper
-    return v_upper or "TEXT"
 
 
 def _ensure_bindings_table(conn: sqlite3.Connection) -> None:
@@ -71,27 +81,42 @@ def _ensure_bindings_table(conn: sqlite3.Connection) -> None:
     )
 
 
-def reserve_canary_sequence(session_id: str) -> int:
-    """Atomically reserve next canary sequence counter for a session."""
+def reserve_canary_sequence(
+    session_id: str,
+    conn: sqlite3.Connection | None = None,
+) -> int:
+    """Atomically reserve next canary sequence counter for a session.
+
+    Delegates to W3 store counter, passing connection if supported.
+    """
     clean_session = str(session_id or "anonymous")
     from sb.store.canaries import reserve_canary_sequence as store_reserve
 
-    return store_reserve(clean_session)
+    try:
+        return store_reserve(clean_session, conn=conn)
+    except TypeError:
+        return store_reserve(clean_session)
 
 
-def append_event(kind: str, record: dict) -> dict:
+def append_event(
+    kind: str,
+    record: dict,
+    conn: sqlite3.Connection | None = None,
+) -> dict:
     """Append a chained event to the authoritative forensic ledger."""
     from sb.store.ledger import append_event as store_append
 
-    return store_append(kind, record)
+    return store_append(kind, record, conn=conn)
 
 
 def verify_chain() -> dict:
-    """Verify cryptographic integrity of the hash-chained ledger."""
+    """Verify cryptographic integrity of the hash-chained ledger.
+
+    Returns dict with genuine existing shape: result, count, head, errors.
+    """
     from sb.store.ledger import verify_chain as store_verify
 
     return store_verify()
-
 
 
 def load_definitions(path: Path | None = None) -> list[dict]:
@@ -140,21 +165,27 @@ def _row_to_exposure(row: sqlite3.Row | dict) -> ExposureEvent:
 
 def bind_session_canary(
     session_id: str,
-    vector: str = "html",
+    vector: str = "HTML",
     value: str | None = None,
     ts: str | None = None,
+    conn: sqlite3.Connection | None = None,
 ) -> SessionCanaryBinding:
-    """Generate and bind a runtime session canary: SB-CANARY-<session_hash>-<seq>.
+    """Generate and bind a canonical runtime session canary: SB-CANARY-<session_hash>-<seq>.
 
-    Binds canary_id, session_id, vector, ts, value durably in SQLite.
-    Appends a chained canary_binding event to the ledger.
-    Does not swallow DB registration errors.
+    Per PRD v3 Phase 1:
+    - session_hash: SHA256(session_id)[:32] (canonical 32 lowercase hex characters).
+    - seq: atomic monotonic integer from W3 store, minimum 4 decimal digits, growing without cap.
+    - format: SB-CANARY-<session_hash>-<seq> (e.g. SB-CANARY-a1b2c3d4e5f60718293a4b5c6d7e8f90-0001).
+    - Binds canary_id, session_id, vector, ts, value durably in SQLite session_canary_bindings.
+    - Persists canary definition into canaries table.
+    - Appends an immutable chained canary_binding event to the forensic ledger.
+    - Does not swallow DB registration or ledger errors.
+    - Supports optional conn for shared transactional persistence.
     """
     clean_session = str(session_id or "anonymous")
     norm_vector = normalize_vector(vector)
-    seq = reserve_canary_sequence(clean_session)
-    session_hash = hashlib.sha256(clean_session.encode("utf-8")).hexdigest()[:8]
-    canary_id = f"SB-CANARY-{session_hash}-{seq:04d}"
+    seq = reserve_canary_sequence(clean_session, conn=conn)
+    canary_id = format_canary_id(clean_session, seq)
     timestamp = ts or now_iso()
     canary_val = value or f"CONFIDENTIAL-REF-{canary_id}"
 
@@ -166,38 +197,63 @@ def bind_session_canary(
         value=canary_val,
     )
 
-    with closing(db.get_connection()) as conn, conn:
-        _ensure_bindings_table(conn)
-        conn.execute(
-            """
-            INSERT INTO session_canary_bindings (canary_id, session_id, vector, ts, value)
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(canary_id) DO UPDATE SET
-                session_id = excluded.session_id,
-                vector = excluded.vector,
-                ts = excluded.ts,
-                value = excluded.value
-            """,
-            (canary_id, clean_session, norm_vector, timestamp, canary_val),
-        )
+    manage_conn = conn is None
+    target_conn = db.get_connection() if manage_conn else conn
+    assert target_conn is not None
+    try:
+        if manage_conn:
+            with target_conn:
+                _ensure_bindings_table(target_conn)
+                target_conn.execute(
+                    """
+                    INSERT INTO session_canary_bindings (canary_id, session_id, vector, ts, value)
+                    VALUES (?, ?, ?, ?, ?)
+                    ON CONFLICT(canary_id) DO UPDATE SET
+                        session_id = excluded.session_id,
+                        vector = excluded.vector,
+                        ts = excluded.ts,
+                        value = excluded.value
+                    """,
+                    (canary_id, clean_session, norm_vector, timestamp, canary_val),
+                )
+        else:
+            _ensure_bindings_table(target_conn)
+            target_conn.execute(
+                """
+                INSERT INTO session_canary_bindings (canary_id, session_id, vector, ts, value)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(canary_id) DO UPDATE SET
+                    session_id = excluded.session_id,
+                    vector = excluded.vector,
+                    ts = excluded.ts,
+                    value = excluded.value
+                """,
+                (canary_id, clean_session, norm_vector, timestamp, canary_val),
+            )
+    finally:
+        if manage_conn:
+            target_conn.close()
 
     # Persist in canaries table so downstream foreign references succeed (DO NOT swallow write errors)
-    upsert_canary({
-        "canary_id": canary_id,
-        "type": f"session_{norm_vector.lower()}",
-        "canonical_content": canary_val,
-        "anchor": canary_id,
-        "context_terms": [clean_session, norm_vector],
-        "probe_prompts": [],
-        "sha256": hashing.block_hash(canary_val),
-        "content_version": "v1",
-        "created_at": timestamp,
-        "published_at": timestamp,
-        "status": "ACTIVE",
-        "placements": [],
-    })
+    upsert_canary(
+        {
+            "canary_id": canary_id,
+            "type": f"session_{norm_vector.lower()}",
+            "canonical_content": canary_val,
+            "anchor": canary_id,
+            "context_terms": [clean_session, norm_vector],
+            "probe_prompts": [],
+            "sha256": hashing.block_hash(canary_val),
+            "content_version": "v1",
+            "created_at": timestamp,
+            "published_at": timestamp,
+            "status": "ACTIVE",
+            "placements": [],
+        },
+        conn=conn,
+    )
 
-    # Record chained binding event
+    # Record chained binding event in authoritative forensic ledger
     binding_record = {
         "canary_id": canary_id,
         "session_id": clean_session,
@@ -205,21 +261,27 @@ def bind_session_canary(
         "ts": timestamp,
         "value": canary_val,
     }
-    append_event("canary_binding", binding_record)
+    append_event("canary_binding", binding_record, conn=conn)
 
     _session_bindings_cache[canary_id] = binding
     return binding
 
 
-def get_session_binding(canary_id: str) -> SessionCanaryBinding | None:
+def get_session_binding(
+    canary_id: str,
+    conn: sqlite3.Connection | None = None,
+) -> SessionCanaryBinding | None:
     """Retrieve session canary binding by canary_id from SQLite durable storage."""
     cached = _session_bindings_cache.get(canary_id)
     if cached is not None:
         return cached
 
-    with closing(db.get_connection()) as conn, conn:
-        _ensure_bindings_table(conn)
-        row = conn.execute(
+    manage_conn = conn is None
+    target_conn = db.get_connection() if manage_conn else conn
+    assert target_conn is not None
+    try:
+        _ensure_bindings_table(target_conn)
+        row = target_conn.execute(
             "SELECT canary_id, session_id, vector, ts, value FROM session_canary_bindings WHERE canary_id = ?",
             (canary_id,),
         ).fetchone()
@@ -234,22 +296,31 @@ def get_session_binding(canary_id: str) -> SessionCanaryBinding | None:
         )
         _session_bindings_cache[canary_id] = binding
         return binding
+    finally:
+        if manage_conn:
+            target_conn.close()
 
 
 get_binding = get_session_binding
 
 
-def list_session_bindings(session_id: str | None = None) -> list[SessionCanaryBinding]:
+def list_session_bindings(
+    session_id: str | None = None,
+    conn: sqlite3.Connection | None = None,
+) -> list[SessionCanaryBinding]:
     """List session canary bindings from SQLite durable storage, optionally filtered by session_id."""
-    with closing(db.get_connection()) as conn, conn:
-        _ensure_bindings_table(conn)
+    manage_conn = conn is None
+    target_conn = db.get_connection() if manage_conn else conn
+    assert target_conn is not None
+    try:
+        _ensure_bindings_table(target_conn)
         if session_id is not None:
-            rows = conn.execute(
+            rows = target_conn.execute(
                 "SELECT canary_id, session_id, vector, ts, value FROM session_canary_bindings WHERE session_id = ? ORDER BY ts ASC, canary_id ASC",
                 (str(session_id),),
             ).fetchall()
         else:
-            rows = conn.execute(
+            rows = target_conn.execute(
                 "SELECT canary_id, session_id, vector, ts, value FROM session_canary_bindings ORDER BY ts ASC, canary_id ASC"
             ).fetchall()
         bindings = [
@@ -265,6 +336,9 @@ def list_session_bindings(session_id: str | None = None) -> list[SessionCanaryBi
         for b in bindings:
             _session_bindings_cache[b.canary_id] = b
         return bindings
+    finally:
+        if manage_conn:
+            target_conn.close()
 
 
 def reset_session_bindings() -> None:
@@ -272,10 +346,14 @@ def reset_session_bindings() -> None:
     _session_bindings_cache.clear()
 
 
-def upsert_canary(record: dict | Canary) -> Canary:
+def upsert_canary(
+    record: dict | Canary,
+    conn: sqlite3.Connection | None = None,
+) -> Canary:
     """Upsert a canary record into the canaries table.
 
     `record` has Canary fields (including canonical_content, not content).
+    Supports optional conn for participating in shared transactions.
     """
     if isinstance(record, Canary):
         data = record.model_dump()
@@ -299,8 +377,11 @@ def upsert_canary(record: dict | Canary) -> Canary:
     probe_prompts_json = json.dumps(probe_prompts) if not isinstance(probe_prompts, str) else probe_prompts
     placements_json = json.dumps(placements) if not isinstance(placements, str) else placements
 
-    with closing(db.get_connection()) as conn, conn:
-        conn.execute(
+    manage_conn = conn is None
+    target_conn = db.get_connection() if manage_conn else conn
+    assert target_conn is not None
+    try:
+        target_conn.execute(
             """
             INSERT INTO canaries (
                 canary_id, type, canonical_content, anchor, context_terms,
@@ -335,17 +416,28 @@ def upsert_canary(record: dict | Canary) -> Canary:
                 placements_json,
             ),
         )
-        row = conn.execute("SELECT * FROM canaries WHERE canary_id = ?", (canary_id,)).fetchone()
+        if manage_conn:
+            target_conn.commit()
+        row = target_conn.execute("SELECT * FROM canaries WHERE canary_id = ?", (canary_id,)).fetchone()
         return _row_to_canary(row)
+    finally:
+        if manage_conn:
+            target_conn.close()
 
 
-def get(canary_id: str) -> Canary | None:
+def get(
+    canary_id: str,
+    conn: sqlite3.Connection | None = None,
+) -> Canary | None:
     """Retrieve a canary by its ID, or None if not found."""
-    with closing(db.get_connection()) as conn, conn:
-        row = conn.execute("SELECT * FROM canaries WHERE canary_id = ?", (canary_id,)).fetchone()
+    manage_conn = conn is None
+    target_conn = db.get_connection() if manage_conn else conn
+    assert target_conn is not None
+    try:
+        row = target_conn.execute("SELECT * FROM canaries WHERE canary_id = ?", (canary_id,)).fetchone()
         if row is None:
             # Check if it exists as a durable session binding
-            binding = get_session_binding(canary_id)
+            binding = get_session_binding(canary_id, conn=target_conn)
             if binding is not None:
                 return Canary(
                     canary_id=binding.canary_id,
@@ -363,19 +455,35 @@ def get(canary_id: str) -> Canary | None:
                 )
             return None
         return _row_to_canary(row)
+    finally:
+        if manage_conn:
+            target_conn.close()
 
 
-def list_canaries() -> list[Canary]:
+def list_canaries(conn: sqlite3.Connection | None = None) -> list[Canary]:
     """List all canaries ordered by canary_id."""
-    with closing(db.get_connection()) as conn, conn:
-        rows = conn.execute("SELECT * FROM canaries ORDER BY canary_id ASC").fetchall()
+    manage_conn = conn is None
+    target_conn = db.get_connection() if manage_conn else conn
+    assert target_conn is not None
+    try:
+        rows = target_conn.execute("SELECT * FROM canaries ORDER BY canary_id ASC").fetchall()
         return [_row_to_canary(r) for r in rows]
+    finally:
+        if manage_conn:
+            target_conn.close()
 
 
-def record_publication(canary_id: str, published_at: str) -> dict:
+def record_publication(
+    canary_id: str,
+    published_at: str,
+    conn: sqlite3.Connection | None = None,
+) -> dict:
     """Upsert publications row from the canary row and set canaries.published_at."""
-    with closing(db.get_connection()) as conn, conn:
-        row = conn.execute(
+    manage_conn = conn is None
+    target_conn = db.get_connection() if manage_conn else conn
+    assert target_conn is not None
+    try:
+        row = target_conn.execute(
             "SELECT sha256, content_version, placements FROM canaries WHERE canary_id = ?",
             (canary_id,),
         ).fetchone()
@@ -393,7 +501,7 @@ def record_publication(canary_id: str, published_at: str) -> dict:
             placements_text = json.dumps(placements_raw)
             placements_obj = placements_raw
 
-        conn.execute(
+        target_conn.execute(
             """
             INSERT INTO publications (canary_id, sha256, content_version, published_at, placements)
             VALUES (?, ?, ?, ?, ?)
@@ -405,10 +513,12 @@ def record_publication(canary_id: str, published_at: str) -> dict:
             """,
             (canary_id, sha256, content_version, published_at, placements_text),
         )
-        conn.execute(
+        target_conn.execute(
             "UPDATE canaries SET published_at = ? WHERE canary_id = ?",
             (published_at, canary_id),
         )
+        if manage_conn:
+            target_conn.commit()
         return {
             "canary_id": canary_id,
             "sha256": sha256,
@@ -416,15 +526,27 @@ def record_publication(canary_id: str, published_at: str) -> dict:
             "published_at": published_at,
             "placements": placements_obj,
         }
+    finally:
+        if manage_conn:
+            target_conn.close()
 
 
-def get_publication(canary_id: str) -> dict | None:
+def get_publication(
+    canary_id: str,
+    conn: sqlite3.Connection | None = None,
+) -> dict | None:
     """Retrieve a publication record by canary_id, or None if not found."""
-    with closing(db.get_connection()) as conn, conn:
-        row = conn.execute("SELECT * FROM publications WHERE canary_id = ?", (canary_id,)).fetchone()
+    manage_conn = conn is None
+    target_conn = db.get_connection() if manage_conn else conn
+    assert target_conn is not None
+    try:
+        row = target_conn.execute("SELECT * FROM publications WHERE canary_id = ?", (canary_id,)).fetchone()
         if row is None:
             return None
         return _row_to_publication(row)
+    finally:
+        if manage_conn:
+            target_conn.close()
 
 
 def _extract(obj: Any, key: str) -> Any:
@@ -446,8 +568,9 @@ def record_injection_outcome(
     outcome: str,
     error: str | None = None,
     resource: str | None = None,
+    conn: sqlite3.Connection | None = None,
 ) -> dict:
-    """Record an injection outcome (e.g. fallback) in the chained ledger."""
+    """Record an injection outcome (e.g. fallback, success) in the chained ledger."""
     norm_vector = normalize_vector(vector)
     rec: dict[str, Any] = {
         "canary_id": canary_id,
@@ -460,7 +583,7 @@ def record_injection_outcome(
         rec["error"] = error
     if resource:
         rec["resource"] = resource
-    return append_event("canary_injection", rec)
+    return append_event("canary_injection", rec, conn=conn)
 
 
 def record_exposure(
@@ -472,10 +595,12 @@ def record_exposure(
     ts: str | None = None,
     vector: str | None = None,
     outcome: str = "success",
+    conn: sqlite3.Connection | None = None,
 ) -> ExposureEvent:
     """Record an exposure event and transition canary from ACTIVE to EXPOSED on first exposure.
 
-    Appends a chained canary_exposure event to the ledger.
+    Appends a chained canary_exposure event to the authoritative ledger.
+    Supports optional conn for shared transactions.
     """
     timestamp = ts or now_iso()
     exposure_id = f"EXP-{secrets.token_hex(4)}"
@@ -520,20 +645,23 @@ def record_exposure(
     if vector is not None:
         request["vector"] = norm_vector
 
-    with closing(db.get_connection()) as conn, conn:
-        row = conn.execute(
+    manage_conn = conn is None
+    target_conn = db.get_connection() if manage_conn else conn
+    assert target_conn is not None
+    try:
+        row = target_conn.execute(
             "SELECT status, content_version FROM canaries WHERE canary_id = ?",
             (canary_id,),
         ).fetchone()
 
         if row is None:
             # If not in table, check if session binding exists
-            binding = get_session_binding(canary_id)
+            binding = get_session_binding(canary_id, conn=target_conn)
             if binding is None:
                 raise KeyError(f"Unknown canary: {canary_id}")
             content_version = "v1"
             current_status = "ACTIVE"
-            conn.execute(
+            target_conn.execute(
                 """
                 INSERT INTO canaries (
                     canary_id, type, canonical_content, anchor, context_terms,
@@ -560,7 +688,7 @@ def record_exposure(
             content_version = row["content_version"]
             current_status = row["status"]
 
-        conn.execute(
+        target_conn.execute(
             """
             INSERT INTO exposures (
                 exposure_id, canary_id, ts, session_id, resource,
@@ -581,10 +709,16 @@ def record_exposure(
         )
 
         if current_status == "ACTIVE":
-            conn.execute(
+            target_conn.execute(
                 "UPDATE canaries SET status = 'EXPOSED' WHERE canary_id = ?",
                 (canary_id,),
             )
+
+        if manage_conn:
+            target_conn.commit()
+    finally:
+        if manage_conn:
+            target_conn.close()
 
     # Append chained exposure event to ledger
     exp_record = {
@@ -596,7 +730,7 @@ def record_exposure(
         "outcome": outcome,
         "resource": resource,
     }
-    append_event("canary_exposure", exp_record)
+    append_event("canary_exposure", exp_record, conn=conn)
 
     return ExposureEvent(
         exposure_id=exposure_id,
@@ -611,25 +745,41 @@ def record_exposure(
     )
 
 
-def list_exposures(canary_id: str | None = None) -> list[ExposureEvent]:
+def list_exposures(
+    canary_id: str | None = None,
+    conn: sqlite3.Connection | None = None,
+) -> list[ExposureEvent]:
     """List exposure events ordered by ts ascending, optionally filtered by canary_id."""
-    with closing(db.get_connection()) as conn, conn:
+    manage_conn = conn is None
+    target_conn = db.get_connection() if manage_conn else conn
+    assert target_conn is not None
+    try:
         if canary_id is not None:
-            rows = conn.execute(
+            rows = target_conn.execute(
                 "SELECT * FROM exposures WHERE canary_id = ? ORDER BY ts ASC",
                 (canary_id,),
             ).fetchall()
         else:
-            rows = conn.execute(
+            rows = target_conn.execute(
                 "SELECT * FROM exposures ORDER BY ts ASC"
             ).fetchall()
         return [_row_to_exposure(r) for r in rows]
+    finally:
+        if manage_conn:
+            target_conn.close()
 
 
-def set_status(canary_id: str, status: str) -> Canary:
+def set_status(
+    canary_id: str,
+    status: str,
+    conn: sqlite3.Connection | None = None,
+) -> Canary:
     """Transition canary status. Allowed: ACTIVE->EXPOSED, EXPOSED->OBSERVED, same-status no-op."""
-    with closing(db.get_connection()) as conn, conn:
-        row = conn.execute("SELECT * FROM canaries WHERE canary_id = ?", (canary_id,)).fetchone()
+    manage_conn = conn is None
+    target_conn = db.get_connection() if manage_conn else conn
+    assert target_conn is not None
+    try:
+        row = target_conn.execute("SELECT * FROM canaries WHERE canary_id = ?", (canary_id,)).fetchone()
         if row is None:
             raise KeyError(f"Unknown canary: {canary_id}")
 
@@ -638,14 +788,19 @@ def set_status(canary_id: str, status: str) -> Canary:
             return _row_to_canary(row)
 
         if (current_status, status) in [("ACTIVE", "EXPOSED"), ("EXPOSED", "OBSERVED")]:
-            conn.execute(
+            target_conn.execute(
                 "UPDATE canaries SET status = ? WHERE canary_id = ?",
                 (status, canary_id),
             )
-            updated_row = conn.execute("SELECT * FROM canaries WHERE canary_id = ?", (canary_id,)).fetchone()
+            if manage_conn:
+                target_conn.commit()
+            updated_row = target_conn.execute("SELECT * FROM canaries WHERE canary_id = ?", (canary_id,)).fetchone()
             return _row_to_canary(updated_row)
 
         raise InvalidTransition(f"Cannot transition canary {canary_id} from {current_status} to {status}")
+    finally:
+        if manage_conn:
+            target_conn.close()
 
 
 def injected_block_text(canary: Canary) -> str:

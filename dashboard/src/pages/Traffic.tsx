@@ -122,7 +122,7 @@ export default function Traffic() {
             <section className="bg-slate-900 rounded-xl border border-slate-800 p-5">
               <h2 className="mb-4 text-xs font-bold uppercase tracking-wider text-slate-200">Clients · observed events only</h2>
               {topActors.length ? <ul className="space-y-2">{topActors.map(([actor, summary]) => <li key={actor} className="flex flex-wrap justify-between gap-3 rounded bg-slate-950 px-3 py-2 font-mono text-xs"><span className="text-cyan-300">{actor}</span><span className="text-slate-400">{summary.requests} events · peak risk {summary.maxRisk} · latest {summary.lastDecision}</span></li>)}</ul> : <p className="text-xs text-slate-500">No client events recorded.</p>}
-              <p className="mt-3 text-[10px] text-slate-600">The backend does not provide ASN or geographic attribution; none is inferred here.</p>
+              <p className="mt-3 text-[10px] text-slate-500">Passive Layer 3 telemetry: offline ASN lookup, authentic TLS ClientHello capture, and raw HTTP protocol headers.</p>
             </section>
           </div>
 
@@ -136,11 +136,13 @@ export default function Traffic() {
                 <thead className="bg-slate-950 text-[10px] uppercase tracking-wider text-slate-500">
                   <tr>
                     <th className="p-3">Sequence / time</th>
-                    <th className="p-3">Client</th>
+                    <th className="p-3">Client IP</th>
+                    <th className="p-3">ASN</th>
+                    <th className="p-3">TLS / JA3</th>
+                    <th className="p-3">Protocol</th>
                     <th className="p-3">Path</th>
-                    <th className="p-3">Stage / Origin</th>
                     <th className="p-3">Decision</th>
-                    <th className="p-3">Risk</th>
+                    <th className="p-3">Canaries</th>
                     <th className="p-3">Reasons</th>
                   </tr>
                 </thead>
@@ -148,9 +150,23 @@ export default function Traffic() {
                   {visibleEvents.map((event) => (
                     <tr key={event.event_id} className="hover:bg-slate-800/40">
                       <td className="p-3 font-mono text-slate-400">#{event.seq} · {new Date(event.ts).toLocaleTimeString()}</td>
-                      <td className="p-3 font-mono text-cyan-300">{event.ip || event.client_key}</td>
+                      <td className="p-3 font-mono text-cyan-300">{event.client_ip || event.ip || event.client_key}</td>
+                      <td className="p-3 font-mono text-xs">
+                        {event.asn !== null && event.asn !== undefined ? (
+                          <span className="text-cyan-400 font-semibold">AS{event.asn}</span>
+                        ) : (
+                          <span className="text-slate-500">{event.asn_status || 'unavailable'}</span>
+                        )}
+                      </td>
+                      <td className="p-3 font-mono text-xs text-slate-300" title={event.ja3_hash || 'none'}>
+                        {event.ja3_hash ? (
+                          <span className="text-emerald-400">{event.ja3_hash.slice(0, 10)}...</span>
+                        ) : (
+                          <span className="text-slate-500">none ({event.tls_source || 'none'})</span>
+                        )}
+                      </td>
+                      <td className="p-3 font-mono text-xs text-slate-400">{event.http_version || 'HTTP/1.1'}</td>
                       <td className="p-3 max-w-60 truncate font-mono text-slate-300" title={event.path}>{event.path}</td>
-                      <td className="p-3 text-slate-400">{event.stage || event.layer || 'ORIGIN'}</td>
                       <td className="p-3 font-mono font-bold">
                         {event.decision === 'SANDBOX' ? (
                           <span className="text-purple-400">SANDBOX</span>
@@ -158,13 +174,19 @@ export default function Traffic() {
                           <span className="text-teal-400">FAST_PATH</span>
                         )}
                       </td>
-                      <td className="p-3">{event.risk_score}</td>
+                      <td className="p-3 font-mono text-xs">
+                        {event.canary_ids && event.canary_ids.length > 0 ? (
+                          <span className="text-amber-400">{event.canary_ids.length} served</span>
+                        ) : (
+                          <span className="text-slate-500">—</span>
+                        )}
+                      </td>
                       <td className="p-3 text-slate-400">{event.reasons.join(', ') || '—'}</td>
                     </tr>
                   ))}
                   {visibleEvents.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="p-10 text-center text-slate-500">
+                      <td colSpan={9} className="p-10 text-center text-slate-500">
                         {events.length ? 'No events match this filter.' : 'No persisted traffic events yet.'}
                       </td>
                     </tr>

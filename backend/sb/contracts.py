@@ -5,9 +5,10 @@ time of a response (for example a run not yet created or optional S3 metadata).
 Dynamic finding details and model metadata remain mappings because their keys
 are producer/model-specific; the containing response shapes are still frozen.
 """
+import json
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel
+from pydantic import BaseModel, ConfigDict, Field, RootModel, model_validator
 
 ComponentStatus = Literal["ok", "down", "disabled", "unknown", "not_checked"]
 Decision = Literal["FAST_PATH", "SANDBOX"]
@@ -24,16 +25,48 @@ class TrafficEvent(BaseModel):
     ts: str
     session_id: str
     client_key: str
-    ip: str
+    client_ip: str
+    ip: str | None = None
+    asn: int | None = None
+    asn_status: str = "unavailable"
+    ja3_hash: str | None = None
+    ja4_hash: str | None = None
+    http_version: str = "HTTP/1.1"
+    header_order: list[str] = Field(default_factory=list)
+    header_fp: str = ""
+    tls_source: str = "none"
     method: str
     path: str
     status_code: int
     user_agent: str
-    stage: str | None = None
-    layer: str | None = None
-    decision: Decision
-    risk_score: int
-    reasons: list[str]
+    stage: str | None = "offense"
+    layer: str | None = "ORIGIN"
+    decision: Decision = "SANDBOX"
+    risk_score: int = 0
+    reasons: list[str] = Field(default_factory=list)
+    canary_ids: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def populate_phase1_defaults(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "client_ip" not in data and "ip" in data:
+                data["client_ip"] = data["ip"]
+            elif "ip" not in data and "client_ip" in data:
+                data["ip"] = data["client_ip"]
+            if "asn" in data and data["asn"] is not None:
+                try:
+                    data["asn"] = int(data["asn"])
+                except (ValueError, TypeError):
+                    data["asn"] = None
+            for list_field in ("header_order", "reasons", "canary_ids"):
+                val = data.get(list_field)
+                if isinstance(val, str):
+                    try:
+                        data[list_field] = json.loads(val)
+                    except Exception:
+                        data[list_field] = []
+        return data
 
 
 class TrafficEvents(BaseModel):
@@ -43,18 +76,34 @@ class TrafficEvents(BaseModel):
 
 class SessionSummary(BaseModel):
     session_id: str
-    classification: str
-    request_count: int
-    state: str
+    classification: str = "UNKNOWN"
+    request_count: int = 0
+    state: str = "SANDBOX"
+    client_ip: str | None = None
+    asset_ratio: float = 0.0
+    trust_score: float = 0.0
 
 
 class SessionDetail(SessionSummary):
-    client_key: str
-    ip: str
-    user_agent: str
-    header_fp: str
-    first_seen: str
-    last_seen: str
+    client_key: str = ""
+    client_ip: str
+    ip: str | None = None
+    asn: int | None = None
+    asn_status: str = "unavailable"
+    ja3_hash: str | None = None
+    ja4_hash: str | None = None
+    tls_source: str = "none"
+    user_agent: str = ""
+    header_fp: str = ""
+    first_seen: str = ""
+    last_seen: str = ""
+    static_count: int = 0
+    api_count: int = 0
+    asset_ratio: float = 0.0
+    trust_score: float = 0.0
+    ar_classifier_decision: str | None = None
+    confidence_score: float | None = None
+    router_decision: str | None = None
     decision: Decision = "SANDBOX"
     risk_score: int = 0
     reasons: list[str] = Field(default_factory=list)
@@ -63,9 +112,63 @@ class SessionDetail(SessionSummary):
     canaries_exposed: list[str] = Field(default_factory=list)
     event_ids: list[str] = Field(default_factory=list)
 
+    @model_validator(mode="before")
+    @classmethod
+    def populate_phase1_defaults(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "client_ip" not in data and "ip" in data:
+                data["client_ip"] = data["ip"]
+            elif "ip" not in data and "client_ip" in data:
+                data["ip"] = data["client_ip"]
+            if "asn" in data and data["asn"] is not None:
+                try:
+                    data["asn"] = int(data["asn"])
+                except (ValueError, TypeError):
+                    data["asn"] = None
+            for list_field in ("reasons", "pages", "traps_triggered", "canaries_exposed", "event_ids"):
+                val = data.get(list_field)
+                if isinstance(val, str):
+                    try:
+                        data[list_field] = json.loads(val)
+                    except Exception:
+                        data[list_field] = []
+        return data
+
 
 class SessionList(BaseModel):
     sessions: list[SessionSummary]
+
+
+class RouteBaselineInfo(BaseModel):
+    route: str
+    ar_ema: float
+    sample_count: int
+    updated_at: str
+    is_mature: bool = False
+
+
+class ClassifierMetrics(BaseModel):
+    total_evaluations: int = 0
+    fast_path_count: int = 0
+    sandbox_count: int = 0
+    locked_sandbox_count: int = 0
+    cold_start_count: int = 0
+    latency_p50_ms: float = 0.0
+    latency_p95_ms: float = 0.0
+    confidence_distribution: dict[str, int] = Field(default_factory=dict)
+
+
+class ClassifierStatus(BaseModel):
+    status: Literal["ok", "degraded"] = "ok"
+    mutation_mode: str = "adaptive"
+    alpha: float = 0.2
+    trust_threshold: float = 70.0
+    anomaly_streak_threshold: int = 20
+    baseline_min_samples: int = 10
+    total_routes: int = 0
+    matured_routes: int = 0
+    metrics: ClassifierMetrics = Field(default_factory=ClassifierMetrics)
+    routes: list[RouteBaselineInfo] = Field(default_factory=list)
 
 
 class PipelineStage(BaseModel):
@@ -118,6 +221,30 @@ class Overview(BaseModel):
     cases: CaseCounts
     pipeline: list[PipelineStage]
     latest_case: CaseSummary | None = None
+    total_sessions: int = 0
+    total_events: int = 0
+    asset_ratio_avg: float = 0.0
+    ledger_valid: bool = True
+    ledger_status: str = "VALID"
+    ledger_count: int = 0
+    ledger_head: str = ""
+
+
+class LedgerBlock(BaseModel):
+    seq: int
+    kind: str
+    record: dict[str, Any]
+    prev_hash: str
+    hash: str
+    ts: str
+
+
+class LedgerVerification(BaseModel):
+    result: Literal["VALID", "TAMPERED"]
+    count: int
+    head: str
+    errors: list[str] = Field(default_factory=list)
+    blocks: list[LedgerBlock] = Field(default_factory=list)
 
 
 class ExposureEvent(BaseModel):

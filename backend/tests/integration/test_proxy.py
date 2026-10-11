@@ -2,6 +2,7 @@ import httpx
 import pytest
 from sb.main import app
 from sb.store.db import get_connection, reset_db
+from sb.edge.telemetry import TelemetryTap
 
 BROWSER_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -26,6 +27,9 @@ async def test_proxy_flow(origin_server):
         assert response.status_code == 200
         assert b"Origin" in response.content
         assert b"sb-canary" in response.content
+
+        # Flush telemetry to ensure events are persisted
+        await TelemetryTap.flush()
 
         # Verify traffic_events logged by pipeline
         conn = get_connection()

@@ -1,10 +1,13 @@
-"""ScapeBusters offense and active defense package."""
+"""ScapeBusters offense and active defense package for Phase 1."""
 
 from __future__ import annotations
 
 from sb.offense.injector import (
     ScapeBustersOffenseHooks,
     deterministic_fallback,
+    deterministic_fallback_core,
+    extract_canary_ids,
+    handle_decoy,
     inject_json_canary,
     insert_canary,
     insert_hidden_link,
@@ -14,11 +17,14 @@ from sb.offense.injector import (
 __all__ = [
     "ScapeBustersOffenseHooks",
     "deterministic_fallback",
+    "deterministic_fallback_core",
+    "extract_canary_ids",
+    "handle_decoy",
     "inject_json_canary",
     "insert_canary",
     "insert_hidden_link",
-    "transform_response",
     "install",
+    "transform_response",
 ]
 
 

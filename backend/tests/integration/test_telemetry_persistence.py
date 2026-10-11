@@ -61,6 +61,9 @@ async def test_requests_persist_session_and_events(origin_server):
     for row in traffic:
         if isinstance(row.get("reasons"), str):
             row["reasons"] = json.loads(row["reasons"] or "[]")
+        ip_val = row.get("ip") or row.get("client_ip") or "127.0.0.1"
+        row["ip"] = ip_val
+        row["client_ip"] = ip_val
         TrafficEvent(**row)
 
 

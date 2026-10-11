@@ -36,5 +36,12 @@
       "status": "ok"
     }
   ],
-  "latest_case": null
+  "latest_case": null,
+  "total_sessions": 1,
+  "total_events": 1,
+  "asset_ratio_avg": 0.0,
+  "ledger_valid": true,
+  "ledger_status": "VALID",
+  "ledger_count": 1,
+  "ledger_head": "0000000000000000000000000000000000000000000000000000000000000000"
 }

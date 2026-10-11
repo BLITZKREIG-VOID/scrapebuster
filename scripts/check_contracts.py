@@ -30,6 +30,7 @@ REQUIRED_FIXTURES = {
     "EvidenceVerification": "EvidenceVerification",
     "ProbeRunResponse": "ProbeRunResponse",
     "DemoResetResponse": "DemoResetResponse",
+    "ClassifierStatus": "ClassifierStatus",
 }
 
 

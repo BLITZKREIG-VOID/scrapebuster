@@ -17,7 +17,16 @@ export interface TrafficEvent {
   ts: string;
   session_id: string;
   client_key: string;
-  ip: string;
+  client_ip: string;
+  ip?: string;
+  asn?: number | null;
+  asn_status?: string;
+  ja3_hash?: string | null;
+  ja4_hash?: string | null;
+  http_version?: string;
+  header_order?: string[];
+  header_fp?: string;
+  tls_source?: string;
   method: string;
   path: string;
   status_code: number;
@@ -27,6 +36,8 @@ export interface TrafficEvent {
   decision: Decision;
   risk_score: number;
   reasons: string[];
+  canary_ids?: string[];
+  route_class?: string;
 }
 
 export interface TrafficEventsResponse {
@@ -39,15 +50,33 @@ export interface SessionSummary {
   classification: string;
   request_count: number;
   state: string;
+  client_ip?: string;
+  asset_ratio?: number;
+  trust_score?: number;
+  first_seen?: string;
+  last_seen?: string;
 }
 
 export interface SessionDetail extends SessionSummary {
   client_key: string;
-  ip: string;
+  client_ip: string;
+  ip?: string;
+  asn: number | null;
+  asn_status: string;
+  ja3_hash: string | null;
+  ja4_hash: string | null;
+  tls_source: string;
   user_agent: string;
   header_fp: string;
   first_seen: string;
   last_seen: string;
+  static_count: number;
+  api_count: number;
+  asset_ratio: number;
+  trust_score?: number;
+  ar_classifier_decision?: string;
+  confidence_score?: number;
+  router_decision?: string;
   decision: Decision;
   risk_score: number;
   reasons: string[];
@@ -241,4 +270,61 @@ export interface Overview {
   cases: { total: number; detected: number };
   pipeline: { stage: string; status: ComponentStatus }[];
   latest_case: CaseSummary | null;
+  total_sessions?: number;
+  total_events?: number;
+  asset_ratio_avg?: number;
+  ledger_valid?: boolean;
+  ledger_status?: string;
+  ledger_count?: number;
+  ledger_head?: string;
 }
+
+export interface LedgerBlock {
+  seq: number;
+  kind: string;
+  record: Record<string, unknown>;
+  prev_hash: string;
+  hash: string;
+  ts: string;
+}
+
+export interface LedgerInfo {
+  result: 'VALID' | 'TAMPERED';
+  count: number;
+  head: string;
+  errors: string[];
+  blocks?: LedgerBlock[];
+}
+
+export interface RouteBaselineInfo {
+  route: string;
+  ar_ema: number;
+  sample_count: number;
+  updated_at: string;
+  is_mature: boolean;
+}
+
+export interface ClassifierMetrics {
+  total_evaluations: number;
+  fast_path_count: number;
+  sandbox_count: number;
+  locked_sandbox_count: number;
+  cold_start_count: number;
+  latency_p50_ms: number;
+  latency_p95_ms: number;
+  confidence_distribution: Record<string, number>;
+}
+
+export interface ClassifierStatus {
+  status: string;
+  mutation_mode: string;
+  alpha: number;
+  trust_threshold: number;
+  anomaly_streak_threshold: number;
+  baseline_min_samples: number;
+  total_routes: number;
+  matured_routes: number;
+  metrics: ClassifierMetrics;
+  routes: RouteBaselineInfo[];
+}
+

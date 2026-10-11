@@ -5,40 +5,162 @@
       "type": "string"
     },
     "classification": {
+      "default": "UNKNOWN",
       "title": "Classification",
       "type": "string"
     },
     "request_count": {
+      "default": 0,
       "title": "Request Count",
       "type": "integer"
     },
     "state": {
+      "default": "SANDBOX",
       "title": "State",
       "type": "string"
     },
+    "client_ip": {
+      "title": "Client Ip",
+      "type": "string"
+    },
+    "asset_ratio": {
+      "default": 0.0,
+      "title": "Asset Ratio",
+      "type": "number"
+    },
+    "trust_score": {
+      "default": 0.0,
+      "title": "Trust Score",
+      "type": "number"
+    },
     "client_key": {
+      "default": "",
       "title": "Client Key",
       "type": "string"
     },
     "ip": {
-      "title": "Ip",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ip"
+    },
+    "asn": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Asn"
+    },
+    "asn_status": {
+      "default": "unavailable",
+      "title": "Asn Status",
+      "type": "string"
+    },
+    "ja3_hash": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ja3 Hash"
+    },
+    "ja4_hash": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ja4 Hash"
+    },
+    "tls_source": {
+      "default": "none",
+      "title": "Tls Source",
       "type": "string"
     },
     "user_agent": {
+      "default": "",
       "title": "User Agent",
       "type": "string"
     },
     "header_fp": {
+      "default": "",
       "title": "Header Fp",
       "type": "string"
     },
     "first_seen": {
+      "default": "",
       "title": "First Seen",
       "type": "string"
     },
     "last_seen": {
+      "default": "",
       "title": "Last Seen",
       "type": "string"
+    },
+    "static_count": {
+      "default": 0,
+      "title": "Static Count",
+      "type": "integer"
+    },
+    "api_count": {
+      "default": 0,
+      "title": "Api Count",
+      "type": "integer"
+    },
+    "ar_classifier_decision": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ar Classifier Decision"
+    },
+    "confidence_score": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Confidence Score"
+    },
+    "router_decision": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Router Decision"
     },
     "decision": {
       "default": "SANDBOX",
@@ -92,15 +214,7 @@
   },
   "required": [
     "session_id",
-    "classification",
-    "request_count",
-    "state",
-    "client_key",
-    "ip",
-    "user_agent",
-    "header_fp",
-    "first_seen",
-    "last_seen"
+    "client_ip"
   ],
   "title": "SessionDetail",
   "type": "object"

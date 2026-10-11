@@ -5,23 +5,45 @@
       "type": "string"
     },
     "classification": {
+      "default": "UNKNOWN",
       "title": "Classification",
       "type": "string"
     },
     "request_count": {
+      "default": 0,
       "title": "Request Count",
       "type": "integer"
     },
     "state": {
+      "default": "SANDBOX",
       "title": "State",
       "type": "string"
+    },
+    "client_ip": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Client Ip"
+    },
+    "asset_ratio": {
+      "default": 0.0,
+      "title": "Asset Ratio",
+      "type": "number"
+    },
+    "trust_score": {
+      "default": 0.0,
+      "title": "Trust Score",
+      "type": "number"
     }
   },
   "required": [
-    "session_id",
-    "classification",
-    "request_count",
-    "state"
+    "session_id"
   ],
   "title": "SessionSummary",
   "type": "object"

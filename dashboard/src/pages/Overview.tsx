@@ -10,6 +10,8 @@ import {
   getProbes,
   getCase,
   verifyCase,
+  getLedgerInfo,
+  getClassifierStatus,
 } from '../api/client';
 import type {
   TrafficEvent,
@@ -110,6 +112,10 @@ export default function Overview() {
     lastUpdated: probeUpdated,
   } = usePoll(getProbes, { cacheKey: 'getProbesOverview', intervalMs: 3000 });
 
+  const {
+    data: classifierData,
+  } = usePoll(getClassifierStatus, { cacheKey: 'getClassifierStatusOverview', intervalMs: 3000 });
+
   const latestCaseId = overviewData?.latest_case?.case_id;
 
   const {
@@ -130,6 +136,12 @@ export default function Overview() {
   const [events, setEvents] = useState<TrafficEvent[]>([]);
   const [lastSeq, setLastSeq] = useState(0);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [showLedgerBlocks, setShowLedgerBlocks] = useState(false);
+
+  const {
+    data: ledgerData,
+    isLoading: isLedgerLoading,
+  } = usePoll(getLedgerInfo, { cacheKey: 'getLedgerOverview', intervalMs: 3000 });
 
   const [verificationResult, setVerificationResult] = useState<VerifyResult | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -822,6 +834,197 @@ export default function Overview() {
                 </Tooltip>
               );
             })}
+          </div>
+        )}
+      </section>
+
+      {/* Adaptive AR Classifier & Dynamic Router (PRD M2 / FR-2.1 - FR-2.6) */}
+      <section className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+          <div className="flex items-center gap-2">
+            <Zap size={16} className="text-cyan-400" />
+            <h2 className="text-xs font-semibold text-slate-200 uppercase tracking-wider font-mono">
+              Adaptive AR Classifier & Dynamic Router (Phase 2)
+            </h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-slate-800 text-slate-300 border border-slate-700">
+              MODE: {classifierData?.mutation_mode || 'adaptive'}
+            </span>
+            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
+              ALPHA: {classifierData?.alpha ?? 0.2}
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs font-mono">
+          <div className="bg-slate-950/70 p-3 rounded-lg border border-slate-800/80">
+            <span className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Matured Routes (FR-2.6)</span>
+            <span className="text-lg font-bold text-slate-100">
+              {classifierData?.matured_routes ?? 0} / {classifierData?.total_routes ?? 0}
+            </span>
+            <span className="text-[10px] text-slate-400 block mt-0.5">min {classifierData?.baseline_min_samples ?? 10} samples</span>
+          </div>
+
+          <div className="bg-slate-950/70 p-3 rounded-lg border border-slate-800/80">
+            <span className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Router Bypass (FAST_PATH)</span>
+            <span className="text-lg font-bold text-emerald-400">
+              {(classifierData?.metrics?.fast_path_count ?? 0).toLocaleString()}
+            </span>
+            <span className="text-[10px] text-slate-400 block mt-0.5">Zero mutation fast path</span>
+          </div>
+
+          <div className="bg-slate-950/70 p-3 rounded-lg border border-slate-800/80">
+            <span className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Sandboxed / Anomaly Locked</span>
+            <span className="text-lg font-bold text-purple-400">
+              {(classifierData?.metrics?.sandbox_count ?? 0).toLocaleString()} ({(classifierData?.metrics?.locked_sandbox_count ?? 0)} locked)
+            </span>
+            <span className="text-[10px] text-slate-400 block mt-0.5">Sticky lock streak &gt;= {classifierData?.anomaly_streak_threshold ?? 20}</span>
+          </div>
+
+          <div className="bg-slate-950/70 p-3 rounded-lg border border-slate-800/80">
+            <span className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Router Latency Overhead</span>
+            <span className="text-lg font-bold text-cyan-300">
+              p50: {classifierData?.metrics?.latency_p50_ms?.toFixed(2) ?? '0.00'} ms · p95: {classifierData?.metrics?.latency_p95_ms?.toFixed(2) ?? '0.00'} ms
+            </span>
+            <span className="text-[10px] text-slate-400 block mt-0.5">Real evaluated overhead</span>
+          </div>
+        </div>
+
+        {classifierData?.routes && classifierData.routes.length > 0 && (
+          <div className="overflow-x-auto border border-slate-800/80 rounded-lg">
+            <table className="w-full text-left text-xs whitespace-nowrap font-mono">
+              <thead className="bg-slate-950 text-[10px] uppercase tracking-wider text-slate-500">
+                <tr>
+                  <th className="p-2.5">Route</th>
+                  <th className="p-2.5">AR EMA Baseline</th>
+                  <th className="p-2.5">Sample Count</th>
+                  <th className="p-2.5">Baseline Status</th>
+                  <th className="p-2.5">Last Updated</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60 bg-slate-950/40">
+                {classifierData.routes.slice(0, 5).map((r) => (
+                  <tr key={r.route} className="hover:bg-slate-900/60">
+                    <td className="p-2.5 text-slate-200">{r.route}</td>
+                    <td className="p-2.5 text-cyan-300 font-bold">{r.ar_ema.toFixed(4)}</td>
+                    <td className="p-2.5 text-slate-300">{r.sample_count}</td>
+                    <td className="p-2.5">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${r.is_mature ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'}`}>
+                        {r.is_mature ? 'MATURE' : 'COLD START'}
+                      </span>
+                    </td>
+                    <td className="p-2.5 text-slate-500">{r.updated_at ? new Date(r.updated_at).toLocaleTimeString() : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {/* Forensic Ledger Chain Viewer (Append-Only SHA-256) */}
+      <section className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+          <div className="flex items-center gap-2">
+            <Lock size={16} className="text-emerald-400" />
+            <h2 className="text-xs font-semibold text-slate-200 uppercase tracking-wider font-mono">
+              Forensic Ledger & Cryptographic Provenance Chain
+            </h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <span
+              className={`px-2.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider border ${
+                overviewData?.ledger_valid || ledgerData?.result === 'VALID'
+                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                  : 'bg-red-500/10 text-red-400 border-red-500/30'
+              }`}
+            >
+              CHAIN: {overviewData?.ledger_status || ledgerData?.result || 'VALID'}
+            </span>
+            <button
+              onClick={() => setShowLedgerBlocks((prev) => !prev)}
+              className="px-2.5 py-1 rounded bg-slate-950 border border-slate-800 hover:border-slate-700 text-[10px] font-mono text-cyan-400 transition-colors cursor-pointer"
+            >
+              {showLedgerBlocks ? 'Hide Blocks' : 'Inspect Chain Blocks'}
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs font-mono">
+          <div className="bg-slate-950/70 p-3 rounded-lg border border-slate-800/80">
+            <span className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Chain Block Count</span>
+            <span className="text-lg font-bold text-slate-100">
+              {(overviewData?.ledger_count ?? ledgerData?.count ?? 0).toLocaleString()}
+            </span>
+            <span className="text-[10px] text-slate-400 block mt-0.5">Consecutive SHA-256 blocks</span>
+          </div>
+
+          <div className="bg-slate-950/70 p-3 rounded-lg border border-slate-800/80">
+            <span className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Head Hash</span>
+            <span className="text-xs font-bold text-cyan-300 truncate block" title={overviewData?.ledger_head || ledgerData?.head || ''}>
+              {(overviewData?.ledger_head || ledgerData?.head || 'GENESIS').substring(0, 16)}…
+            </span>
+            <span className="text-[10px] text-slate-400 block mt-0.5">Cryptographic chain tail</span>
+          </div>
+
+          <div className="bg-slate-950/70 p-3 rounded-lg border border-slate-800/80">
+            <span className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Average Asset Ratio</span>
+            <span className="text-lg font-bold text-emerald-400">
+              {(overviewData?.asset_ratio_avg ?? 0).toFixed(4)}
+            </span>
+            <span className="text-[10px] text-slate-400 block mt-0.5">Rolling static / API ratio</span>
+          </div>
+
+          <div className="bg-slate-950/70 p-3 rounded-lg border border-slate-800/80">
+            <span className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Tracked Sessions</span>
+            <span className="text-lg font-bold text-purple-400">
+              {(overviewData?.total_sessions ?? sessions.length).toLocaleString()}
+            </span>
+            <span className="text-[10px] text-slate-400 block mt-0.5">Durable 7-tuple profiles</span>
+          </div>
+        </div>
+
+        {showLedgerBlocks && (
+          <div className="overflow-x-auto border border-slate-800 rounded-lg bg-slate-950/90 mt-3">
+            <table className="w-full text-left text-xs whitespace-nowrap font-mono">
+              <thead className="bg-slate-950 text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
+                <tr>
+                  <th className="p-2.5">Seq</th>
+                  <th className="p-2.5">Kind</th>
+                  <th className="p-2.5">Timestamp</th>
+                  <th className="p-2.5">Previous Hash</th>
+                  <th className="p-2.5">Block Hash</th>
+                  <th className="p-2.5">Payload Preview</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60">
+                {ledgerData?.blocks && ledgerData.blocks.length > 0 ? (
+                  ledgerData.blocks.map((block) => (
+                    <tr key={block.seq} className="hover:bg-slate-900/60">
+                      <td className="p-2.5 font-bold text-cyan-400">#{block.seq}</td>
+                      <td className="p-2.5 text-purple-300 font-bold">{block.kind}</td>
+                      <td className="p-2.5 text-slate-400 text-[11px]">{new Date(block.ts).toLocaleTimeString()}</td>
+                      <td className="p-2.5 text-slate-500 text-[11px] truncate max-w-[100px]" title={block.prev_hash}>
+                        {block.prev_hash.substring(0, 10)}…
+                      </td>
+                      <td className="p-2.5 text-emerald-400 text-[11px] truncate max-w-[100px]" title={block.hash}>
+                        {block.hash.substring(0, 10)}…
+                      </td>
+                      <td className="p-2.5 text-slate-400 text-[11px] truncate max-w-[200px]" title={JSON.stringify(block.record)}>
+                        {JSON.stringify(block.record)}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="p-6 text-center text-slate-500 text-xs">
+                      {isLedgerLoading ? 'Loading ledger blocks...' : 'No ledger events appended yet.'}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         )}
       </section>

@@ -16,6 +16,8 @@ import type {
   SessionSummary,
   TrafficEventsResponse,
   VerifyResult,
+  LedgerInfo,
+  ClassifierStatus,
 } from '../types/contracts';
 
 export const API_MODE = 'live' as const;
@@ -76,8 +78,11 @@ function post<T>(path: string, body?: unknown): Promise<T> {
 
 export const getHealth = () => get<Health>('/api/v1/health');
 export const getOverview = () => get<Overview>('/api/v1/overview');
-export const getEvents = (after = 0) =>
-  get<TrafficEventsResponse>(`/api/v1/traffic/events?after=${after}&limit=200`);
+export const getLedgerInfo = () => get<LedgerInfo>('/api/v1/overview/ledger');
+export const getEvents = (after = 0, sinceSeq?: number) =>
+  get<TrafficEventsResponse>(
+    `/api/v1/traffic/events?${sinceSeq !== undefined ? `since_seq=${sinceSeq}` : `after=${after}`}&limit=200`
+  );
 export const getSessions = () => get<{ sessions: SessionSummary[] }>('/api/v1/sessions');
 export const getSession = (id: string) => get<SessionDetail>(`/api/v1/sessions/${encodeURIComponent(id)}`);
 export const getCanaries = () => get<{ canaries: Canary[] }>('/api/v1/canaries');
@@ -98,3 +103,4 @@ export const resetDemo = () => post<DemoResetResponse>('/api/v1/demo/reset');
 export const runDemo = (step?: number) => post<DemoStatus>('/api/v1/demo/run', step ? { step } : {});
 export const getDemoStatus = () => get<DemoStatus>('/api/v1/demo/status');
 export const restoreGolden = () => post<DemoStatus>('/api/v1/demo/restore-golden');
+export const getClassifierStatus = () => get<ClassifierStatus>('/api/v1/classifier/status');

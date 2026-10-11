@@ -130,7 +130,7 @@ def test_contract_session_canary_token_format(tmp_path, monkeypatch):
     db.init_db()
 
     session_id = "test-session-identity-123"
-    session_hash = hashlib.sha256(session_id.encode("utf-8")).hexdigest()[:8]
+    session_hash = hashlib.sha256(session_id.encode("utf-8")).hexdigest()[:32]
 
     # Call actual bind_session_canary
     binding1 = bind_session_canary(session_id, vector="TEXT")

@@ -1,7 +1,9 @@
-"""PRD 3.0 baseline forensic append-only ledger helper (Hard Rule 6).
+"""PRD 3.0 baseline forensic append-only ledger helper (Hard Rule 6 & Phase 1 batch persistence).
 
 Implements:
-- sb.store.ledger.append_event(kind: str, record: dict) -> dict
+- sb.store.ledger.append_event(kind: str, record: dict, conn=None) -> dict
+- sb.store.ledger.append_events_batch(events: list[tuple[str, dict]], conn=None) -> list[dict]
+- sb.store.ledger.persist_telemetry_batch(events: list[dict], session_updates: list[dict], conn=None) -> None
 - sb.store.ledger.verify_chain() -> dict
 - Hash canonical full event envelope {seq, kind, ts, record}
 - Single canonical JSON SHA256 H_prev||envelope byte encoding
@@ -20,14 +22,16 @@ import threading
 from datetime import datetime, timezone
 from typing import Any
 
-from .db import get_connection
+from .db import _lock, get_connection
 
 GENESIS: str = "0" * 64
 _ledger_lock = threading.RLock()
 
 
 def _json_default(obj: Any) -> Any:
-    """Fallback serializer for Pydantic models or objects with model_dump/dict."""
+    """Fallback serializer for Pydantic models or objects with model_dump/dict/to_dict."""
+    if hasattr(obj, "to_dict"):
+        return obj.to_dict()
     if hasattr(obj, "model_dump"):
         return obj.model_dump()
     if hasattr(obj, "dict"):
@@ -59,27 +63,45 @@ def _compute_hash(prev_hash: str, envelope_bytes: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
-def append_event(kind: str, record: dict, conn: sqlite3.Connection | None = None) -> dict[str, Any]:
-    """Append one event to the append-only forensic ledger.
+def append_events_batch(
+    events: list[tuple[str, dict[str, Any]]],
+    conn: sqlite3.Connection | None = None,
+) -> list[dict[str, Any]]:
+    """Atomically append a batch of events to the append-only forensic ledger.
 
-    Atomically executes BEGIN IMMEDIATE tail + insert across connections and processes.
+    Atomically computes sequential hashes and inserts envelopes inside a single BEGIN IMMEDIATE
+    transaction under _ledger_lock.
     Raises OperationalError if forensic_ledger table is missing (never silently recreates lost history).
     If an existing connection is passed, caller manages the transaction context.
+    Rolls back entire transaction on any failure without silent ignoring.
 
-    Returns event metadata:
-        {
-            "seq": int,
-            "kind": str,
-            "record": dict,
-            "prev_hash": str,
-            "hash": str,
-            "ts": str,
-        }
+    Returns list of appended event dictionaries:
+        [
+            {
+                "seq": int,
+                "kind": str,
+                "record": dict,
+                "prev_hash": str,
+                "hash": str,
+                "ts": str,
+            },
+            ...
+        ]
     """
-    if not isinstance(kind, str) or not kind.strip():
-        raise ValueError("kind must be a non-empty string")
-    if not isinstance(record, dict):
-        raise TypeError(f"record must be a dict, got {type(record).__name__}")
+    if not isinstance(events, list):
+        raise TypeError(f"events must be a list of (kind, record) tuples, got {type(events).__name__}")
+
+    if not events:
+        return []
+
+    for item in events:
+        if not isinstance(item, (tuple, list)) or len(item) != 2:
+            raise TypeError("each event in batch must be a 2-tuple (kind, record)")
+        kind, record = item
+        if not isinstance(kind, str) or not kind.strip():
+            raise ValueError("kind must be a non-empty string")
+        if not isinstance(record, dict) and not hasattr(record, "to_dict"):
+            raise TypeError(f"record must be a dict, got {type(record).__name__}")
 
     manage_conn = conn is None
     with _ledger_lock:
@@ -87,7 +109,7 @@ def append_event(kind: str, record: dict, conn: sqlite3.Connection | None = None
         assert target_conn is not None
         try:
             if manage_conn:
-                target_conn.isolation_level = None  # Autocommit mode to allow explicit BEGIN IMMEDIATE
+                target_conn.isolation_level = None  # Autocommit mode for explicit BEGIN IMMEDIATE
                 target_conn.execute("BEGIN IMMEDIATE")
 
             # Check table exists; missing established table must fail visibly
@@ -97,48 +119,143 @@ def append_event(kind: str, record: dict, conn: sqlite3.Connection | None = None
             if tbl_check is None:
                 if manage_conn:
                     target_conn.execute("ROLLBACK")
-                raise sqlite3.OperationalError("forensic_ledger table missing: cannot append to uninitialized or dropped ledger")
+                raise sqlite3.OperationalError(
+                    "forensic_ledger table missing: cannot append to uninitialized or dropped ledger"
+                )
 
-            row = target_conn.execute(
+            tail_row = target_conn.execute(
                 "SELECT seq, hash FROM forensic_ledger ORDER BY seq DESC LIMIT 1"
             ).fetchone()
 
-            if row is not None:
-                seq = int(row["seq"]) + 1
-                prev_hash = str(row["hash"])
+            if tail_row is not None:
+                current_seq = int(tail_row["seq"])
+                current_prev_hash = str(tail_row["hash"])
             else:
-                seq = 1
-                prev_hash = GENESIS
+                current_seq = 0
+                current_prev_hash = GENESIS
 
-            ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-            envelope = {
-                "seq": seq,
-                "kind": kind,
-                "ts": ts,
-                "record": record,
-            }
-            envelope_bytes = canonical_json_bytes(envelope)
-            curr_hash = _compute_hash(prev_hash, envelope_bytes)
-            record_str = canonical_json_bytes(record).decode("utf-8")
+            appended_results: list[dict[str, Any]] = []
+            insert_rows = []
 
-            target_conn.execute(
+            for item in events:
+                kind, record_obj = item
+                record = record_obj.to_dict() if hasattr(record_obj, "to_dict") else dict(record_obj)
+
+                current_seq += 1
+                seq = current_seq
+                prev_hash = current_prev_hash
+                ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+                envelope = {
+                    "seq": seq,
+                    "kind": kind,
+                    "ts": ts,
+                    "record": record,
+                }
+                envelope_bytes = canonical_json_bytes(envelope)
+                curr_hash = _compute_hash(prev_hash, envelope_bytes)
+                record_str = canonical_json_bytes(record).decode("utf-8")
+
+                insert_rows.append((seq, kind, record_str, prev_hash, curr_hash, ts))
+                appended_results.append({
+                    "seq": seq,
+                    "kind": kind,
+                    "record": record,
+                    "prev_hash": prev_hash,
+                    "hash": curr_hash,
+                    "ts": ts,
+                })
+                current_prev_hash = curr_hash
+
+            target_conn.executemany(
                 """
                 INSERT INTO forensic_ledger (seq, kind, record, prev_hash, hash, ts)
                 VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (seq, kind, record_str, prev_hash, curr_hash, ts),
+                insert_rows,
             )
+
             if manage_conn:
                 target_conn.execute("COMMIT")
 
-            return {
-                "seq": seq,
-                "kind": kind,
-                "record": record,
-                "prev_hash": prev_hash,
-                "hash": curr_hash,
-                "ts": ts,
-            }
+            return appended_results
+        except Exception:
+            if manage_conn:
+                try:
+                    target_conn.execute("ROLLBACK")
+                except Exception:
+                    pass
+            raise
+        finally:
+            if manage_conn:
+                target_conn.close()
+
+
+def append_event(
+    kind: str,
+    record: dict[str, Any],
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any]:
+    """Append one event to the append-only forensic ledger.
+
+    Delegates to append_events_batch for atomic hash chaining.
+    """
+    results = append_events_batch([(kind, record)], conn=conn)
+    return results[0]
+
+
+def persist_telemetry_batch(
+    events: list[dict[str, Any]],
+    session_updates: list[dict[str, Any]],
+    conn: sqlite3.Connection | None = None,
+) -> None:
+    """Atomic transactional telemetry persistence coupling operational projections and ledger.
+
+    Simultaneously updates mutable operational projections (traffic_events, sessions)
+    AND appends immutable forensic records to forensic_ledger within the exact same database transaction.
+    Consistent locking ordering: acquires _lock (DB) then _ledger_lock.
+    Pair list order is strictly preserved.
+    Any failure or invalid state triggers a full rollback and raises visibly (no silent ignore).
+    """
+    from .sessions import upsert_sessions_batch
+    from .traffic import insert_traffic_events_batch
+
+    if not isinstance(events, list) or not isinstance(session_updates, list):
+        raise TypeError("events and session_updates must be lists of dictionaries")
+
+    if not events and not session_updates:
+        return
+
+    manage_conn = conn is None
+    with _lock, _ledger_lock:
+        target_conn = get_connection() if manage_conn else conn
+        assert target_conn is not None
+        try:
+            if manage_conn:
+                target_conn.isolation_level = None
+                target_conn.execute("BEGIN IMMEDIATE")
+
+            # 1. Update mutable operational projections inside same transaction
+            if events:
+                insert_traffic_events_batch(events, conn=target_conn)
+            if session_updates:
+                upsert_sessions_batch(session_updates, conn=target_conn)
+
+            # 2. Prepare coupled immutable forensic records preserving pair list order
+            ledger_items: list[tuple[str, dict[str, Any]]] = []
+            max_len = max(len(events), len(session_updates))
+            for i in range(max_len):
+                if i < len(events):
+                    ledger_items.append(("traffic", events[i]))
+                if i < len(session_updates):
+                    ledger_items.append(("session_snapshot", session_updates[i]))
+
+            # 3. Append to forensic ledger on the exact SAME connection inside transaction
+            if ledger_items:
+                append_events_batch(ledger_items, conn=target_conn)
+
+            if manage_conn:
+                target_conn.execute("COMMIT")
         except Exception:
             if manage_conn:
                 try:
@@ -159,7 +276,7 @@ def verify_chain() -> dict[str, Any]:
     Missing forensic table => TAMPERED.
     Empty initialized table => VALID (count 0).
 
-    Returns:
+    Returns exact existing shape:
         {
             "result": "VALID" | "TAMPERED",
             "count": int,

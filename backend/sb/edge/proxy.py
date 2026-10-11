@@ -3,8 +3,9 @@ from urllib.parse import urlsplit
 
 import httpx
 
-from ..config import SB_UPSTREAM_ORIGIN
+from ..config import SB_UPSTREAM_ORIGIN, is_ip_in_trusted_proxies
 from .context import RequestContext
+from .tls import FORGED_TLS_HEADERS
 
 # Global async client for proxying
 _client: httpx.AsyncClient | None = None
@@ -15,11 +16,20 @@ def get_client() -> httpx.AsyncClient:
     """Return singleton async client with startup-frozen origin.
 
     Avoids leaky client reconfiguration while ensuring safe resource lifecycle.
+    Uses connection pooling and keep-alive for low-latency proxying.
     """
     global _client, _client_origin
     origin = os.getenv("SB_UPSTREAM_ORIGIN", SB_UPSTREAM_ORIGIN)
     if _client is None:
-        _client = httpx.AsyncClient(base_url=origin, follow_redirects=False)
+        limits = httpx.Limits(max_keepalive_connections=100, max_connections=200, keepalive_expiry=30.0)
+        timeout = httpx.Timeout(connect=5.0, read=30.0, write=10.0, pool=5.0)
+        _client = httpx.AsyncClient(
+            base_url=origin,
+            follow_redirects=False,
+            limits=limits,
+            timeout=timeout,
+            http2=False,  # Explicitly disable HTTP/2 for consistent behavior
+        )
         _client_origin = origin
     return _client
 
@@ -116,11 +126,26 @@ async def proxy(ctx: RequestContext) -> httpx.Response:
     is_sandbox_eligible_path = getattr(ctx, "is_document", True)
     strip_cache_validators = is_read and is_sandbox_eligible_path
 
-    drop_headers = set(HOP_BY_HOP_HEADERS) | connection_tokens
+    drop_headers = set(HOP_BY_HOP_HEADERS) | connection_tokens | FORGED_TLS_HEADERS
+
+    # If incoming client is untrusted socket, drop client-supplied forwarding headers
+    socket_ip = getattr(getattr(request, "client", None), "host", "127.0.0.1") or "127.0.0.1"
+    if not is_ip_in_trusted_proxies(socket_ip):
+        drop_headers |= {
+            "x-forwarded-for",
+            "x-forwarded-proto",
+            "x-forwarded-host",
+            "x-forwarded-port",
+            "x-real-ip",
+        }
+
     if strip_cache_validators:
         drop_headers |= READ_CACHE_VALIDATORS
 
     headers = {k: v for k, v in raw_headers.items() if k not in drop_headers}
+
+    # Pass canonical client IP to origin via authentic X-Forwarded-For
+    headers["x-forwarded-for"] = ctx.ip
 
     # Derive host from canonical configured upstream origin
     origin = _client_origin or os.getenv("SB_UPSTREAM_ORIGIN", SB_UPSTREAM_ORIGIN)
