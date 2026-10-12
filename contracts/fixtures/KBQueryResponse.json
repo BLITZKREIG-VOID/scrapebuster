@@ -1,0 +1,18 @@
+{
+  "query": "What is the refund policy for premium subscriptions?",
+  "results": [
+    {
+      "chunk_id": "chunk-001",
+      "doc_id": "doc-001",
+      "title": "Refund Policy",
+      "content": "Premium subscribers get full refunds within 30 days.",
+      "score": 0.95,
+      "metadata": {},
+      "source": "brand",
+      "chunk_index": 0
+    }
+  ],
+  "total_found": 1,
+  "query_time_ms": 12.5,
+  "fallback_used": false
+}

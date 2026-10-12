@@ -14,13 +14,14 @@ def test_session_upsert_preserves_first_seen_and_round_trips_telemetry():
         first_seen="2026-09-30T10:00:00+00:00",
         last_seen="2026-09-30T10:00:00+00:00",
         request_count=1,
-        l1_score=10,
-        l1_reasons=["L1_HEADER_FP_ANOMALY"],
-        l2_score=45,
-        l2_signals=["L2_SOFTWARE_GL"],
-        layer_path=[{"layer": "L1", "decision": "ALLOW"}],
+        state="SANDBOX",
+        classification="UNKNOWN",
+        decision="SANDBOX",
+        risk_score=10,
+        reasons=["INITIAL_ROUTING"],
+        event_ids=["evt-001"],
         pages=["/home"],
-        traps_triggered=["TRAP-ROBOTS-01"],
+        traps_triggered=["/trap/decoy"],
         canaries_exposed=["SB-CAN-0001"],
     )
     save_session(first)
@@ -34,18 +35,14 @@ def test_session_upsert_preserves_first_seen_and_round_trips_telemetry():
         first_seen="2026-09-30T11:00:00+00:00",
         last_seen="2026-09-30T11:00:00+00:00",
         request_count=2,
-        state="TRAPPED",
+        state="SANDBOX",
         classification="SOPHISTICATED_SCRAPER",
-        l1_score=20,
-        l1_reasons=["L1_HEADER_FP_ANOMALY", "L1_UNVERIFIED_SESSION"],
-        l2_score=45,
-        l2_signals=["L2_SOFTWARE_GL"],
-        layer_path=[
-            {"layer": "L1", "decision": "ALLOW"},
-            {"layer": "L3", "decision": "TRAP"},
-        ],
+        decision="SANDBOX",
+        risk_score=20,
+        reasons=["INITIAL_ROUTING", "CANARY_INJECTED"],
+        event_ids=["evt-001", "evt-002"],
         pages=["/home", "/internal/"],
-        traps_triggered=["TRAP-ROBOTS-01"],
+        traps_triggered=["/trap/decoy"],
         canaries_exposed=["SB-CAN-0001", "SB-CAN-0002"],
     )
     save_session(updated)
@@ -58,9 +55,8 @@ def test_session_upsert_preserves_first_seen_and_round_trips_telemetry():
     assert loaded.ip == updated.ip
     assert loaded.user_agent == updated.user_agent
     assert loaded.header_fp == updated.header_fp
-    assert loaded.l1_reasons == updated.l1_reasons
-    assert loaded.l2_signals == updated.l2_signals
-    assert loaded.layer_path == updated.layer_path
+    assert loaded.reasons == updated.reasons
+    assert loaded.event_ids == updated.event_ids
     assert loaded.pages == updated.pages
     assert loaded.traps_triggered == updated.traps_triggered
     assert loaded.canaries_exposed == updated.canaries_exposed

@@ -19,21 +19,26 @@ async def test_live_dashboard_get_contracts(tmp_path, monkeypatch, origin_server
     seed_canaries()
     canary = list_canaries()[0]
     now = "2026-09-30T10:00:00Z"
-
     with db.get_connection() as conn:
+        sess_cols = {row["name"] for row in conn.execute("PRAGMA table_info(sessions)").fetchall()}
+        sess_ip_col = "client_ip" if "client_ip" in sess_cols else "ip"
         conn.execute(
-            """INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            f"""INSERT INTO sessions
+               (session_id, client_key, {sess_ip_col}, user_agent, header_fp, first_seen, last_seen, request_count,
+                state, classification, decision, risk_score, reasons, pages, traps_triggered, canaries_exposed, event_ids)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             ("SESSION-DEMO-001", "CLIENT-DEMO-001", "192.0.2.10", "Synthetic Browser", "fp-demo", now, now, 1,
-             "VERIFIED", "HUMAN_LIKELY", 0, "[]", 0, "[]", json.dumps([{"layer": "ORIGIN", "decision": "ALLOW"}]),
-             '["/"]', "[]", "[]", None),
+             "SANDBOX", "HUMAN_LIKELY", "SANDBOX", 0, "[]", '["/"]', "[]", "[]", json.dumps(["EVENT-DEMO-001"])),
         )
+        traffic_cols = {row["name"] for row in conn.execute("PRAGMA table_info(traffic_events)").fetchall()}
+        traffic_ip_col = "client_ip" if "client_ip" in traffic_cols else "ip"
         conn.execute(
-            """INSERT INTO traffic_events
-               (event_id, ts, session_id, client_key, ip, method, path, status_code, user_agent,
-                header_fp, layer, decision, risk_score, reasons)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            f"""INSERT INTO traffic_events
+               (event_id, ts, session_id, client_key, {traffic_ip_col}, method, path, status_code, user_agent,
+                header_fp, stage, layer, decision, risk_score, reasons)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             ("EVENT-DEMO-001", now, "SESSION-DEMO-001", "CLIENT-DEMO-001", "192.0.2.10", "GET", "/",
-             200, "Synthetic Browser", "fp-demo", "ORIGIN", "ALLOW", 0, "[]"),
+             200, "Synthetic Browser", "fp-demo", "ORIGIN", "ORIGIN", "SANDBOX", 0, "[]"),
         )
         conn.execute("INSERT INTO datasets VALUES (?, ?, ?, ?, ?, ?)",
                      ("DATASET-DEMO-001", "target", "synthetic.jsonl", "c" * 64, 1, now))

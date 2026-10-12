@@ -1,11 +1,9 @@
-// Mirrors the frozen Phase 6 response contracts in backend/sb/contracts.py.
-export type Decision =
-  | 'ALLOW' | 'ESCALATE' | 'CHALLENGE' | 'PASS'
-  | 'RESTRICT' | 'THROTTLE' | 'BLOCK' | 'TRAP';
-export type Layer = 'L1' | 'L2' | 'L3' | 'ORIGIN';
+// Mirrors the canonical response contracts in backend/sb/contracts.py.
+export type Decision = 'FAST_PATH' | 'SANDBOX';
+export type Layer = 'ORIGIN' | 'EDGE';
 export type ComponentStatus = 'ok' | 'down' | 'disabled' | 'unknown' | 'not_checked';
 export type CanaryStatus = 'DRAFT' | 'ACTIVE' | 'EXPOSED' | 'OBSERVED';
-export type DemoMode = 'live' | 'golden';
+export type DemoMode = 'live' | 'neutral' | 'golden';
 export type DemoPhase = 'READY' | 'RUNNING' | 'COMPLETE' | 'PAUSED' | 'FAILED';
 
 export interface Health {
@@ -19,15 +17,27 @@ export interface TrafficEvent {
   ts: string;
   session_id: string;
   client_key: string;
-  ip: string;
+  client_ip: string;
+  ip?: string;
+  asn?: number | null;
+  asn_status?: string;
+  ja3_hash?: string | null;
+  ja4_hash?: string | null;
+  http_version?: string;
+  header_order?: string[];
+  header_fp?: string;
+  tls_source?: string;
   method: string;
   path: string;
   status_code: number;
   user_agent: string;
-  layer: Layer;
+  stage?: string;
+  layer?: string;
   decision: Decision;
   risk_score: number;
   reasons: string[];
+  canary_ids?: string[];
+  route_class?: string;
 }
 
 export interface TrafficEventsResponse {
@@ -40,30 +50,40 @@ export interface SessionSummary {
   classification: string;
   request_count: number;
   state: string;
-}
-
-export interface LayerPathEntry {
-  layer: string;
-  decision: string;
-  ts?: string | null;
-  [key: string]: unknown;
+  client_ip?: string;
+  asset_ratio?: number;
+  trust_score?: number;
+  first_seen?: string;
+  last_seen?: string;
 }
 
 export interface SessionDetail extends SessionSummary {
   client_key: string;
-  ip: string;
+  client_ip: string;
+  ip?: string;
+  asn: number | null;
+  asn_status: string;
+  ja3_hash: string | null;
+  ja4_hash: string | null;
+  tls_source: string;
   user_agent: string;
   header_fp: string;
   first_seen: string;
   last_seen: string;
-  l1_score: number;
-  l1_reasons: string[];
-  l2_score: number;
-  l2_signals: string[];
-  layer_path: LayerPathEntry[];
+  static_count: number;
+  api_count: number;
+  asset_ratio: number;
+  trust_score?: number;
+  ar_classifier_decision?: string;
+  confidence_score?: number;
+  router_decision?: string;
+  decision: Decision;
+  risk_score: number;
+  reasons: string[];
   pages: string[];
   traps_triggered: string[];
   canaries_exposed: string[];
+  event_ids: string[];
 }
 
 export interface ExposureEvent {
@@ -238,17 +258,73 @@ export interface DemoResetResponse {
 export interface Overview {
   run_id: string;
   counts: Record<Decision, number>;
-  ladder: {
-    safe: number;
-    suspicious: number;
-    challenge_restrict: number;
-    block: number;
-    trap: number;
-    provenance: number;
+  ladder?: {
+    fast_path?: number;
+    sandbox?: number;
+    canary_exposed?: number;
+    provenance?: number;
+    [key: string]: number | undefined;
   };
   sessions_by_class: Record<string, number>;
   canaries: { active: number; exposed: number; observed: number };
   cases: { total: number; detected: number };
   pipeline: { stage: string; status: ComponentStatus }[];
   latest_case: CaseSummary | null;
+  total_sessions?: number;
+  total_events?: number;
+  asset_ratio_avg?: number;
+  ledger_valid?: boolean;
+  ledger_status?: string;
+  ledger_count?: number;
+  ledger_head?: string;
 }
+
+export interface LedgerBlock {
+  seq: number;
+  kind: string;
+  record: Record<string, unknown>;
+  prev_hash: string;
+  hash: string;
+  ts: string;
+}
+
+export interface LedgerInfo {
+  result: 'VALID' | 'TAMPERED';
+  count: number;
+  head: string;
+  errors: string[];
+  blocks?: LedgerBlock[];
+}
+
+export interface RouteBaselineInfo {
+  route: string;
+  ar_ema: number;
+  sample_count: number;
+  updated_at: string;
+  is_mature: boolean;
+}
+
+export interface ClassifierMetrics {
+  total_evaluations: number;
+  fast_path_count: number;
+  sandbox_count: number;
+  locked_sandbox_count: number;
+  cold_start_count: number;
+  latency_p50_ms: number;
+  latency_p95_ms: number;
+  confidence_distribution: Record<string, number>;
+}
+
+export interface ClassifierStatus {
+  status: string;
+  mutation_mode: string;
+  alpha: number;
+  trust_threshold: number;
+  anomaly_streak_threshold: number;
+  baseline_min_samples: number;
+  total_routes: number;
+  matured_routes: number;
+  metrics: ClassifierMetrics;
+  routes: RouteBaselineInfo[];
+}
+

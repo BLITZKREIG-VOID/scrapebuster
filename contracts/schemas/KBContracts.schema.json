@@ -1,0 +1,255 @@
+{
+  "$defs": {
+    "KBResult": {
+      "properties": {
+        "chunk_id": {
+          "title": "Chunk Id",
+          "type": "string"
+        },
+        "doc_id": {
+          "title": "Doc Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "content": {
+          "title": "Content",
+          "type": "string"
+        },
+        "score": {
+          "title": "Score",
+          "type": "number"
+        },
+        "metadata": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Metadata",
+          "type": "object"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "chunk_index": {
+          "title": "Chunk Index",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "chunk_id",
+        "doc_id",
+        "title",
+        "content",
+        "score",
+        "metadata",
+        "source",
+        "chunk_index"
+      ],
+      "title": "KBResult",
+      "type": "object"
+    },
+    "KBQueryResponse": {
+      "properties": {
+        "query": {
+          "title": "Query",
+          "type": "string"
+        },
+        "results": {
+          "items": {
+            "$ref": "#/$defs/KBResult"
+          },
+          "title": "Results",
+          "type": "array"
+        },
+        "total_found": {
+          "title": "Total Found",
+          "type": "integer"
+        },
+        "query_time_ms": {
+          "title": "Query Time Ms",
+          "type": "number"
+        },
+        "fallback_used": {
+          "default": false,
+          "title": "Fallback Used",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "query",
+        "results",
+        "total_found",
+        "query_time_ms"
+      ],
+      "title": "KBQueryResponse",
+      "type": "object"
+    },
+    "KBIngestResponse": {
+      "properties": {
+        "doc_id": {
+          "title": "Doc Id",
+          "type": "string"
+        },
+        "chunks_created": {
+          "title": "Chunks Created",
+          "type": "integer"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "doc_id",
+        "chunks_created",
+        "status"
+      ],
+      "title": "KBIngestResponse",
+      "type": "object"
+    },
+    "KBStats": {
+      "properties": {
+        "total_documents": {
+          "title": "Total Documents",
+          "type": "integer"
+        },
+        "total_chunks": {
+          "title": "Total Chunks",
+          "type": "integer"
+        },
+        "total_vectors": {
+          "title": "Total Vectors",
+          "type": "integer"
+        },
+        "storage_size_bytes": {
+          "title": "Storage Size Bytes",
+          "type": "integer"
+        },
+        "last_updated": {
+          "title": "Last Updated",
+          "type": "string"
+        }
+      },
+      "required": [
+        "total_documents",
+        "total_chunks",
+        "total_vectors",
+        "storage_size_bytes",
+        "last_updated"
+      ],
+      "title": "KBStats",
+      "type": "object"
+    },
+    "KBQuery": {
+      "properties": {
+        "query": {
+          "title": "Query",
+          "type": "string"
+        },
+        "top_k": {
+          "default": 5,
+          "title": "Top K",
+          "type": "integer"
+        },
+        "filters": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Filters",
+          "type": "object"
+        },
+        "include_content": {
+          "default": true,
+          "title": "Include Content",
+          "type": "boolean"
+        },
+        "session_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Session Id"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "title": "KBQuery",
+      "type": "object"
+    },
+    "KBIngestRequest": {
+      "properties": {
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "content": {
+          "title": "Content",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "doc_type": {
+          "title": "Doc Type",
+          "type": "string"
+        },
+        "metadata": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Metadata",
+          "type": "object"
+        },
+        "chunk_size": {
+          "default": 500,
+          "title": "Chunk Size",
+          "type": "integer"
+        },
+        "chunk_overlap": {
+          "default": 50,
+          "title": "Chunk Overlap",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "title",
+        "content",
+        "source",
+        "doc_type"
+      ],
+      "title": "KBIngestRequest",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "KBQuery": {
+      "$ref": "#/$defs/KBQuery"
+    },
+    "KBQueryResponse": {
+      "$ref": "#/$defs/KBQueryResponse"
+    },
+    "KBIngestRequest": {
+      "$ref": "#/$defs/KBIngestRequest"
+    },
+    "KBIngestResponse": {
+      "$ref": "#/$defs/KBIngestResponse"
+    },
+    "KBStats": {
+      "$ref": "#/$defs/KBStats"
+    },
+    "KBResult": {
+      "$ref": "#/$defs/KBResult"
+    }
+  },
+  "title": "KBContracts",
+  "type": "object"
+}

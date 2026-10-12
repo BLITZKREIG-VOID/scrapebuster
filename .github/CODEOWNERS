@@ -1,19 +1,31 @@
-# ScapeBusters CODEOWNERS
-*                   @anirudh
-/backend/sb/trap/         @hardik
-/backend/sb/canary/       @hardik
-/backend/sb/provenance/   @hardik
-/backend/sb/api/canaries.py @hardik
-/backend/sb/api/datasets.py @hardik
-/backend/sb/api/probes.py   @hardik
-/backend/sb/api/cases.py    @hardik
+# ScrapeBusters Pure Layer 3 Full Offense CODEOWNERS (Phase 1)
+*                             @w5
 
-/demo_site/               @arnav
-/attacks/                 @arnav
-/backend/sb/api/demo.py   @arnav
-/backend/sb/demo/         @arnav
-/backend/tests/e2e/       @arnav
-/tests/e2e/               @arnav
-/scripts/preflight.py     @arnav
-/scripts/smoke.sh         @arnav
-/dashboard/               @harsh
+# Worker 1: Edge Pipeline, Request Context, TLS, ASN, Telemetry, Config & Main
+/backend/sb/edge/             @w1 @anirudh
+/backend/sb/config.py         @w1 @anirudh
+/backend/sb/main.py           @w1 @anirudh
+
+# Worker 2: Canary, Offense Subsystem & Hooks
+/backend/sb/canary/           @w2 @hardik
+/backend/sb/offense/          @w2 @hardik
+/backend/sb/hooks.py          @w2 @hardik
+
+# Worker 3: Store, Schema, Ledger, Database & Provenance
+/backend/sb/store/            @w3 @hardik
+/backend/sb/provenance/       @w3 @hardik
+
+# Worker 4: API, Contracts, Schemas, Fixtures & Dashboard
+/backend/sb/api/              @w4 @harsh @arnav
+/backend/sb/contracts.py      @w4 @harsh @arnav
+/contracts/                   @w4 @harsh @arnav
+/dashboard/                   @w4 @harsh @arnav
+
+# Worker 5: Tests, Scripts, Documentation, Environment, Make & Governance
+/backend/tests/               @w5
+/scripts/                     @w5
+/docs/                        @w5
+/.github/                     @w5
+/Makefile                     @w5
+/.env.example                 @w5
+/README.md                    @w5

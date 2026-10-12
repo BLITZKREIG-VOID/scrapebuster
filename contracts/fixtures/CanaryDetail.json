@@ -1,5 +1,5 @@
 {
-  "canary_id": "CANARY-DEMO-001",
+  "canary_id": "SB-CANARY-demo0001-001",
   "type": "document",
   "canonical_content": "Synthetic example text; not an operational canary.",
   "anchor": "SYNTHETIC-ANCHOR",
@@ -18,7 +18,7 @@
     "catalog"
   ],
   "publication": {
-    "canary_id": "CANARY-DEMO-001",
+    "canary_id": "SB-CANARY-demo0001-001",
     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "content_version": "v1",
     "published_at": "2026-09-30T10:00:00Z",
@@ -29,7 +29,7 @@
   "exposures": [
     {
       "exposure_id": "EXPOSURE-DEMO-001",
-      "canary_id": "CANARY-DEMO-001",
+      "canary_id": "SB-CANARY-demo0001-001",
       "ts": "2026-09-30T10:00:00Z",
       "session_id": "SESSION-DEMO-001",
       "resource": "/catalog/example",

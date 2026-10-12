@@ -4,7 +4,7 @@
   "created_at": "2026-09-30T10:00:00Z",
   "status": "PROVENANCE_SIGNAL_DETECTED",
   "confidence": "HIGH",
-  "primary_canary_id": "CANARY-DEMO-001",
+  "primary_canary_id": "SB-CANARY-demo0001-001",
   "session_ids": [
     "SESSION-DEMO-001"
   ],
@@ -14,7 +14,7 @@
   "findings": [
     {
       "finding_id": "FIND-DEMO-001",
-      "canary_id": "CANARY-DEMO-001",
+      "canary_id": "SB-CANARY-demo0001-001",
       "exact_match": true,
       "context_match": {
         "matched_terms": [

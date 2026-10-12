@@ -2,6 +2,8 @@
   "status": "ok",
   "components": {
     "db": "ok",
+    "ledger": "ok",
+    "telemetry_queue": "ok",
     "upstream": "not_checked",
     "llm": "not_checked",
     "s3": "not_checked"

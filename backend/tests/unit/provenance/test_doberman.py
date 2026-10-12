@@ -15,7 +15,7 @@ from sb.provenance.llm import LLMResult
 from sb.store import db
 
 
-def test_t_pr_1_stub_probe(sample_path: Path, repo_root: Path, monkeypatch: pytest.MonkeyPatch):
+def test_t_pr_1_stub_probe(sample_path: Path, generic_control_path: Path, monkeypatch: pytest.MonkeyPatch):
     """T-PR-1: stub generate returning LLMResult(text=f"stub:{prompt[-40:]}", mode="live", ...).
 
     Verify:
@@ -29,7 +29,7 @@ def test_t_pr_1_stub_probe(sample_path: Path, repo_root: Path, monkeypatch: pyte
     """
     seed_canaries()
     target_ds = dataset.ingest(sample_path, role="target")
-    baseline_path = repo_root / "data" / "baseline" / "public_baseline.jsonl"
+    baseline_path = generic_control_path
     control_ds = dataset.ingest(baseline_path, role="control")
 
     monkeypatch.setattr(llm, "model_info", lambda: {"name": "stub", "digest": "d"})
@@ -103,7 +103,7 @@ def test_t_pr_1_stub_probe(sample_path: Path, repo_root: Path, monkeypatch: pyte
     assert control_probe["model"]["digest"] == "d"
 
 
-def test_t_pr_2_real_llm_fallback(sample_path: Path, repo_root: Path, monkeypatch: pytest.MonkeyPatch):
+def test_t_pr_2_real_llm_fallback(sample_path: Path, generic_control_path: Path, monkeypatch: pytest.MonkeyPatch):
     """T-PR-2 (probe part): closed port triggers extractive_fallback with real llm.generate.
 
     Verify:
@@ -114,7 +114,7 @@ def test_t_pr_2_real_llm_fallback(sample_path: Path, repo_root: Path, monkeypatc
     """
     seed_canaries()
     target_ds = dataset.ingest(sample_path, role="target")
-    baseline_path = repo_root / "data" / "baseline" / "public_baseline.jsonl"
+    baseline_path = generic_control_path
     control_ds = dataset.ingest(baseline_path, role="control")
 
     monkeypatch.setenv("SB_OLLAMA_URL", "http://127.0.0.1:9")
@@ -150,7 +150,7 @@ def test_t_pr_2_real_llm_fallback(sample_path: Path, repo_root: Path, monkeypatc
         assert r["response_text"] == expected_top_text
 
 
-def test_selection_and_dataset_validation(sample_path: Path, repo_root: Path, monkeypatch: pytest.MonkeyPatch):
+def test_selection_and_dataset_validation(sample_path: Path, generic_control_path: Path, monkeypatch: pytest.MonkeyPatch):
     """Canary selection rules, fallback behavior, and dataset error checking."""
     seed_canaries()
 
@@ -191,7 +191,7 @@ def test_selection_and_dataset_validation(sample_path: Path, repo_root: Path, mo
 
     # 5. Unknown dataset -> KeyError and zero probe_runs rows
     target_ds = dataset.ingest(sample_path, role="target")
-    baseline_path = repo_root / "data" / "baseline" / "public_baseline.jsonl"
+    baseline_path = generic_control_path
     control_ds = dataset.ingest(baseline_path, role="control")
 
     with pytest.raises(KeyError, match="Target dataset not found: DS-bad"):
@@ -209,11 +209,11 @@ def test_selection_and_dataset_validation(sample_path: Path, repo_root: Path, mo
     assert len(list_probes()) == 0
 
 
-def test_failure_handling(sample_path: Path, repo_root: Path):
+def test_failure_handling(sample_path: Path, generic_control_path: Path):
     """Stub raising RuntimeError on 2nd call propagates and marks run FAILED with finished_at."""
     seed_canaries()
     target_ds = dataset.ingest(sample_path, role="target")
-    baseline_path = repo_root / "data" / "baseline" / "public_baseline.jsonl"
+    baseline_path = generic_control_path
     control_ds = dataset.ingest(baseline_path, role="control")
 
     call_count = 0
@@ -252,14 +252,14 @@ def test_failure_handling(sample_path: Path, repo_root: Path):
         assert res_count == 1
 
 
-def test_get_probe_and_list_probes_shapes(sample_path: Path, repo_root: Path, monkeypatch: pytest.MonkeyPatch):
+def test_get_probe_and_list_probes_shapes(sample_path: Path, generic_control_path: Path, monkeypatch: pytest.MonkeyPatch):
     """Verify get_probe and list_probes dict structures and ordering."""
     assert get_probe("PRB-nonexistent") is None
     assert list_probes() == []
 
     seed_canaries()
     target_ds = dataset.ingest(sample_path, role="target")
-    baseline_path = repo_root / "data" / "baseline" / "public_baseline.jsonl"
+    baseline_path = generic_control_path
     control_ds = dataset.ingest(baseline_path, role="control")
 
     monkeypatch.setattr(llm, "model_info", lambda: {"name": "stub", "digest": "d"})

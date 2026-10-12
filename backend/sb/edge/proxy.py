@@ -1,22 +1,55 @@
+import logging
+import os
 from urllib.parse import urlsplit
 
 import httpx
 
-from ..config import SB_ORIGIN_URL
+from ..config import SB_UPSTREAM_ORIGIN, is_ip_in_trusted_proxies
 from .context import RequestContext
+from .tls import FORGED_TLS_HEADERS
+
+logger = logging.getLogger("sb.edge.proxy")
 
 # Global async client for proxying
-_client = None
+_client: httpx.AsyncClient | None = None
+_client_origin: str | None = None
+
 
 def get_client() -> httpx.AsyncClient:
-    global _client
+    """Return singleton async client with startup-frozen origin.
+
+    Avoids leaky client reconfiguration while ensuring safe resource lifecycle.
+    Uses connection pooling and keep-alive for low-latency proxying.
+    """
+    global _client, _client_origin
+    origin = os.getenv("SB_UPSTREAM_ORIGIN", SB_UPSTREAM_ORIGIN)
     if _client is None:
-        _client = httpx.AsyncClient(base_url=SB_ORIGIN_URL)
+        limits = httpx.Limits(max_keepalive_connections=100, max_connections=200, keepalive_expiry=30.0)
+        timeout = httpx.Timeout(connect=5.0, read=30.0, write=10.0, pool=5.0)
+        _client = httpx.AsyncClient(
+            base_url=origin,
+            follow_redirects=False,
+            limits=limits,
+            timeout=timeout,
+            http2=False,  # Explicitly disable HTTP/2 for consistent behavior
+        )
+        _client_origin = origin
     return _client
 
-# Layer 3 lure: the edge owns robots.txt so every upstream (CampusCart has
-# none) advertises the TRAP-ROBOTS-01 prefix. Never forwarded upstream.
-ROBOTS_TXT = b"User-agent: *\nDisallow: /internal/\n"
+
+async def close_client() -> None:
+    """Close and reset global async proxy client."""
+    global _client, _client_origin
+    client = _client
+    _client = None
+    _client_origin = None
+    if client is not None:
+        try:
+            await client.aclose()
+        except (httpx.HTTPError, OSError, RuntimeError):
+            # Best-effort shutdown: a failing close must not block cleanup.
+            logger.debug("Error closing proxy client", exc_info=True)
+
 
 # Standard hop-by-hop headers (RFC 7230 §6.1) that must not be forwarded
 HOP_BY_HOP_HEADERS = frozenset({
@@ -32,33 +65,55 @@ HOP_BY_HOP_HEADERS = frozenset({
     "upgrade",
 })
 
+# Read cache validators and range negotiation headers
+# Only stripped on appropriate GET/HEAD sandbox eligible paths to prevent 304/206 bypass
+READ_CACHE_VALIDATORS = frozenset({
+    "if-none-match",
+    "if-modified-since",
+    "if-range",
+    "range",
+})
+CONDITIONAL_REQUEST_HEADERS = READ_CACHE_VALIDATORS
+
 
 class UpstreamResponse:
-    """Wrapper to fulfill TrapHooks interface"""
+    """Wrapper to fulfill offense transformation interface with immutable snapshot."""
+
     def __init__(self, response: httpx.Response):
-        self.content = response.content
-        self.status_code = response.status_code
-        self.headers = response.headers
+        self.content = bytes(response.content)
+        self.status_code = int(response.status_code)
+        # Snapshot headers so transformations cannot mutate original httpx response headers
+        self.headers = httpx.Headers(response.headers)
+
 
 async def proxy(ctx: RequestContext) -> httpx.Response:
+    """Proxy request to upstream origin without site-specific lures or hardcoding."""
     request = ctx.request
     method = request.method
+    method_upper = method.upper()
+    is_read = method_upper in {"GET", "HEAD"}
 
-    # Strip any scheme/host to ensure path cannot select arbitrary upstream
-    raw_path = urlsplit(request.url.path).path
-    if not raw_path.startswith("/"):
-        raw_path = "/" + raw_path
-    url = raw_path
+    # Preserve raw encoded path/query bytes from ASGI scope where available
+    scope = getattr(request, "scope", {})
+    raw_path_bytes = scope.get("raw_path") if isinstance(scope, dict) else None
+    if raw_path_bytes:
+        path = raw_path_bytes.decode("latin1")
+        if not path.startswith("/"):
+            path = "/" + path
+    else:
+        raw_path = urlsplit(request.url.path).path
+        if not raw_path.startswith("/"):
+            raw_path = "/" + raw_path
+        path = raw_path
 
-    if method in ("GET", "HEAD") and url == "/robots.txt":
-        return httpx.Response(
-            200,
-            headers={"content-type": "text/plain; charset=utf-8"},
-            content=ROBOTS_TXT if method == "GET" else b"",
-        )
-    if request.url.query:
-        url += f"?{request.url.query}"
-        
+    query_bytes = scope.get("query_string") if isinstance(scope, dict) else None
+    if query_bytes:
+        url = f"{path}?{query_bytes.decode('latin1')}"
+    elif request.url.query:
+        url = f"{path}?{request.url.query}"
+    else:
+        url = path
+
     # Filter hop-by-hop headers, including Connection token-nominated headers
     raw_headers = {k.lower(): v for k, v in request.headers.items()}
     connection_tokens = set()
@@ -68,22 +123,57 @@ async def proxy(ctx: RequestContext) -> httpx.Response:
             if t:
                 connection_tokens.add(t)
 
-    drop_headers = HOP_BY_HOP_HEADERS | connection_tokens
+    # State-changing methods (POST, PUT, PATCH, DELETE, etc.) NEVER strip preconditions
+    # (preserving optimistic concurrency e.g. If-Match, and create-if-absent e.g. If-None-Match).
+    # Reads preserve state-changing preconditions (If-Match, If-Unmodified-Since) as well.
+    # Only strip read cache validators / range negotiation on appropriate GET/HEAD sandbox eligible paths.
+    is_sandbox_eligible_path = getattr(ctx, "is_document", True)
+    strip_cache_validators = is_read and is_sandbox_eligible_path
+
+    drop_headers = set(HOP_BY_HOP_HEADERS) | connection_tokens | FORGED_TLS_HEADERS
+
+    # If incoming client is untrusted socket, drop client-supplied forwarding headers
+    socket_ip = getattr(getattr(request, "client", None), "host", "127.0.0.1") or "127.0.0.1"
+    if not is_ip_in_trusted_proxies(socket_ip):
+        drop_headers |= {
+            "x-forwarded-for",
+            "x-forwarded-proto",
+            "x-forwarded-host",
+            "x-forwarded-port",
+            "x-real-ip",
+        }
+
+    if strip_cache_validators:
+        drop_headers |= READ_CACHE_VALIDATORS
+
     headers = {k: v for k, v in raw_headers.items() if k not in drop_headers}
 
-    # The inbound host is localhost:8000; Firebase requires its own hostname.
-    # Derive it from the selected origin so local overrides still work.
-    headers["host"] = urlsplit(SB_ORIGIN_URL).netloc
-    # httpx returns decoded response content, while the pipeline drops the
-    # upstream Content-Encoding header. Request identity to keep browser bytes
-    # and metadata consistent (Firebase otherwise serves Brotli here).
-    headers["accept-encoding"] = "identity"
-    # We must read body safely if it's there, but for GET it's usually empty
-    # In a full reverse proxy we'd stream this, but for the hackathon we buffer
+    # Pass canonical client IP to origin via authentic X-Forwarded-For
+    headers["x-forwarded-for"] = ctx.ip
+
+    # Derive host from canonical configured upstream origin
+    origin = _client_origin or os.getenv("SB_UPSTREAM_ORIGIN", SB_UPSTREAM_ORIGIN)
+    if origin:
+        netloc = urlsplit(origin).netloc
+        if netloc:
+            headers["host"] = netloc
+
+    if method_upper == "HEAD":
+        # Preserve client's accept-encoding on HEAD to allow origin to return gzip representation metadata
+        # (HEAD responses have no body and are never mutated)
+        if "accept-encoding" in raw_headers:
+            headers["accept-encoding"] = raw_headers["accept-encoding"]
+        else:
+            headers.pop("accept-encoding", None)
+    else:
+        # Request identity encoding so response content is uncompressed for mutation
+        headers["accept-encoding"] = "identity"
+
+    # Forward body safely
     body = await request.body()
     if not body:
         headers.pop("content-length", None)
-    
+
     client = get_client()
     response = await client.request(
         method=method,
@@ -91,5 +181,5 @@ async def proxy(ctx: RequestContext) -> httpx.Response:
         headers=headers,
         content=body,
     )
-    
+
     return response

@@ -19,7 +19,8 @@ def test_reset_and_tables_exist():
         expected_tables = {
             "demo_state", "traffic_events", "sessions", "trap_hits",
             "canaries", "publications", "exposures", "datasets",
-            "probe_runs", "probe_results", "cases", "evidence_objects"
+            "probe_runs", "probe_results", "cases", "evidence_objects",
+            "forensic_ledger", "session_canary_bindings", "session_canary_sequences",
         }
         
         for table in expected_tables:

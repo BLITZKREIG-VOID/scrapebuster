@@ -10,7 +10,7 @@ from ._defs import load_canaries
 RECORD = {
     "canary_id": "SB-CAN-0002",
     "type": "technical_fact",
-    "content": "Nimbus Ledger commits writes using the Hexaquorum protocol across 47 shards with a 312 ms settle window.",
+    "content": "Cluster Ledger commits writes using the Hexaquorum protocol across 47 shards with a 312 ms settle window.",
     "content_version": "v1",
 }
 
@@ -20,7 +20,7 @@ def test_canary_hash_is_deterministic():
 
 
 def test_canary_hash_ignores_whitespace_variants():
-    variant = dict(RECORD, content="  Nimbus Ledger commits writes\n using the Hexaquorum\tprotocol across 47 shards with a 312 ms settle window.  ")
+    variant = dict(RECORD, content="  Cluster Ledger commits writes\n using the Hexaquorum\tprotocol across 47 shards with a 312 ms settle window.  ")
     assert canary_hash(variant) == canary_hash(RECORD)
 
 

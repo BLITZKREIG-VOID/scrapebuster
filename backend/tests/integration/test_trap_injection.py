@@ -1,4 +1,4 @@
-"""Integration tests for Layer 3 trap detection, decoy serving, and canary injection."""
+"""Integration tests for offense detection, decoy serving, and canary injection."""
 
 import socket
 import threading
@@ -7,7 +7,6 @@ from contextlib import closing
 
 import httpx
 import pytest
-import sb.edge.pipeline as pipeline_module
 import sb.edge.proxy as proxy_module
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
@@ -15,16 +14,6 @@ from sb.canary.seed import seed_canaries
 from sb.edge.session import sessions
 from sb.main import app
 from sb.store import db
-from sb.trap.honeypots import HIDDEN_LINK_HTML
-from sb.trap.injector import ScapeBustersTrapHooks
-
-CANARY_ANCHORS = [
-    "Oriel Vantrask",
-    "Hexaquorum",
-    "quasar-reconcile",
-    "velvet-anchor",
-    "ORCHID-7",
-]
 
 
 def find_free_port() -> int:
@@ -71,19 +60,17 @@ def custom_origin():
 
 @pytest.fixture(autouse=True)
 def setup_test_env(tmp_path, monkeypatch, custom_origin):
-    """Isolate DB, configure proxy target to custom origin, reset sessions, and install ScapeBustersTrapHooks."""
+    """Isolate DB, configure proxy target to custom origin, reset sessions."""
     test_db = str(tmp_path / "sb.db")
     monkeypatch.setattr(db, "DB_PATH", test_db)
     db.reset_db()
     seed_canaries()
 
-    monkeypatch.setattr(proxy_module, "SB_ORIGIN_URL", custom_origin)
+    monkeypatch.setattr(proxy_module, "SB_UPSTREAM_ORIGIN", custom_origin)
+    monkeypatch.setenv("SB_UPSTREAM_ORIGIN", custom_origin)
     monkeypatch.setattr(proxy_module, "_client", None)
 
     sessions.reset()
-
-    trap_hooks = ScapeBustersTrapHooks()
-    monkeypatch.setattr(pipeline_module, "trap_hooks", trap_hooks)
 
     yield
 
@@ -91,85 +78,20 @@ def setup_test_env(tmp_path, monkeypatch, custom_origin):
 
 
 @pytest.mark.asyncio
-async def test_case_a_trapped_flow():
-    """Case A (TRAPPED): client GETs /internal/ -> becomes TRAPPED, then GET /docs/architecture gets canary."""
-    ua = "Mozilla/5.0 trap-test"
+async def test_offense_response_transformation():
+    """Client request reaches origin and receives transformed response with registry-bound canary."""
+    ua = "Mozilla/5.0 offense-test"
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
-        # Step 1: Request decoy path under /internal/
-        resp1 = await client.get("/internal/", headers={"user-agent": ua})
-        assert resp1.status_code == 200
-        assert "href=\"/docs/architecture\"" in resp1.text
-        # OD-4: the robots decoy itself carries all 5 canaries to the now-TRAPPED session.
-        for anchor in ("Oriel Vantrask", "Hexaquorum", "quasar-reconcile", "velvet-anchor", "ORCHID-7"):
-            assert anchor in resp1.text
+        resp = await client.get("/docs/architecture", headers={"user-agent": ua})
+        assert resp.status_code == 200
+        assert b"docs/architecture" in resp.content
+        assert b"sb-canary" in resp.content
+        assert b"SB-CANARY-" in resp.content
 
-        # Verify session became TRAPPED
-        trapped_sessions = [s for s in sessions._sessions.values() if s.state == "TRAPPED"]
-        assert len(trapped_sessions) >= 1
-        trapped_session = trapped_sessions[0]
-
-        # Step 2: Request placement page /docs/architecture
-        resp2 = await client.get("/docs/architecture", headers={"user-agent": ua})
-        assert resp2.status_code == 200
-        body_text = resp2.text
-
-        # Must contain canary anchor Hexaquorum and hidden link
-        assert "Hexaquorum" in body_text
-        assert HIDDEN_LINK_HTML in body_text
-
-        # /internal/ (TRAP-ROBOTS-01) exposed all 5 canaries; the placement page adds SB-CAN-0002.
-        with closing(db.get_connection()) as conn, conn:
-            rows = conn.execute(
-                "SELECT canary_id, resource FROM exposures WHERE session_id = ? ORDER BY rowid",
-                (trapped_session.session_id,),
-            ).fetchall()
-            assert sorted(r["canary_id"] for r in rows if r["resource"] == "/internal/") == [
-                "SB-CAN-0001", "SB-CAN-0002", "SB-CAN-0003", "SB-CAN-0004", "SB-CAN-0005",
-            ]
-            assert [r["canary_id"] for r in rows if r["resource"] == "/docs/architecture"] == ["SB-CAN-0002"]
-            assert len(rows) == 6
-
-
-@pytest.mark.asyncio
-async def test_case_b_verified_flow():
-    """Case B (VERIFIED): client GETs /docs/ -> state set to VERIFIED -> GET /docs/architecture gets NO canaries."""
-    ua = "Mozilla/5.0 verified-test"
-    transport = httpx.ASGITransport(app=app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
-        # Step 1: GET /docs/ once to establish session
-        resp1 = await client.get("/docs/", headers={"user-agent": ua})
-        assert resp1.status_code == 200
-
-        # Step 2: Set session state to VERIFIED in sessions manager
-        target_session = None
-        for s in sessions._sessions.values():
-            if s.state != "TRAPPED":
-                target_session = s
-                break
-        assert target_session is not None
-        target_session.state = "VERIFIED"
-
-        from sb.edge.layer2 import issue_clearance_cookie
-        val, _ = issue_clearance_cookie(target_session.client_key, 0)
-        client.cookies.set("sb_clear", val)
-
-        # Step 3: GET /docs/architecture
-        resp2 = await client.get("/docs/architecture", headers={"user-agent": ua})
-        assert resp2.status_code == 200
-        body_text = resp2.text
-
-        # Must contain hidden link
-        assert HIDDEN_LINK_HTML in body_text
-
-        # Must NOT contain any of the 5 canary anchors
-        for anchor in CANARY_ANCHORS:
-            assert anchor.lower() not in body_text.lower()
-
-        # Zero exposures recorded for that session
-        with closing(db.get_connection()) as conn, conn:
-            rows = conn.execute(
-                "SELECT * FROM exposures WHERE session_id = ?",
-                (target_session.session_id,),
-            ).fetchall()
-            assert len(rows) == 0
+        # Assert registry-bound mutation in durable store
+        with closing(db.get_connection()) as conn:
+            bindings = conn.execute("SELECT * FROM session_canary_bindings").fetchall()
+            assert len(bindings) >= 1
+            canary_id = bindings[0]["canary_id"]
+            assert canary_id.encode("utf-8") in resp.content or bindings[0]["value"].encode("utf-8") in resp.content

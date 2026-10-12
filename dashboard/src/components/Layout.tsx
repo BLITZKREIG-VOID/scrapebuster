@@ -115,7 +115,7 @@ export default function Layout() {
       path: '/dashboard/canaries',
       label: 'Canaries & Honeytokens',
       page: 'canaries' as const,
-      sub: 'Decoy Knowledge Traps',
+      sub: 'Offensive Knowledge Canaries',
       iconPath: (
         <>
           <path d="M5 18v3.766l1.515-.909L11.277 18H16c1.103 0 2-.897 2-2V8c0-1.103-.897-2-2-2H4c-1.103 0-2 .897-2 2v8c0 1.103.897 2 2 2h1zM4 8h12v8h-5.277L7 18.234V16H4V8z" />
@@ -149,15 +149,15 @@ export default function Layout() {
   ];
 
   const alerts = (traffic?.events ?? [])
-    .filter((event) => ['TRAP', 'BLOCK', 'THROTTLE', 'RESTRICT'].includes(event.decision))
+    .filter((event) => event.decision === 'SANDBOX' && (event.risk_score > 0 || event.reasons.length > 0))
     .filter((event) => !dismissedSignals.includes(event.event_id))
     .slice(0, 5)
     .map((event) => ({
       id: event.event_id,
-      title: `${event.decision} · ${event.layer}`,
+      title: `${event.decision} · ${event.stage || event.layer || 'ORIGIN'}`,
       desc: `Session ${event.session_id} · ${event.method} ${event.path} · risk ${event.risk_score}`,
       time: new Date(event.ts).toLocaleTimeString(),
-      type: event.decision === 'TRAP' ? 'warning' : 'threat',
+      type: 'warning' as 'warning' | 'threat' | 'info',
       link: '/dashboard/traffic',
     }));
 
@@ -328,7 +328,7 @@ export default function Layout() {
                     {alerts.length === 0 ? (
                       <div className="p-8 text-center text-sm text-slate-500 italic flex flex-col items-center gap-2">
                         <CheckCircle size={20} className="text-emerald-500/50" />
-                        No recent block, restrict, or trap events.
+                        No recent anomalous events.
                       </div>
                     ) : (
                       alerts.map(n => (

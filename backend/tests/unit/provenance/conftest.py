@@ -42,3 +42,22 @@ def repo_root() -> Path:
 def sample_path(repo_root: Path) -> Path:
     """Return path to scraped dataset sample fixture."""
     return repo_root / "contracts" / "fixtures" / "scraped_dataset_sample.jsonl"
+
+
+@pytest.fixture
+def generic_control_path(tmp_path: Path) -> Path:
+    """Return path to a fresh generic per-test temporary control baseline."""
+    import json
+
+    control_file = tmp_path / "generic_control.jsonl"
+    lines = [
+        json.dumps({
+            "url": f"https://baseline.invalid/control/{i:02d}",
+            "fetched_at": "2026-09-01T00:00:00Z",
+            "title": f"Generic Control Document {i:02d}",
+            "text": f"Neutral generic control paragraph {i:02d} discussing systems architecture and data structures.",
+        })
+        for i in range(1, 31)
+    ]
+    control_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return control_file

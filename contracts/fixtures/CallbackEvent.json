@@ -1,0 +1,14 @@
+{
+  "callback_id": "CBK-abc123",
+  "canary_id": "SB-CANARY-abc123-0001",
+  "session_id": "sess-001",
+  "token_verified": true,
+  "binding_value": "CONFIDENTIAL-REF-SB-CANARY-abc123-0001",
+  "metadata": {
+    "ip": "192.168.1.1",
+    "user_agent": "Mozilla/5.0",
+    "referer": "https://example.com/page",
+    "accept_language": "en-US,en;q=0.9"
+  },
+  "ts": "2026-10-11T12:00:00.000000Z"
+}

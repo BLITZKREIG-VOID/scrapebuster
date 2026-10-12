@@ -36,8 +36,8 @@ export default function About() {
               <Shield size={20} />
             </div>
             <div>
-              <div className="font-bold text-slate-200 font-mono text-sm mb-1">L1 / L2 Edge Proxy</div>
-              <div className="text-slate-400 text-sm leading-relaxed">Behavioral proxy blocking standard botnets with fingerprinting, header analysis, and interaction heuristics.</div>
+              <div className="font-bold text-slate-200 font-mono text-sm mb-1">Edge Proxy</div>
+              <div className="text-slate-400 text-sm leading-relaxed">Transparent reverse proxy with session tracking and pass-through routing.</div>
             </div>
           </div>
 
@@ -46,8 +46,8 @@ export default function About() {
               <Sparkles size={20} />
             </div>
             <div>
-              <div className="font-bold text-slate-200 font-mono text-sm mb-1">L3 Dynamic Trap</div>
-              <div className="text-slate-400 text-sm leading-relaxed">Dynamic honeypots serving poisoned RAG data and synthetic watermarked knowledge anchors.</div>
+              <div className="font-bold text-slate-200 font-mono text-sm mb-1">Offense Injection</div>
+              <div className="text-slate-400 text-sm leading-relaxed">Unconditional session-bound canaries and deterministic synthetic knowledge anchors.</div>
             </div>
           </div>
 

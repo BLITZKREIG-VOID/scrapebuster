@@ -1,0 +1,14 @@
+{
+  "event_id": "HKE-abc123",
+  "key_id": "SB-CANARY-abc123-0001",
+  "key_value": "CONFIDENTIAL-REF-SB-CANARY-abc123-0001",
+  "source_url": "https://example.com/page",
+  "session_id": "sess-001",
+  "metadata": {
+    "ip": "192.168.1.1",
+    "user_agent": "Mozilla/5.0",
+    "referer": "https://example.com/page",
+    "accept_language": "en-US,en;q=0.9"
+  },
+  "ts": "2026-10-11T12:00:00.000000Z"
+}

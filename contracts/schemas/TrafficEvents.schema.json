@@ -22,8 +22,83 @@
           "title": "Client Key",
           "type": "string"
         },
+        "client_ip": {
+          "title": "Client Ip",
+          "type": "string"
+        },
         "ip": {
-          "title": "Ip",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ip"
+        },
+        "asn": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Asn"
+        },
+        "asn_status": {
+          "default": "unavailable",
+          "title": "Asn Status",
+          "type": "string"
+        },
+        "ja3_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ja3 Hash"
+        },
+        "ja4_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ja4 Hash"
+        },
+        "http_version": {
+          "default": "HTTP/1.1",
+          "title": "Http Version",
+          "type": "string"
+        },
+        "header_order": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Header Order",
+          "type": "array"
+        },
+        "header_fp": {
+          "default": "",
+          "title": "Header Fp",
+          "type": "string"
+        },
+        "tls_source": {
+          "default": "none",
+          "title": "Tls Source",
           "type": "string"
         },
         "method": {
@@ -42,31 +117,41 @@
           "title": "User Agent",
           "type": "string"
         },
-        "layer": {
-          "enum": [
-            "L1",
-            "L2",
-            "L3",
-            "ORIGIN"
+        "stage": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
           ],
-          "title": "Layer",
-          "type": "string"
+          "default": "offense",
+          "title": "Stage"
+        },
+        "layer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "ORIGIN",
+          "title": "Layer"
         },
         "decision": {
+          "default": "SANDBOX",
           "enum": [
-            "ALLOW",
-            "ESCALATE",
-            "CHALLENGE",
-            "PASS",
-            "RESTRICT",
-            "THROTTLE",
-            "BLOCK",
-            "TRAP"
+            "FAST_PATH",
+            "SANDBOX"
           ],
           "title": "Decision",
           "type": "string"
         },
         "risk_score": {
+          "default": 0,
           "title": "Risk Score",
           "type": "integer"
         },
@@ -76,6 +161,13 @@
           },
           "title": "Reasons",
           "type": "array"
+        },
+        "canary_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Canary Ids",
+          "type": "array"
         }
       },
       "required": [
@@ -84,15 +176,11 @@
         "ts",
         "session_id",
         "client_key",
-        "ip",
+        "client_ip",
         "method",
         "path",
         "status_code",
-        "user_agent",
-        "layer",
-        "decision",
-        "risk_score",
-        "reasons"
+        "user_agent"
       ],
       "title": "TrafficEvent",
       "type": "object"

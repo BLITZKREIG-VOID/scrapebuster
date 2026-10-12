@@ -1,0 +1,143 @@
+{
+  "$defs": {
+    "ClassifierMetrics": {
+      "properties": {
+        "total_evaluations": {
+          "default": 0,
+          "title": "Total Evaluations",
+          "type": "integer"
+        },
+        "fast_path_count": {
+          "default": 0,
+          "title": "Fast Path Count",
+          "type": "integer"
+        },
+        "sandbox_count": {
+          "default": 0,
+          "title": "Sandbox Count",
+          "type": "integer"
+        },
+        "locked_sandbox_count": {
+          "default": 0,
+          "title": "Locked Sandbox Count",
+          "type": "integer"
+        },
+        "cold_start_count": {
+          "default": 0,
+          "title": "Cold Start Count",
+          "type": "integer"
+        },
+        "latency_p50_ms": {
+          "default": 0.0,
+          "title": "Latency P50 Ms",
+          "type": "number"
+        },
+        "latency_p95_ms": {
+          "default": 0.0,
+          "title": "Latency P95 Ms",
+          "type": "number"
+        },
+        "confidence_distribution": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Confidence Distribution",
+          "type": "object"
+        }
+      },
+      "title": "ClassifierMetrics",
+      "type": "object"
+    },
+    "RouteBaselineInfo": {
+      "properties": {
+        "route": {
+          "title": "Route",
+          "type": "string"
+        },
+        "ar_ema": {
+          "title": "Ar Ema",
+          "type": "number"
+        },
+        "sample_count": {
+          "title": "Sample Count",
+          "type": "integer"
+        },
+        "updated_at": {
+          "title": "Updated At",
+          "type": "string"
+        },
+        "is_mature": {
+          "default": false,
+          "title": "Is Mature",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "route",
+        "ar_ema",
+        "sample_count",
+        "updated_at"
+      ],
+      "title": "RouteBaselineInfo",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "status": {
+      "default": "ok",
+      "enum": [
+        "ok",
+        "degraded"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "mutation_mode": {
+      "default": "adaptive",
+      "title": "Mutation Mode",
+      "type": "string"
+    },
+    "alpha": {
+      "default": 0.2,
+      "title": "Alpha",
+      "type": "number"
+    },
+    "trust_threshold": {
+      "default": 70.0,
+      "title": "Trust Threshold",
+      "type": "number"
+    },
+    "anomaly_streak_threshold": {
+      "default": 20,
+      "title": "Anomaly Streak Threshold",
+      "type": "integer"
+    },
+    "baseline_min_samples": {
+      "default": 10,
+      "title": "Baseline Min Samples",
+      "type": "integer"
+    },
+    "total_routes": {
+      "default": 0,
+      "title": "Total Routes",
+      "type": "integer"
+    },
+    "matured_routes": {
+      "default": 0,
+      "title": "Matured Routes",
+      "type": "integer"
+    },
+    "metrics": {
+      "$ref": "#/$defs/ClassifierMetrics"
+    },
+    "routes": {
+      "items": {
+        "$ref": "#/$defs/RouteBaselineInfo"
+      },
+      "title": "Routes",
+      "type": "array"
+    }
+  },
+  "title": "ClassifierStatus",
+  "type": "object"
+}

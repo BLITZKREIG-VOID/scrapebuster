@@ -1,52 +1,51 @@
-"""Demo control API — master plan §16 (Arnav).
-
-Mount in ``sb/main.py`` (Anirudh): ``app.include_router(sb.api.demo.router)``.
-"""
+"""Demo control API — honest neutral local reset and status."""
 from __future__ import annotations
 
-from typing import Annotated
+import sqlite3
+import uuid
 
-from fastapi import APIRouter, Body, HTTPException
-from pydantic import BaseModel, Field
-from sb.contracts import DemoResetResponse, DemoStatus
-from sb.demo import DemoBusy, golden, runner
-from sb.demo.reset import reset_demo
+from fastapi import APIRouter
+from sb.contracts import DemoResetCheck, DemoResetResponse, DemoStatus
+from sb.store import db
 
 router = APIRouter(prefix="/api/v1/demo", tags=["demo"])
 
 
-class RunRequest(BaseModel):
-    step: int | None = Field(default=None, ge=1, le=len(runner.STEPS))
-
-
 @router.post("/reset", response_model=DemoResetResponse)
 def post_reset() -> DemoResetResponse:
-    """``{ok, run_id, checks: [{name, ok, detail}]}``; 409 while a run holds the lock."""
-    try:
-        return DemoResetResponse.model_validate(reset_demo())
-    except DemoBusy as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
-
-
-@router.post("/run", response_model=DemoStatus)
-def post_run(body: Annotated[RunRequest | None, Body()] = None) -> DemoStatus:
-    """Start all steps (or one) in the background; returns the initial ``DemoStatus``."""
-    try:
-        return DemoStatus.model_validate(runner.start(body.step if body else None))
-    except DemoBusy as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    """Reset local SQLite state and initialize fresh run_id."""
+    db.reset_db()
+    run_id = f"RUN-{uuid.uuid4().hex[:8].upper()}"
+    with db.get_connection() as conn:
+        conn.execute("INSERT OR REPLACE INTO demo_state (key, value) VALUES ('run_id', ?)", (run_id,))
+        conn.execute("INSERT OR REPLACE INTO demo_state (key, value) VALUES ('phase', ?)", ("READY",))
+        conn.commit()
+    return DemoResetResponse(
+        ok=True,
+        run_id=run_id,
+        checks=[DemoResetCheck(name="database", ok=True, detail="Database reset complete.")],
+    )
 
 
 @router.get("/status", response_model=DemoStatus)
 def get_status() -> DemoStatus:
-    return DemoStatus.model_validate(runner.get_status())
-
-
-@router.post("/restore-golden")
-def post_restore_golden() -> dict:
+    """Return current run ID and phase."""
     try:
-        return golden.restore()
-    except DemoBusy as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
-    except golden.GoldenError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        with db.get_connection() as conn:
+            row_run = conn.execute("SELECT value FROM demo_state WHERE key='run_id'").fetchone()
+            row_phase = conn.execute("SELECT value FROM demo_state WHERE key='phase'").fetchone()
+        run_id = row_run["value"] if row_run else None
+        phase = row_phase["value"] if row_phase else "READY"
+    except sqlite3.Error:
+        run_id = None
+        phase = "READY"
+
+    if phase not in ("READY", "RUNNING", "COMPLETE", "PAUSED", "FAILED"):
+        phase = "READY"
+
+    return DemoStatus(
+        run_id=run_id,
+        phase=phase,
+        mode="live",
+        steps=[],
+    )

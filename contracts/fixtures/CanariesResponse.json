@@ -1,7 +1,7 @@
 {
   "canaries": [
     {
-      "canary_id": "CANARY-DEMO-001",
+      "canary_id": "SB-CANARY-demo0001-001",
       "type": "document",
       "canonical_content": "Synthetic example text; not an operational canary.",
       "anchor": "SYNTHETIC-ANCHOR",
