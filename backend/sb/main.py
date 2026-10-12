@@ -2,8 +2,9 @@ import logging
 import sqlite3
 from contextlib import asynccontextmanager
 
-from fastapi import APIRouter, FastAPI, Request
+from fastapi import APIRouter, FastAPI, Request, Response
 
+from .api.callbacks import image_callback
 from .api.callbacks import router as callbacks_router
 from .api.canaries import router as canaries_router
 from .api.cases import router as cases_router
@@ -58,6 +59,13 @@ async def lifespan(app: FastAPI):
             await TelemetryTap.stop()
         except (sqlite3.Error, OSError, RuntimeError) as tap_stop_err:
             logger.error("Error stopping TelemetryTap: %s", tap_stop_err)
+        # Drain dirty classifier route baselines off request path
+        try:
+            from .classifier.store import drain_classifier_store
+
+            drain_classifier_store()
+        except (ImportError, sqlite3.Error, OSError, RuntimeError) as drain_err:
+            logger.error("Error draining classifier store: %s", drain_err)
         await close_client()
 
 
@@ -80,6 +88,9 @@ app.include_router(api_v1_router)
 # Mount demo control API if available (W4 rewrites demo API)
 if demo_router is not None:
     app.include_router(demo_router)
+
+# Mount root beacon endpoint matching injector emission
+app.add_api_route("/beacon.gif", image_callback, methods=["GET"], response_class=Response, include_in_schema=False)
 
 
 @app.api_route(

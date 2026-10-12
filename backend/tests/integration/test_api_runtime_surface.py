@@ -147,6 +147,16 @@ def test_favicon_keeps_route_surface(runtime_client):
     assert proxied_paths == ["/favicon.ico"]
 
 
+def test_beacon_callback_route_resolves_before_catch_all(runtime_client):
+    client, proxied_paths, app = runtime_client
+
+    response = client.get("/beacon.gif", headers={"c": "SB-CANARY-test"})
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("image/gif")
+    assert proxied_paths == []
+    assert "/beacon.gif" in {getattr(route, "path", None) for route in app.routes}
+
+
 def test_unmatched_site_paths_reach_edge_and_control_routes_precede_catch_all(
     runtime_client,
 ):
