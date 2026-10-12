@@ -31,6 +31,12 @@ REQUIRED_FIXTURES = {
     "ProbeRunResponse": "ProbeRunResponse",
     "DemoResetResponse": "DemoResetResponse",
     "ClassifierStatus": "ClassifierStatus",
+    "KBQuery": "KBQuery",
+    "KBQueryResponse": "KBQueryResponse",
+    "KBIngestResponse": "KBIngestResponse",
+    "KBStats": "KBStats",
+    "CallbackEvent": "CallbackEvent",
+    "HoneyKeyEvent": "HoneyKeyEvent",
 }
 
 

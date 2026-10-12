@@ -12,6 +12,8 @@ from .api.overview import router as overview_router
 from .api.probes import router as probes_router
 from .api.sessions import router as sessions_router
 from .api.traffic import router as traffic_router
+from .api.callbacks import router as callbacks_router
+from .kb.ingest import router as kb_router
 from .edge.pipeline import handle
 
 logger = logging.getLogger("sb.main")
@@ -70,6 +72,8 @@ api_v1_router.include_router(canaries_router, tags=["canaries"])
 api_v1_router.include_router(datasets_router, tags=["datasets"])
 api_v1_router.include_router(probes_router, tags=["probes"])
 api_v1_router.include_router(cases_router, tags=["cases"])
+api_v1_router.include_router(kb_router, tags=["kb"])
+api_v1_router.include_router(callbacks_router, tags=["callbacks"])
 app.include_router(api_v1_router)
 
 # Mount demo control API if available (W4 rewrites demo API)

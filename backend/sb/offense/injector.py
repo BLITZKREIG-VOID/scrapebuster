@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import html as html_lib
 import json
 import logging
@@ -655,6 +656,420 @@ def transform_response(
             return deterministic_fallback(ctx, session, upstream, conn=conn)
 
     return content_bytes
+
+
+# =============================================================================
+# Phase 3: Watermark Matrix & RAG Mutation Engine
+# =============================================================================
+
+# Watermark vector types (Phase 3)
+WATERMARK_VECTORS = {
+    "TEXT": "visible linguistic canary in HTML",
+    "API": "additive JSON canary in API responses",
+    "JSONLD": "schema.org JSON-LD watermark",
+    "BEACON": "1x1 pixel beacon with session-bound token",
+    "HONEYKEY": "synthetic API key/secret embedded in content",
+    "SYNTHETIC_JSON": "synthetic JSON records with canary fields",
+}
+
+# Placement strategies for randomization across sessions
+PLACEMENT_STRATEGIES = {
+    "html_before_main": "before </main> tag",
+    "html_before_body": "before </body> tag",
+    "html_after_body_open": "after <body> open tag",
+    "html_in_comment": "inside HTML comment",
+    "json_top_level": "top-level _sb_watermark field",
+    "json_nested": "nested in first object/array element",
+    "jsonld_script": "in <script type='application/ld+json'>",
+    "beacon_img": "1x1 pixel <img> with token in src",
+    "honeykey_in_comment": "fake API key in HTML/JS comment",
+}
+
+
+def generate_session_watermark_token(session_id: str, vector: str, conn=None) -> tuple[str, str]:
+    """Generate a session-bound watermark token using the canary registry.
+    
+    Returns (canary_id, token_value).
+    """
+    norm_vector = registry.normalize_vector(vector)
+    binding = registry.bind_session_canary(
+        session_id=str(session_id),
+        vector=norm_vector,
+        conn=conn,
+    )
+    return binding.canary_id, binding.value
+
+
+def inject_jsonld_watermark(
+    html: str,
+    canary_id: str,
+    token_value: str,
+    session_id: str,
+    schema_type: str = "WebPage",
+) -> str:
+    """Inject schema.org JSON-LD watermark into HTML.
+    
+    Adds a <script type="application/ld+json"> block with watermark data.
+    Additive-safe: returns unchanged if already present.
+    """
+    # Check for both spaced and compact JSON formats
+    check_patterns = [
+        f'"canary_id":"{canary_id}"',  # compact format
+        f'"canary_id": "{canary_id}"',  # spaced format
+    ]
+    if any(pattern in html for pattern in check_patterns):
+        return html
+    
+    jsonld = {
+        "@context": "https://schema.org",
+        "@type": schema_type,
+        "canary_id": canary_id,
+        "watermark_token": token_value,
+        "session_id": session_id,
+        "injected_at": registry.now_iso(),
+    }
+    
+    jsonld_text = json.dumps(jsonld, ensure_ascii=False, separators=(",", ":"))
+    script_tag = f'<script type="application/ld+json">{jsonld_text}</script>'
+    
+    # Insert before </head> or </body>
+    for tag in ["</head>", "</body>"]:
+        idx = html.rfind(tag)
+        if idx >= 0:
+            return html[:idx] + script_tag + html[idx:]
+    
+    return html + script_tag
+
+
+def inject_beacon(
+    html: str,
+    canary_id: str,
+    token_value: str,
+    public_base_url: str = "",
+) -> str:
+    """Inject 1x1 pixel beacon image with session-bound token.
+    
+    The beacon src includes the token for callback correlation.
+    Additive-safe: returns unchanged if beacon already present.
+    """
+    beacon_src = f"{public_base_url}/beacon.gif?c={canary_id}&t={token_value}"
+    beacon_img = f'<img src="{beacon_src}" width="1" height="1" alt="" style="display:none;" data-beacon-canary="{canary_id}">'
+    
+    if beacon_img in html:
+        return html
+    
+    # Insert after <body> open tag
+    m = re.search(r"<body[^>]*>", html, flags=re.IGNORECASE)
+    if m:
+        end = m.end()
+        return html[:end] + beacon_img + html[end:]
+    
+    return html + beacon_img
+
+
+def inject_honeykey(
+    html: str,
+    canary_id: str,
+    token_value: str,
+) -> str:
+    """Inject synthetic honey key (fake API key/secret) in HTML/JS comment.
+    
+    Additive-safe: returns unchanged if honey key already present.
+    """
+    honeykey_comment = f"<!-- HoneyKey: {canary_id} | token={token_value} -->"
+    
+    if honeykey_comment in html:
+        return html
+    
+    # Insert in a JS comment near the end of <head> or before </body>
+    for tag in ["</head>", "</body>"]:
+        idx = html.rfind(tag)
+        if idx >= 0:
+            return html[:idx] + honeykey_comment + "\n" + html[idx:]
+    
+    return html + "\n" + honeykey_comment
+
+
+def inject_synthetic_json_canary(
+    data: Any,
+    canary_id: str,
+    token_value: str,
+    watermark_field: str = "_sb_watermark",
+) -> Any:
+    """Inject synthetic JSON canary with session-bound fields.
+    
+    Adds watermark_field with canary_id, token, and metadata.
+    """
+    watermark_meta = {
+        "canary_id": canary_id,
+        "token": token_value,
+        "injected_at": registry.now_iso(),
+        "type": "synthetic_json_watermark",
+    }
+    
+    if isinstance(data, dict):
+        mutated = dict(data)
+        mutated[watermark_field] = watermark_meta
+        return mutated
+    if isinstance(data, list):
+        mutated = list(data)
+        if mutated and isinstance(mutated[0], dict):
+            first_elem = dict(mutated[0])
+            first_elem[watermark_field] = watermark_meta
+            mutated[0] = first_elem
+        else:
+            mutated.append({watermark_field: watermark_meta})
+        return mutated
+    return data
+
+
+def select_placement_strategy(session_id: str) -> str:
+    """Select a randomized placement strategy based on session ID for consistent per-session placement.
+    
+    Uses session_id hash to ensure consistent but randomized placement across sessions.
+    """
+    strategies = list(PLACEMENT_STRATEGIES.keys())
+    # Use hash of session_id for deterministic but distributed selection
+    hash_val = int(hashlib.sha256(session_id.encode()).hexdigest()[:8], 16)
+    return strategies[hash_val % len(strategies)]
+
+
+def apply_watermark_matrix(
+    content_bytes: bytes,
+    content_type: str,
+    session_id: str,
+    ctx: Any = None,
+    conn=None,
+) -> tuple[bytes, list[dict]]:
+    """Apply the full watermark matrix to eligible content.
+    
+    Returns (mutated_bytes, list_of_applied_watermarks) where each watermark dict contains:
+    - canary_id, vector, value, placement_strategy, placement_location
+    
+    Supports: HTML (TEXT, JSONLD, BEACON, HONEYKEY) and JSON (API, SYNTHETIC_JSON)
+    
+    Uses session mutation cache to avoid re-computing watermarks for identical content.
+    """
+    # Session mutation cache: {session_id: {content_hash: (mutated_bytes, applied)}}
+    # Cache is per-session to ensure session-bound canaries are not shared
+    if not hasattr(apply_watermark_matrix, "_session_cache"):
+        apply_watermark_matrix._session_cache = {}
+    
+    # Compute content hash for cache key
+    import hashlib
+    content_hash = hashlib.sha256(content_bytes).hexdigest()[:16]
+    cache_key = (session_id, content_hash)
+    
+    # Check cache first
+    session_cache = apply_watermark_matrix._session_cache.get(session_id, {})
+    if cache_key in session_cache:
+        cached_bytes, cached_applied = session_cache[cache_key]
+        # Return cached result (fresh copy)
+        return bytes(cached_bytes), list(cached_applied)
+    
+    applied = []
+    
+    if not content_bytes:
+        return content_bytes, applied
+    
+    ct_lower = content_type.lower()
+    is_html = "text/html" in ct_lower or "application/xhtml+xml" in ct_lower
+    is_json = "application/json" in ct_lower or "+json" in ct_lower
+    
+    if not is_html and not is_json:
+        return content_bytes, applied
+    
+    # HTML content
+    if is_html:
+        html_text, encoding = _detect_and_decode_html(content_bytes, content_type)
+        
+        # Get public base URL for beacon
+        public_base_url = ""
+        if ctx and hasattr(ctx, "public_base_url"):
+            public_base_url = ctx.public_base_url
+        elif ctx and hasattr(ctx, "request"):
+            from sb.config import get_public_base_url
+            try:
+                public_base_url = get_public_base_url()
+            except Exception:
+                pass
+        
+        # Apply TEXT canary (primary linguistic watermark)
+        canary_id, token = generate_session_watermark_token(session_id, "TEXT", conn)
+        strategy = select_placement_strategy(session_id + "_text")
+        
+        if strategy == "html_before_main":
+            block_text = f"Security Verification Token: {token}"
+            html_text = insert_canary(html_text, block_text, canary_id=canary_id)
+            applied.append({"canary_id": canary_id, "vector": "TEXT", "value": token, "strategy": strategy})
+        elif strategy == "html_before_body":
+            block_text = f"Security Verification Token: {token}"
+            html_text = insert_canary(html_text, block_text, canary_id=canary_id)
+            applied.append({"canary_id": canary_id, "vector": "TEXT", "value": token, "strategy": strategy})
+        elif strategy == "html_in_comment":
+            comment_text = f"<!-- Watermark: {canary_id} | {token} -->"
+            # Insert before </body>
+            idx = html_text.rfind("</body>")
+            if idx >= 0:
+                html_text = html_text[:idx] + comment_text + "\n" + html_text[idx:]
+            applied.append({"canary_id": canary_id, "vector": "TEXT", "value": token, "strategy": strategy})
+        
+        # Apply JSON-LD watermark
+        canary_id_ld, token_ld = generate_session_watermark_token(session_id, "JSONLD", conn)
+        html_text = inject_jsonld_watermark(html_text, canary_id_ld, token_ld, session_id)
+        applied.append({"canary_id": canary_id_ld, "vector": "JSONLD", "value": token_ld, "strategy": "jsonld_script"})
+        
+        # Apply BEACON
+        canary_id_bc, token_bc = generate_session_watermark_token(session_id, "BEACON", conn)
+        html_text = inject_beacon(html_text, canary_id_bc, token_bc, public_base_url)
+        applied.append({"canary_id": canary_id_bc, "vector": "BEACON", "value": token_bc, "strategy": "beacon_img"})
+        
+        # Apply HONEYKEY
+        canary_id_hk, token_hk = generate_session_watermark_token(session_id, "HONEYKEY", conn)
+        html_text = inject_honeykey(html_text, canary_id_hk, token_hk)
+        applied.append({"canary_id": canary_id_hk, "vector": "HONEYKEY", "value": token_hk, "strategy": "honeykey_in_comment"})
+        
+        html_text = _ensure_utf8_meta(html_text)
+        mutated_bytes = html_text.encode("utf-8")
+        
+    # JSON content
+    elif is_json:
+        try:
+            data = json.loads(content_bytes.decode("utf-8"))
+        except Exception:
+            return content_bytes, applied
+        
+        if not isinstance(data, (dict, list)):
+            return content_bytes, applied
+        
+        # Apply API canary
+        canary_id, token = generate_session_watermark_token(session_id, "API", conn)
+        data = inject_json_canary(data, canary_id, token)
+        applied.append({"canary_id": canary_id, "vector": "API", "value": token, "strategy": "json_top_level"})
+        
+        # Apply SYNTHETIC_JSON watermark
+        canary_id_sj, token_sj = generate_session_watermark_token(session_id, "SYNTHETIC_JSON", conn)
+        data = inject_synthetic_json_canary(data, canary_id_sj, token_sj)
+        applied.append({"canary_id": canary_id_sj, "vector": "SYNTHETIC_JSON", "value": token_sj, "strategy": "json_top_level"})
+        
+        mutated_bytes = json.dumps(data, ensure_ascii=False).encode("utf-8")
+    
+    else:
+        return content_bytes, applied
+    
+    # Store in session cache
+    if session_id not in apply_watermark_matrix._session_cache:
+        apply_watermark_matrix._session_cache[session_id] = {}
+    apply_watermark_matrix._session_cache[session_id][cache_key] = (
+        bytes(mutated_bytes),
+        [dict(w) for w in applied],  # Deep copy
+    )
+    
+    return mutated_bytes, applied
+
+
+def watermark_fallback_core(
+    ctx: Any,
+    session: Any,
+    upstream: Any,
+    conn=None,
+) -> tuple[bytes, bool]:
+    """Fallback watermark injection that applies full watermark matrix.
+    
+    Used when primary mutation fails or for explicit watermark-only mode.
+    """
+    if upstream is None:
+        return b"", False
+    
+    status_code = getattr(upstream, "status_code", 200)
+    if status_code in (204, 304):
+        content = getattr(upstream, "content", b"") or b""
+        return (content if isinstance(content, bytes) else bytes(content or b"")), False
+    
+    method = getattr(ctx, "method", "")
+    if not method and hasattr(ctx, "request"):
+        method = getattr(ctx.request, "method", "")
+    if str(method).upper() == "HEAD":
+        content = getattr(upstream, "content", b"") or b""
+        return (content if isinstance(content, bytes) else bytes(content or b"")), False
+    
+    content_bytes = getattr(upstream, "content", b"") or b""
+    if not isinstance(content_bytes, bytes):
+        content_bytes = bytes(content_bytes or b"")
+    
+    if not content_bytes:
+        return b"", False
+    
+    headers = getattr(upstream, "headers", {}) or {}
+    content_type = ""
+    if hasattr(headers, "get"):
+        content_type = headers.get("content-type", "") or ""
+    elif isinstance(headers, Mapping):
+        for k, v in headers.items():
+            if str(k).lower() == "content-type":
+                content_type = str(v)
+                break
+    
+    session_id = getattr(session, "session_id", None) or getattr(ctx, "session_id", None) or "anon"
+    
+    try:
+        mutated_bytes, applied = apply_watermark_matrix(
+            content_bytes=content_bytes,
+            content_type=content_type,
+            session_id=session_id,
+            ctx=ctx,
+            conn=conn,
+        )
+        
+        if not applied:
+            return content_bytes, False
+        
+        # Record all applied watermarks
+        for wm in applied:
+            registry.record_exposure(
+                canary_id=wm["canary_id"],
+                session=session,
+                ctx=ctx,
+                resource=getattr(ctx, "path", ""),
+                block_text=wm["value"],
+                vector=wm["vector"],
+                outcome="success",
+                conn=conn,
+            )
+            _note_exposure(session, wm["canary_id"], conn=conn)
+            registry.record_injection_outcome(
+                canary_id=wm["canary_id"],
+                vector=wm["vector"],
+                session_id=str(session_id),
+                time=registry.now_iso(),
+                outcome="success",
+                resource=getattr(ctx, "path", ""),
+                conn=conn,
+            )
+        
+        return mutated_bytes, True
+    
+    except Exception as exc:
+        logger.error("Watermark matrix fallback error: %s", exc)
+        _append_fault_record({
+            "event_type": "watermark_matrix_fallback_error",
+            "session_id": str(session_id),
+            "client_key": getattr(ctx, "client_key", ""),
+            "path": getattr(ctx, "path", ""),
+            "error": str(exc),
+            "ts": registry.now_iso(),
+        }, conn=conn)
+        return content_bytes, False
+
+
+def get_watermark_matrix_info() -> dict:
+    """Return information about available watermark vectors and placement strategies."""
+    return {
+        "vectors": WATERMARK_VECTORS,
+        "placement_strategies": PLACEMENT_STRATEGIES,
+        "total_vectors": len(WATERMARK_VECTORS),
+        "total_strategies": len(PLACEMENT_STRATEGIES),
+    }
 
 
 def handle_decoy(

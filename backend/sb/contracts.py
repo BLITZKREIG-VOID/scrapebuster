@@ -438,3 +438,63 @@ class DemoResetResponse(BaseModel):
     ok: bool
     run_id: str
     checks: list[DemoResetCheck]
+
+
+class KBQuery(BaseModel):
+    query: str
+    top_k: int = 5
+    filters: dict[str, str] = Field(default_factory=dict)
+    include_content: bool = True
+    session_id: str | None = None
+
+
+class KBQueryResponse(BaseModel):
+    query: str
+    results: list[dict[str, Any]] = Field(default_factory=list)
+    total_found: int
+    query_time_ms: float
+    fallback_used: bool = False
+
+
+class KBIngestRequest(BaseModel):
+    title: str
+    content: str
+    source: str
+    doc_type: str
+    metadata: dict[str, str] = Field(default_factory=dict)
+    chunk_size: int = 500
+    chunk_overlap: int = 50
+
+
+class KBIngestResponse(BaseModel):
+    doc_id: str
+    chunks_created: int
+    status: str
+
+
+class KBStats(BaseModel):
+    total_documents: int
+    total_chunks: int
+    total_vectors: int
+    storage_size_bytes: int
+    last_updated: str
+
+
+class CallbackEvent(BaseModel):
+    callback_id: str
+    canary_id: str | None = None
+    session_id: str | None = None
+    token_verified: bool = False
+    binding_value: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    ts: str
+
+
+class HoneyKeyEvent(BaseModel):
+    event_id: str
+    key_id: str
+    key_value: str
+    source_url: str | None = None
+    session_id: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    ts: str

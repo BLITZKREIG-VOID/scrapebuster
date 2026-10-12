@@ -47,14 +47,14 @@ def format_canary_id(session_id: str, seq: int) -> str:
 
 
 def normalize_vector(vector: str) -> str:
-    """Normalize vector identifiers to PRD standard (API/TEXT/JSONLD)."""
+    """Normalize vector identifiers to PRD standard (API/TEXT/JSONLD/BEACON/HONEYKEY)."""
     v = (vector or "").strip()
     v_upper = v.upper()
     if v_upper in ("HTML", "TEXT"):
         return "TEXT"
     if v_upper in ("JSON", "API"):
         return "API"
-    if v_upper in ("JSONLD", "BEACON", "DNS", "HONEYKEY"):
+    if v_upper in ("JSONLD", "BEACON", "DNS", "HONEYKEY", "HONEY_KEY"):
         return v_upper
     return v_upper or "TEXT"
 

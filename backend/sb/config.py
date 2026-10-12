@@ -255,3 +255,8 @@ def get_telemetry_flush_interval_ms() -> int:
         pass
     return SB_TELEMETRY_FLUSH_INTERVAL_MS
 
+
+def get_public_base_url() -> str:
+    """Return runtime configured public base URL."""
+    return os.getenv("SB_PUBLIC_BASE_URL", SB_PUBLIC_BASE_URL).strip()
+

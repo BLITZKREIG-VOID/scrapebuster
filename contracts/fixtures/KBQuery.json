@@ -1,0 +1,9 @@
+{
+  "query": "What is the refund policy for premium subscriptions?",
+  "top_k": 3,
+  "filters": {
+    "source": "brand"
+  },
+  "include_content": true,
+  "session_id": "sess-001"
+}

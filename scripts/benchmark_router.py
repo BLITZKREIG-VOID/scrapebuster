@@ -82,11 +82,6 @@ async def run_benchmark(iterations: int = 1000, output_path: Path | None = None)
     from sb.classifier.classifier import classifier as default_classifier
 
     # Patch TelemetryTap methods to avoid DB contention during benchmark
-    original_start = TelemetryTap.start
-    original_stop = TelemetryTap.stop
-    original_enqueue = TelemetryTap.enqueue_request
-    original_flush = TelemetryTap.flush
-    
     @classmethod
     async def benchmark_start(cls):
         cls._running = True
