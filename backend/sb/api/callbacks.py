@@ -122,39 +122,48 @@ def _append_callback_event(
 # ---------------------------------------------------------------------------
 
 @router.get("/image.gif", response_class=Response)
+@router.get("/beacon.gif", response_class=Response)
 async def image_callback(
     request: Request,
-    c: str = Header(..., alias="c", description="Canary ID"),
-    t: str | None = Header(None, alias="t", description="Optional token"),
-    s: str | None = Header(None, alias="s", description="Optional session ID"),
+    c: str | None = Query(None, description="Canary ID"),
+    t: str | None = Query(None, description="Optional token"),
+    s: str | None = Query(None, description="Optional session ID"),
+    c_header: str | None = Header(None, alias="c"),
+    t_header: str | None = Header(None, alias="t"),
+    s_header: str | None = Header(None, alias="s"),
 ) -> Response:
-    """Image callback endpoint returning 1A-1 transparent GIF.
+    """Image callback endpoint returning 1x1 transparent GIF.
     
     Correlates canary ID to session via registry binding.
     Exempt from mutation pipeline.
     Persists callback event to forensic ledger.
     """
+    canary_id = c or c_header
+    token_val = t or t_header
+    session_id = s or s_header
+    if not canary_id:
+        raise HTTPException(status_code=400, detail="Missing required canary parameter 'c'")
+
     callback_id = f"CBK-{secrets.token_hex(4)}"
     ts = datetime.now(UTC).isoformat(timespec="microseconds").replace("+00:00", "Z")
     metadata = _extract_request_metadata(request)
 
     # Resolve session from canary ID
-    session_id = s
     binding_value = None
-    if c and not session_id:
-        resolved = _resolve_session_from_canary(c)
+    if canary_id and not session_id:
+        resolved = _resolve_session_from_canary(canary_id)
         if resolved:
             session_id, binding_value = resolved
 
     # Verify token if provided
     token_verified = False
-    if t and binding_value and t == binding_value:
+    if token_val and binding_value and token_val == binding_value:
         token_verified = True
 
     # Persist callback event
     callback_record = {
         "callback_id": callback_id,
-        "canary_id": c,
+        "canary_id": canary_id,
         "session_id": session_id,
         "token_verified": token_verified,
         "binding_value": binding_value,
@@ -180,7 +189,7 @@ async def image_callback(
         media_type="image/gif",
         headers={
             "Cache-Control": "no-store, private, max-age=0",
-            "X-Callback-ID": f"CBK-{secrets.token_hex(4)}",
+            "X-Callback-ID": callback_id,
         },
     )
 

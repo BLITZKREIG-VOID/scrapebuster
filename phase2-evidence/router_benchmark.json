@@ -1,0 +1,62 @@
+{
+  "benchmark": "Phase 2 Dynamic Router and Fast Path Latency",
+  "iterations": 25,
+  "scheduled_rps": 50,
+  "telemetry_tap_monkeypatched": false,
+  "fast_path_bytes_identical_count": 25,
+  "fast_path_bytes_identical_rate": 1.0,
+  "nfr_targets": {
+    "router_evaluation_budget_p95_ms": 2.0,
+    "fast_path_added_latency_p95_ms": 5.0,
+    "sandbox_path_latency_p95_ms": 50.0
+  },
+  "router_evaluation_overhead": {
+    "p50_ms": 0.013,
+    "p90_ms": 0.014,
+    "p95_ms": 0.014,
+    "p99_ms": 0.015,
+    "mean_ms": 0.013,
+    "max_ms": 0.015,
+    "count": 25
+  },
+  "raw_origin_e2e": {
+    "p50_ms": 2.711,
+    "p90_ms": 5.05,
+    "p95_ms": 5.98,
+    "p99_ms": 11.586,
+    "mean_ms": 3.369,
+    "max_ms": 11.586,
+    "count": 25
+  },
+  "proxy_fast_path_e2e": {
+    "p50_ms": 2.606,
+    "p90_ms": 5.252,
+    "p95_ms": 6.353,
+    "p99_ms": 10.894,
+    "mean_ms": 3.371,
+    "max_ms": 10.894,
+    "count": 25
+  },
+  "paired_deltas_unclipped": {
+    "p50_ms": 0.169,
+    "p90_ms": 0.742,
+    "p95_ms": 0.851,
+    "p99_ms": 6.424,
+    "mean_ms": 0.002,
+    "max_ms": 6.424,
+    "count": 25
+  },
+  "proxy_sandbox_e2e": {
+    "p50_ms": 9.188,
+    "p90_ms": 12.077,
+    "p95_ms": 12.077,
+    "p99_ms": 17.688,
+    "mean_ms": 10.071,
+    "max_ms": 17.688,
+    "count": 12
+  },
+  "passed_router_budget": true,
+  "passed_fast_path_nfr": true,
+  "passed_sandbox_nfr": true,
+  "passed_bytes_identity": true
+}

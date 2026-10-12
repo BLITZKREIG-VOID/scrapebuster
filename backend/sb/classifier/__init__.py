@@ -2,6 +2,8 @@
 
 from .classifier import ARClassifier, ClassificationResult, classifier
 from .store import (
+    drain_classifier_store,
+    flush_classifier_store,
     get_route_baseline,
     list_route_baselines,
     reset_classifier_store,
@@ -12,6 +14,8 @@ __all__ = [
     "ARClassifier",
     "ClassificationResult",
     "classifier",
+    "drain_classifier_store",
+    "flush_classifier_store",
     "get_route_baseline",
     "update_route_baseline",
     "list_route_baselines",

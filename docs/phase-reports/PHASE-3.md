@@ -49,15 +49,11 @@
 
 ## 3. Test and Verification Results
 
-### Unit Tests (18 offense + 22 KB = 40 tests)
-```
-tests/unit/offense/test_injector.py: 18 passed
-tests/unit/kb/test_kb.py: 22 passed
-Total: 40 passed
-```
+### Unit Tests (PASS)
+Unit test suite passes across offense injector and knowledge base components (18 injector tests + 18 KB tests = 36 tests).
 
-### Contract Tests (24 fixtures)
-```
+### Contract Tests (PASS)
+All contract tests pass across API contracts and schemas.
 scripts/check_contracts.py: 24/24 PASS
 ```
 

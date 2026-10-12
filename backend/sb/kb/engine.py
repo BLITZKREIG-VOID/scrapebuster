@@ -119,20 +119,21 @@ class KBEngine:
     
     def _chunk_text(self, text: str, chunk_size: int = 500, overlap: int = 50) -> list[str]:
         """Split text into overlapping chunks."""
+        if not text:
+            return [""]
         if len(text) <= chunk_size:
             return [text]
         
         chunks = []
         start = 0
+        step = max(1, chunk_size - overlap)
         while start < len(text):
             end = min(start + chunk_size, len(text))
             chunk = text[start:end]
             chunks.append(chunk)
             if end >= len(text):
                 break
-            start = end - overlap
-            if start >= len(text):
-                break
+            start += step
         return chunks
     
     def ingest(self, request: KBIngestRequest) -> KBIngestResponse:

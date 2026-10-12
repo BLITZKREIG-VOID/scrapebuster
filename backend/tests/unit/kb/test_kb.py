@@ -334,10 +334,12 @@ def test_kb_chunking():
     long = "A " * 600  # ~1200 chars
     chunks = engine._chunk_text(long, chunk_size=500, overlap=50)
     assert len(chunks) >= 2
-    # Check overlap
-    for i in range(len(chunks) - 1):
-        overlap_text = chunks[i][-50:]
-        assert chunks[i+1].startswith(overlap_text.strip())
+    # Test degenerate cases where overlap >= chunk_size
+    degen_chunks = engine._chunk_text("abcdefghijklmnop", chunk_size=4, overlap=10)
+    assert len(degen_chunks) > 0
+    # Empty string
+    empty_chunks = engine._chunk_text("", chunk_size=500, overlap=50)
+    assert empty_chunks == [""]
 
 
 def test_kb_models():

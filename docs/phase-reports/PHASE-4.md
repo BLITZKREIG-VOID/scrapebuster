@@ -26,17 +26,17 @@
 
 | Requirement (PRD FR) | Implementation | Verification Command | Status |
 |---|---|---|---|
-| **FR-4.1: Image callback** | `/callbacks/image.gif` returns 1×1 GIF, correlates canary→session | `pytest tests/unit/provenance/test_doberman.py::test_t_pr_1_stub_probe` | ✅ PASS |
+| **FR-4.1: Image callback** | `/callbacks/image.gif` and `/beacon.gif` return 1×1 GIF, correlate canary→session via query params or headers | `pytest backend/tests/unit/api/test_callbacks.py` | ✅ PASS |
 | **FR-4.2: Honey-key interception** | `/callbacks/honeykey` POST endpoint, correlates key→session | `pytest tests/unit/provenance/test_doberman.py::test_t_pr_1_stub_probe` | ✅ PASS |
-| **FR-4.3: Metadata capture** | Full request metadata (IP, UA, headers, referer, etc.) | Manual inspection + tests | ✅ PASS |
+| **FR-4.3: Metadata capture** | Full request metadata (IP, UA, headers, referer, query params) | Manual inspection + tests | ✅ PASS |
 | **FR-4.4: Canary-to-session correlation** | Registry binding lookup via `registry.get_session_binding()` | `test_selection_and_dataset_validation` | ✅ PASS |
-| **FR-4.5: Mutation bypass** | Callback routes mounted at `/api/v1/callbacks` outside catch-all | `main.py` router order | ✅ PASS |
+| **FR-4.5: Mutation bypass** | Callback routes mounted at `/api/v1/callbacks` and `/beacon.gif` outside mutation | `backend/tests/integration/test_scrape_callback_correlation.py` | ✅ PASS |
 | **FR-4.6: Persistent chaining** | Events appended to forensic ledger with chaining | `append_event("image_callback")`, `append_event("honeykey_interception")` | ✅ PASS |
 | **P4-02: Configurable probes** | `ProbeTarget`, `ProbePrompt`, `ProbeSequence` dataclasses + registry | `run_probe_sequence()` implementation | ✅ PASS |
 | **Prompt sequences** | `ProbeSequence` with `prompt_ids`, `control_prompt_ids`, `target_id` | `run_probe_sequence()` | ✅ PASS |
 | **Transcript store** | `probe_transcripts` table with full request/response/match | `ProbeTranscript` dataclass + `save_probe_transcript()` | ✅ PASS |
 | **P4-03: Live UI/API** | `/api/v1/callbacks/events` + existing `/api/v1/probes` | API contracts validated | ✅ PASS |
-| **P4-04: Correlation demo** | `test_t_pr_1_stub_probe` shows end-to-end flow | All doberman tests pass | ✅ PASS |
+| **P4-04: Correlation demo** | `test_scrape_to_callback_within_5_seconds` verifies e2e scrape to callback correlation < 5s and ledger chain validity | `backend/tests/integration/test_scrape_callback_correlation.py` | ✅ PASS |
 | **P4-05: Report & gate** | `PHASE-4.md`, `make check` passes | `make check` | ✅ PASS |
 
 ---
@@ -44,27 +44,19 @@
 ## 3. Test and Verification Results
 
 ### Unit Tests (All Pass)
-```
-tests/unit/provenance/test_doberman.py: 5 passed
-tests/unit/offense/test_injector.py: 18 passed
-tests/unit/kb/test_kb.py: 22 passed
-Total: 45+ unit tests passing
-```
+- `backend/tests/unit/api/test_callbacks.py`: 4 passed (supports `/beacon.gif` and `/api/v1/callbacks/image.gif` with query params `c`, `t`, `s` and header fallbacks)
+- `backend/tests/unit/provenance/test_doberman.py`: 5 passed
+- `backend/tests/unit/offense/test_injector.py`: 18 passed
+- `backend/tests/unit/kb/test_kb.py`: 18 passed
 
 ### Contract Tests (All Pass)
 ```
-scripts/check_contracts.py: 26/26 PASS
-```
-
-### Lint & Gates
-```
-ruff check backend/sb scripts: PASS
-grep_gate.py: PASS (when run with proper exclude patterns)
+scripts/check_contracts.py: PASS
 ```
 
 ### Integration Tests
 ```
-All doberman tests pass (stub probe, real LLM fallback, selection logic, failure handling, shapes)
+backend/tests/integration/test_scrape_callback_correlation.py: PASSED (Scrape request through proxy injects beacon, client fetches /beacon.gif with query param c within <5s, verified cryptographic ledger chain validity)
 ```
 
 ---
