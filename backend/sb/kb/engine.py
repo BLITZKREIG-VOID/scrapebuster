@@ -128,6 +128,8 @@ class KBEngine:
             end = min(start + chunk_size, len(text))
             chunk = text[start:end]
             chunks.append(chunk)
+            if end >= len(text):
+                break
             start = end - overlap
             if start >= len(text):
                 break
