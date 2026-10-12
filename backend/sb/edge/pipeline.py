@@ -9,7 +9,7 @@ import logging
 import re
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -38,7 +38,7 @@ def extract_canary_ids(body: bytes) -> tuple[str, ...]:
             if res:
                 return tuple(res)
     except Exception:
-        pass
+        logger.debug("Best-effort step failed (suppressed)", exc_info=True)
 
     try:
         from ..offense.injector import extract_canary_ids as inj_extract
@@ -48,7 +48,7 @@ def extract_canary_ids(body: bytes) -> tuple[str, ...]:
             if res:
                 return tuple(res)
     except Exception:
-        pass
+        logger.debug("Best-effort step failed (suppressed)", exc_info=True)
 
     # Standard fallback regex matching SB-CANARY-<session_hash>-<seq>
     pattern = re.compile(rb"SB-CANARY-[a-fA-F0-9]+-\d+")
@@ -70,7 +70,7 @@ def _build_minimal_context(request: Request) -> RequestContext:
     """Build safe minimal request context when standard context construction fails."""
     try:
         return RequestContext(request)
-    except Exception:
+    except Exception:  # noqa: BLE001 - fail-open edge guard; pluggable hooks/router/tap must never break request serving
         ctx = RequestContext.__new__(RequestContext)
         ctx.request = request
         ctx.ip = getattr(getattr(request, "client", None), "host", "127.0.0.1") or "127.0.0.1"
@@ -95,7 +95,7 @@ def _get_offense_hooks():
 
         if offense_hooks is not None:
             return offense_hooks.handle_decoy, offense_hooks.transform_response
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - fail-open edge guard; pluggable hooks/router/tap must never break request serving
         logger.warning("Could not resolve offense_hooks from sb.hooks: %s", exc)
 
     try:
@@ -111,7 +111,7 @@ def _append_fault_record(record: dict[str, Any]) -> None:
     """Append fault record to durable store and ledger without unchained silent failure."""
     try:
         append_event("fault", record)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - fail-open edge guard; pluggable hooks/router/tap must never break request serving
         logger.error("Failed to append fault event to ledger: %s", exc)
 
 
@@ -251,20 +251,20 @@ async def handle(request: Request) -> Response:
     # Guard prefetch context and session creation
     try:
         ctx = build_context(request)
-    except Exception as ctx_err:
+    except Exception as ctx_err:  # noqa: BLE001 - fail-open edge guard; pluggable hooks/router/tap must never break request serving
         logger.error("Prefetch build_context failed for %s: %s", getattr(request, "url", "/"), ctx_err)
         ctx = _build_minimal_context(request)
         _append_fault_record({
             "event_type": "prefetch_context_fault",
             "path": getattr(ctx, "path", "/"),
             "error": str(ctx_err),
-            "ts": datetime.now(timezone.utc).isoformat(),
+            "ts": datetime.now(UTC).isoformat(),
         })
 
     try:
         session = sessions.get_or_create(ctx)
         session.record_request(ctx)
-    except Exception as sess_err:
+    except Exception as sess_err:  # noqa: BLE001 - fail-open edge guard; pluggable hooks/router/tap must never break request serving
         logger.error("Prefetch sessions.get_or_create failed for %s: %s", getattr(ctx, "path", "/"), sess_err)
         session = _build_minimal_session(ctx)
         _append_fault_record({
@@ -272,19 +272,19 @@ async def handle(request: Request) -> Response:
             "session_id": getattr(session, "session_id", "unknown"),
             "path": getattr(ctx, "path", "/"),
             "error": str(sess_err),
-            "ts": datetime.now(timezone.utc).isoformat(),
+            "ts": datetime.now(UTC).isoformat(),
         })
 
     try:
         init_request(ctx, session)
-    except Exception as init_err:
+    except Exception as init_err:  # noqa: BLE001 - fail-open edge guard; pluggable hooks/router/tap must never break request serving
         logger.error("Prefetch init_request failed for %s: %s", getattr(ctx, "path", "/"), init_err)
         _append_fault_record({
             "event_type": "prefetch_init_fault",
             "session_id": getattr(session, "session_id", "unknown"),
             "path": getattr(ctx, "path", "/"),
             "error": str(init_err),
-            "ts": datetime.now(timezone.utc).isoformat(),
+            "ts": datetime.now(UTC).isoformat(),
         })
 
     # Measure passive tap overhead (PRD FR1.1, FR1.4 tap added latency target p95 < 5ms)
@@ -294,12 +294,12 @@ async def handle(request: Request) -> Response:
         response = await _handle_request(ctx, session, tap_latency_ms=tap_latency_ms)
         return response
     except Exception as unhandled_err:
-        logger.exception("Unhandled pipeline error: %s", unhandled_err)
+        logger.exception("Unhandled pipeline error")
         _append_fault_record({
             "event_type": "unhandled_pipeline_error",
             "path": getattr(ctx, "path", "/"),
             "error": str(unhandled_err),
-            "ts": datetime.now(timezone.utc).isoformat(),
+            "ts": datetime.now(UTC).isoformat(),
         })
         return Response(content=b"Bad Gateway", status_code=502, media_type="text/plain")
 
@@ -310,13 +310,13 @@ async def _handle_request(ctx: RequestContext, session: Session, tap_latency_ms:
     is_trap = False
     try:
         is_trap = is_trap_path(ctx.path)
-    except Exception as trap_cfg_err:
+    except Exception as trap_cfg_err:  # noqa: BLE001 - fail-open edge guard; pluggable hooks/router/tap must never break request serving
         logger.warning("Trap config/predicate fault for %s: %s; falling through to upstream", ctx.path, trap_cfg_err)
         _append_fault_record({
             "event_type": "trap_config_error",
             "path": ctx.path,
             "error": str(trap_cfg_err),
-            "ts": datetime.now(timezone.utc).isoformat(),
+            "ts": datetime.now(UTC).isoformat(),
         })
 
     if is_trap:
@@ -353,17 +353,17 @@ async def _handle_request(ctx: RequestContext, session: Session, tap_latency_ms:
                             served_canary_ids=served_canaries,
                             tap_latency_ms=tap_latency_ms + (time.perf_counter() - t_enq_start) * 1000.0,
                         )
-                    except Exception as storage_err:
+                    except Exception as storage_err:  # noqa: BLE001 - fail-open edge guard; pluggable hooks/router/tap must never break request serving
                         logger.error("Decoy telemetry enqueue fault for %s: %s", ctx.path, storage_err)
                     return decoy_resp
-        except Exception as decoy_err:
+        except Exception as decoy_err:  # noqa: BLE001 - fail-open edge guard; pluggable hooks/router/tap must never break request serving
             logger.error("Decoy handling fault for %s: %s; falling through to upstream", ctx.path, decoy_err)
             _append_fault_record({
                 "event_type": "decoy_handling_fault",
                 "session_id": getattr(session, "session_id", "unknown"),
                 "path": ctx.path,
                 "error": str(decoy_err),
-                "ts": datetime.now(timezone.utc).isoformat(),
+                "ts": datetime.now(UTC).isoformat(),
             })
 
     # 2. Upstream fetch (tracked; forward once, never replay possibly sent non-idempotent request)
@@ -394,10 +394,10 @@ async def _handle_request(ctx: RequestContext, session: Session, tap_latency_ms:
                 "error": str(exc),
                 "upstream_attempted": upstream_attempted,
                 "upstream_sent": upstream_sent,
-                "ts": datetime.now(timezone.utc).isoformat(),
+                "ts": datetime.now(UTC).isoformat(),
             })
         except Exception:
-            pass
+            logger.debug("Best-effort step failed (suppressed)", exc_info=True)
         try:
             record_decision(session, "ORIGIN", "SANDBOX")
             TelemetryTap.enqueue_request(
@@ -410,13 +410,13 @@ async def _handle_request(ctx: RequestContext, session: Session, tap_latency_ms:
                 tap_latency_ms=tap_latency_ms,
             )
         except Exception:
-            pass
+            logger.debug("Best-effort step failed (suppressed)", exc_info=True)
         return Response(
             content=b"Gateway Timeout",
             status_code=504,
             media_type="text/plain",
         )
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - fail-open edge guard; pluggable hooks/router/tap must never break request serving
         upstream_sent = True
         logger.error(
             "Upstream proxy connection failed for %s %s: %s",
@@ -435,10 +435,10 @@ async def _handle_request(ctx: RequestContext, session: Session, tap_latency_ms:
                 "error": str(exc),
                 "upstream_attempted": upstream_attempted,
                 "upstream_sent": upstream_sent,
-                "ts": datetime.now(timezone.utc).isoformat(),
+                "ts": datetime.now(UTC).isoformat(),
             })
         except Exception:
-            pass
+            logger.debug("Best-effort step failed (suppressed)", exc_info=True)
         try:
             record_decision(session, "ORIGIN", "SANDBOX")
             TelemetryTap.enqueue_request(
@@ -451,7 +451,7 @@ async def _handle_request(ctx: RequestContext, session: Session, tap_latency_ms:
                 tap_latency_ms=tap_latency_ms,
             )
         except Exception:
-            pass
+            logger.debug("Best-effort step failed (suppressed)", exc_info=True)
         return Response(
             content=b"Bad Gateway: Origin unreachable",
             status_code=502,
@@ -483,7 +483,7 @@ async def _handle_request(ctx: RequestContext, session: Session, tap_latency_ms:
         session.confidence_score = router_res.confidence_score
         session.router_decision = router_decision
         reasons = list(router_res.reasons)
-    except Exception as router_err:
+    except Exception as router_err:  # noqa: BLE001 - fail-open edge guard; pluggable hooks/router/tap must never break request serving
         logger.error("Router evaluation error for %s: %s; fail-offensive to SANDBOX", ctx.path, router_err)
         _append_fault_record({
             "event_type": "router_evaluation_fault",
@@ -491,7 +491,7 @@ async def _handle_request(ctx: RequestContext, session: Session, tap_latency_ms:
             "path": ctx.path,
             "error": str(router_err),
             "fallback_decision": "SANDBOX",
-            "ts": datetime.now(timezone.utc).isoformat(),
+            "ts": datetime.now(UTC).isoformat(),
         })
         decision = "SANDBOX"
         router_decision = "SANDBOX"
@@ -527,7 +527,7 @@ async def _handle_request(ctx: RequestContext, session: Session, tap_latency_ms:
 
                             body, mutated = deterministic_fallback_core(ctx, session, upstream_captured)
                             reasons = [canary_reason] if mutated else ["mutation_failed_pass"]
-                    except Exception as mut_err:
+                    except Exception as mut_err:  # noqa: BLE001 - fail-open edge guard; pluggable hooks/router/tap must never break request serving
                         logger.error(
                             "Primary offense mutation error for %s: %s; running registered deterministic fallback",
                             ctx.path,
@@ -539,7 +539,7 @@ async def _handle_request(ctx: RequestContext, session: Session, tap_latency_ms:
                             "client_key": getattr(ctx, "client_key", ""),
                             "path": ctx.path,
                             "error": str(mut_err),
-                            "ts": datetime.now(timezone.utc).isoformat(),
+                            "ts": datetime.now(UTC).isoformat(),
                         })
                         from sb.offense.injector import deterministic_fallback_core
 
@@ -567,9 +567,8 @@ async def _handle_request(ctx: RequestContext, session: Session, tap_latency_ms:
     except Exception as fallback_err:
         # TOTAL internal mutation fault: best-effort captured original upstream status/body/headers UNMUTATED
         logger.exception(
-            "Total mutation internal fault for %s: %s; reverting to unmutated upstream pass",
+            "Total mutation internal fault for %s; reverting to unmutated upstream pass",
             ctx.path,
-            fallback_err,
         )
         _append_fault_record({
             "event_type": "total_mutation_fault",
@@ -577,7 +576,7 @@ async def _handle_request(ctx: RequestContext, session: Session, tap_latency_ms:
             "path": ctx.path,
             "error": str(fallback_err),
             "outcome": "failed",
-            "ts": datetime.now(timezone.utc).isoformat(),
+            "ts": datetime.now(UTC).isoformat(),
         })
         body = original_content
         mutated = False
@@ -602,25 +601,25 @@ async def _handle_request(ctx: RequestContext, session: Session, tap_latency_ms:
             route_class=route_class,
         )
     except Exception as internal_err:
-        logger.exception("Internal telemetry tap enqueue fault: %s", internal_err)
+        logger.exception("Internal telemetry tap enqueue fault")
         _append_fault_record({
             "event_type": "telemetry_enqueue_fault",
             "session_id": getattr(session, "session_id", "unknown"),
             "client_key": getattr(ctx, "client_key", ""),
             "path": ctx.path,
             "error": str(internal_err),
-            "ts": datetime.now(timezone.utc).isoformat(),
+            "ts": datetime.now(UTC).isoformat(),
         })
 
     try:
         return build_proxy_response(upstream_captured, body, mutated, ctx.request.method)
     except Exception as resp_err:
-        logger.exception("build_proxy_response fault: %s", resp_err)
+        logger.exception("build_proxy_response fault")
         _append_fault_record({
             "event_type": "response_build_fault",
             "error": str(resp_err),
             "path": ctx.path,
-            "ts": datetime.now(timezone.utc).isoformat(),
+            "ts": datetime.now(UTC).isoformat(),
         })
         # Robust fallback: preserve upstream headers (filtering hop-by-hop), HEAD empty body, repeated cookies
         is_head = ctx.request.method.upper() == "HEAD"

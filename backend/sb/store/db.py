@@ -2,7 +2,7 @@ import logging
 import os
 import sqlite3
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 logger = logging.getLogger("sb.store.db")
 
@@ -59,13 +59,12 @@ def init_db() -> None:
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='forensic_ledger'")
             has_ledger = cursor.fetchone() is not None
 
-            if total_user_tables > 0:
-                # Established non-empty database: reject bootstrap if missing initialized marker or ledger
-                if not is_initialized or not has_ledger:
-                    raise sqlite3.OperationalError(
-                        "Non-empty database lacks valid initialization marker or forensic_ledger: "
-                        "database is TAMPERED or unsupported old store; refusing to silently recreate dropped audit history"
-                    )
+            # Established non-empty database: reject bootstrap if missing initialized marker or ledger
+            if total_user_tables > 0 and (not is_initialized or not has_ledger):
+                raise sqlite3.OperationalError(
+                    "Non-empty database lacks valid initialization marker or forensic_ledger: "
+                    "database is TAMPERED or unsupported old store; refusing to silently recreate dropped audit history"
+                )
 
             with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
                 schema_script = f.read()
@@ -174,7 +173,7 @@ def reset_db() -> None:
                 "reset",
                 {
                     "reason": "operational_reset",
-                    "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                    "ts": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
                 },
                 conn=conn,
             )
@@ -183,8 +182,9 @@ def reset_db() -> None:
         except Exception:
             try:
                 conn.execute("ROLLBACK")
-            except Exception:
-                pass
+            except sqlite3.Error:
+                # Best-effort rollback: surface the original error, not this one.
+                logger.warning("ROLLBACK failed after transaction error", exc_info=True)
             raise
         finally:
             conn.close()
@@ -194,5 +194,5 @@ def reset_db() -> None:
 if not os.path.exists(DB_PATH):
     try:
         init_db()
-    except Exception as exc:
+    except (sqlite3.Error, OSError) as exc:
         logger.error("Could not auto-initialize DB on import: %s", exc)

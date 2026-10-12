@@ -14,15 +14,17 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import sqlite3
 import threading
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Callable
+from collections.abc import Callable
+from datetime import UTC, datetime
+from typing import Any
 
 from ..config import (
+    SB_TELEMETRY_QUEUE_MAXSIZE,
     get_telemetry_batch_size,
     get_telemetry_flush_interval_ms,
-    SB_TELEMETRY_QUEUE_MAXSIZE,
 )
 from .context import RequestContext
 from .session import Session
@@ -120,7 +122,7 @@ def _fallback_persist_telemetry_batch(
                             ev.get("route_class", "unknown"),
                         ),
                     )
-                except Exception as ex:
+                except sqlite3.Error as ex:
                     # In case traffic_events table does not have new Phase 1 columns yet in existing DB
                     try:
                         conn.execute(
@@ -150,7 +152,7 @@ def _fallback_persist_telemetry_batch(
                                 ev.get("route_class", "unknown"),
                             ),
                         )
-                    except Exception:
+                    except sqlite3.Error:
                         logger.error("Failed to insert traffic_event fallback: %s", ex)
 
             # 2. Update mutable sessions projection
@@ -226,7 +228,7 @@ def _fallback_persist_telemetry_batch(
                             json.dumps(s.get("event_ids", [])),
                         ),
                     )
-                except Exception as ex:
+                except sqlite3.Error as ex:
                     # In case sessions table has Phase 0 schema (with 'ip' column)
                     try:
                         conn.execute(
@@ -274,7 +276,7 @@ def _fallback_persist_telemetry_batch(
                                 json.dumps(s.get("event_ids", [])),
                             ),
                         )
-                    except Exception:
+                    except sqlite3.Error:
                         logger.error("Failed to update sessions fallback: %s", ex)
 
             # 3. Batch append to forensic ledger (check if append_events_batch exists)
@@ -296,8 +298,8 @@ def _fallback_persist_telemetry_batch(
         except Exception as exc:
             try:
                 conn.execute("ROLLBACK")
-            except Exception:
-                pass
+            except sqlite3.Error:
+                logger.warning("ROLLBACK failed after telemetry batch error", exc_info=True)
             logger.error("Failed atomic persist_telemetry_batch: %s", exc)
             raise
         finally:
@@ -397,7 +399,7 @@ class TelemetryTap:
         route_class: str = "unknown",
     ) -> str:
         """Freeze immutable event and session snapshot immediately and queue non-blockingly."""
-        ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        ts = datetime.now(UTC).isoformat().replace("+00:00", "Z")
         # Unique event ID >= 128 bits (32 hex characters = 128 bits)
         event_id = f"evt-{uuid.uuid4().hex}"
 
@@ -483,7 +485,7 @@ class TelemetryTap:
                     item = await asyncio.wait_for(queue.get(), timeout=flush_interval)
                     batch.append(item)
                     queue.task_done()
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     pass
 
                 # Drain remaining available items up to batch_size
@@ -499,7 +501,7 @@ class TelemetryTap:
                     await cls._persist_batch(batch)
             except asyncio.CancelledError:
                 break
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - background worker loop must survive any persist failure
                 logger.error("Unexpected error in TelemetryTap worker loop: %s", exc)
                 with cls._lock:
                     cls._status = "degraded"
@@ -524,7 +526,7 @@ class TelemetryTap:
                 cls._persisted_count += len(batch)
                 if cls._dropped_count == 0:
                     cls._status = "ok"
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - persist_fn is pluggable; any failure must be counted as dropped
             with cls._lock:
                 cls._dropped_count += len(batch)
                 cls._status = "degraded"

@@ -1,4 +1,7 @@
 import json
+import logging
+import sqlite3
+
 from fastapi import APIRouter
 
 from ..contracts import (
@@ -9,6 +12,8 @@ from ..contracts import (
 )
 from ..store.db import get_connection
 from ..store.ledger import verify_chain
+
+logger = logging.getLogger("sb.api.overview")
 
 router = APIRouter()
 
@@ -24,8 +29,8 @@ async def get_overview() -> Overview:
         from ..edge.telemetry import TelemetryTap
 
         await TelemetryTap.flush()
-    except Exception:
-        pass
+    except (sqlite3.Error, OSError, RuntimeError, ImportError):
+        logger.debug("TelemetryTap flush skipped", exc_info=True)
 
     conn = get_connection()
     try:
@@ -134,7 +139,7 @@ async def get_ledger_info() -> LedgerVerification:
             rec_val = r["record"]
             try:
                 rec_parsed = json.loads(rec_val) if isinstance(rec_val, str) else rec_val
-            except Exception:
+            except (ValueError, TypeError):
                 rec_parsed = {"raw": str(rec_val)}
             blocks.append(
                 LedgerBlock(
@@ -146,8 +151,8 @@ async def get_ledger_info() -> LedgerVerification:
                     ts=r["ts"],
                 )
             )
-    except Exception:
-        pass
+    except sqlite3.Error:
+        logger.warning("Failed to load ledger blocks for overview", exc_info=True)
     finally:
         conn.close()
 

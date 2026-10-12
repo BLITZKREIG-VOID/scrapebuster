@@ -8,7 +8,7 @@ and TrafficEventRecord for operational projections and telemetry payloads.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 
@@ -191,7 +191,7 @@ class Session:
         timestamp: str | None = None,
     ) -> None:
         """Update request counters, timestamps, and rolling asset ratio."""
-        now_ts = timestamp or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        now_ts = timestamp or datetime.now(UTC).isoformat().replace("+00:00", "Z")
         if not self.first_seen:
             self.first_seen = now_ts
         self.last_seen = now_ts

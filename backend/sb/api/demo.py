@@ -1,7 +1,9 @@
 """Demo control API — honest neutral local reset and status."""
 from __future__ import annotations
 
+import sqlite3
 import uuid
+
 from fastapi import APIRouter
 from sb.contracts import DemoResetCheck, DemoResetResponse, DemoStatus
 from sb.store import db
@@ -34,7 +36,7 @@ def get_status() -> DemoStatus:
             row_phase = conn.execute("SELECT value FROM demo_state WHERE key='phase'").fetchone()
         run_id = row_run["value"] if row_run else None
         phase = row_phase["value"] if row_phase else "READY"
-    except Exception:
+    except sqlite3.Error:
         run_id = None
         phase = "READY"
 

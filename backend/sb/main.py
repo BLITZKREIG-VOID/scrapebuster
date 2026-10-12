@@ -1,8 +1,10 @@
 import logging
+import sqlite3
 from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, FastAPI, Request
 
+from .api.callbacks import router as callbacks_router
 from .api.canaries import router as canaries_router
 from .api.cases import router as cases_router
 from .api.classifier import router as classifier_router
@@ -12,9 +14,8 @@ from .api.overview import router as overview_router
 from .api.probes import router as probes_router
 from .api.sessions import router as sessions_router
 from .api.traffic import router as traffic_router
-from .api.callbacks import router as callbacks_router
-from .kb.ingest import router as kb_router
 from .edge.pipeline import handle
+from .kb.ingest import router as kb_router
 
 logger = logging.getLogger("sb.main")
 
@@ -41,7 +42,7 @@ async def lifespan(app: FastAPI):
         # Startup corrupt-store must not crash application (best-effort degraded origin operation)
         try:
             init_db()
-        except Exception as db_err:
+        except (sqlite3.Error, OSError) as db_err:
             logger.error("Database initialization failed at startup (store degraded): %s", db_err)
 
         # Install W2 offense hooks
@@ -55,7 +56,7 @@ async def lifespan(app: FastAPI):
         # Gracefully flush and stop background telemetry worker
         try:
             await TelemetryTap.stop()
-        except Exception as tap_stop_err:
+        except (sqlite3.Error, OSError, RuntimeError) as tap_stop_err:
             logger.error("Error stopping TelemetryTap: %s", tap_stop_err)
         await close_client()
 

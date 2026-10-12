@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 import json
+import logging
+import sqlite3
+
 from fastapi import APIRouter, HTTPException, Query
 
 from ..contracts import SessionDetail, SessionList, SessionSummary
 from ..store.db import get_connection
+
+logger = logging.getLogger("sb.api.sessions")
 
 router = APIRouter()
 
@@ -36,7 +41,7 @@ def _row_to_detail(row: dict) -> SessionDetail:
         if isinstance(raw, str):
             try:
                 return json.loads(raw)
-            except Exception:
+            except (ValueError, TypeError):
                 return []
         if isinstance(raw, list):
             return raw
@@ -56,8 +61,8 @@ def _row_to_detail(row: dict) -> SessionDetail:
         from ..edge.session import sessions
 
         active_sess = sessions.get(sid)
-    except Exception:
-        pass
+    except (ImportError, AttributeError, KeyError):
+        logger.debug("Active session lookup failed", exc_info=True)
 
     ar_decision = (
         getattr(active_sess, "ar_classifier_decision", None)
@@ -68,7 +73,7 @@ def _row_to_detail(row: dict) -> SessionDetail:
     if conf_score is None and row.get("confidence_score") is not None:
         try:
             conf_score = float(row["confidence_score"])
-        except Exception:
+        except (ValueError, TypeError):
             conf_score = None
     if conf_score is None:
         conf_score = round(trust_score_val / 100.0, 2)
@@ -123,8 +128,8 @@ async def get_sessions(
         from ..edge.telemetry import TelemetryTap
 
         await TelemetryTap.flush()
-    except Exception:
-        pass
+    except (sqlite3.Error, OSError, RuntimeError, ImportError):
+        logger.debug("TelemetryTap flush skipped", exc_info=True)
 
     conn = get_connection()
     try:
@@ -149,8 +154,8 @@ async def get_session_detail(session_id: str) -> SessionDetail:
         from ..edge.telemetry import TelemetryTap
 
         await TelemetryTap.flush()
-    except Exception:
-        pass
+    except (sqlite3.Error, OSError, RuntimeError, ImportError):
+        logger.debug("TelemetryTap flush skipped", exc_info=True)
 
     conn = get_connection()
     try:

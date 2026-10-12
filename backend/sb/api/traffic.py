@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import AsyncGenerator
+import logging
+import sqlite3
+from collections.abc import AsyncGenerator
+
 from fastapi import APIRouter, Query
 from fastapi.responses import StreamingResponse
 
 from ..contracts import TrafficEvent, TrafficEvents
 from ..store.db import get_connection
+
+logger = logging.getLogger("sb.api.traffic")
 
 router = APIRouter()
 
@@ -18,7 +23,7 @@ def _row_to_event(row: dict) -> TrafficEvent:
     if isinstance(reasons_raw, str):
         try:
             reasons = json.loads(reasons_raw)
-        except Exception:
+        except (ValueError, TypeError):
             reasons = []
     elif isinstance(reasons_raw, list):
         reasons = reasons_raw
@@ -30,7 +35,7 @@ def _row_to_event(row: dict) -> TrafficEvent:
     if isinstance(ho_raw, str):
         try:
             header_order = json.loads(ho_raw)
-        except Exception:
+        except (ValueError, TypeError):
             header_order = []
     elif isinstance(ho_raw, list):
         header_order = ho_raw
@@ -42,7 +47,7 @@ def _row_to_event(row: dict) -> TrafficEvent:
     if isinstance(canary_raw, str):
         try:
             canary_ids = json.loads(canary_raw)
-        except Exception:
+        except (ValueError, TypeError):
             canary_ids = []
     elif isinstance(canary_raw, list):
         canary_ids = canary_raw
@@ -129,8 +134,8 @@ async def get_traffic_events(
         from ..edge.telemetry import TelemetryTap
 
         await TelemetryTap.flush()
-    except Exception:
-        pass
+    except (sqlite3.Error, OSError, RuntimeError, ImportError):
+        logger.debug("TelemetryTap flush skipped", exc_info=True)
 
     events, last_seq = _fetch_events(curr_cursor, curr_limit, curr_sid)
     return TrafficEvents(events=events, last_seq=last_seq)
@@ -153,8 +158,8 @@ async def get_traffic(
         from ..edge.telemetry import TelemetryTap
 
         await TelemetryTap.flush()
-    except Exception:
-        pass
+    except (sqlite3.Error, OSError, RuntimeError, ImportError):
+        logger.debug("TelemetryTap flush skipped", exc_info=True)
 
     events, last_seq = _fetch_events(curr_cursor, curr_limit, curr_sid)
     return TrafficEvents(events=events, last_seq=last_seq)

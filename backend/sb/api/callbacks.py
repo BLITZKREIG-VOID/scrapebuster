@@ -15,12 +15,11 @@ import logging
 import secrets
 import sqlite3
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException, Request, Response
 from pydantic import BaseModel, Field
-
 from sb.canary import registry
 from sb.store import db
 from sb.store.ledger import append_event
@@ -104,7 +103,7 @@ def _resolve_session_from_canary(canary_id: str) -> tuple[str, str] | None:
         binding = registry.get_session_binding(canary_id)
         if binding:
             return binding.session_id, binding.value
-    except Exception as exc:
+    except (sqlite3.Error, KeyError, ValueError, AttributeError) as exc:
         logger.warning("Failed to resolve session for canary %s: %s", canary_id, exc)
     return None
 
@@ -136,7 +135,7 @@ async def image_callback(
     Persists callback event to forensic ledger.
     """
     callback_id = f"CBK-{secrets.token_hex(4)}"
-    ts = datetime.now(timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")
+    ts = datetime.now(UTC).isoformat(timespec="microseconds").replace("+00:00", "Z")
     metadata = _extract_request_metadata(request)
 
     # Resolve session from canary ID
@@ -166,7 +165,7 @@ async def image_callback(
     try:
         from sb.store.ledger import append_event
         append_event("image_callback", callback_record)
-    except Exception as exc:
+    except (ImportError, sqlite3.Error, OSError, ValueError, TypeError) as exc:
         logger.error("Failed to persist image callback event: %s", exc)
 
     # Return 1x1 transparent GIF
@@ -204,7 +203,7 @@ async def honeykey_interception(
     Persists event to forensic ledger.
     """
     callback_id = f"CBK-{secrets.token_hex(4)}"
-    ts = datetime.now(timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")
+    ts = datetime.now(UTC).isoformat(timespec="microseconds").replace("+00:00", "Z")
     metadata = _extract_request_metadata(request)
 
     # Resolve session from key_id if it's a canary ID
@@ -228,7 +227,7 @@ async def honeykey_interception(
     try:
         from sb.store.ledger import append_event
         append_event("honeykey_interception", honeykey_record)
-    except Exception as exc:
+    except (ImportError, sqlite3.Error, OSError, ValueError, TypeError) as exc:
         logger.error("Failed to persist honeykey event: %s", exc)
 
     # Also append to evidence ledger as honeykey_exposed event
@@ -243,7 +242,7 @@ async def honeykey_interception(
             "source_url": payload.source_url,
             "ts": ts,
         })
-    except Exception as exc:
+    except (ImportError, sqlite3.Error, OSError, ValueError, TypeError) as exc:
         logger.warning("Failed to append honeykey_exposed to ledger: %s", exc)
 
     return CallbackEventResponse(

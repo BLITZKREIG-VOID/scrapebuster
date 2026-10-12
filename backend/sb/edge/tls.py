@@ -16,7 +16,6 @@ import struct
 import threading
 from typing import Any
 
-
 logger = logging.getLogger("sb.edge.tls")
 
 # Headers that unauthenticated clients may attempt to spoof
@@ -220,8 +219,9 @@ def parse_client_hello(raw_bytes: bytes) -> dict[str, Any]:
                     # 2 bytes list length, 1 byte name type (0 = host), 2 bytes name length
                     name_len = struct.unpack("!H", ext_data[3:5])[0]
                     sni = ext_data[5 : 5 + name_len].decode("ascii", errors="replace")
-                except Exception:
-                    pass
+                except (struct.error, ValueError):
+                    # Malformed SNI extension: leave sni unset.
+                    logger.debug("Malformed SNI extension in ClientHello", exc_info=True)
 
             # Supported Groups / Elliptic Curves (0x000A)
             elif ext_type == 0x000A and len(ext_data) >= 2:
@@ -355,17 +355,18 @@ def create_self_signed_cert(
     os.makedirs(os.path.dirname(os.path.abspath(key_path)), exist_ok=True)
 
     try:
+        import datetime
+
         from cryptography import x509
         from cryptography.hazmat.primitives import hashes, serialization
         from cryptography.hazmat.primitives.asymmetric import rsa
         from cryptography.x509.oid import NameOID
-        import datetime
 
         key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         subject = issuer = x509.Name([
             x509.NameAttribute(NameOID.COMMON_NAME, host),
         ])
-        now = datetime.datetime.now(datetime.timezone.utc)
+        now = datetime.datetime.now(datetime.UTC)
         cert = (
             x509.CertificateBuilder()
             .subject_name(subject)

@@ -1,3 +1,4 @@
+import logging
 import os
 from urllib.parse import urlsplit
 
@@ -6,6 +7,8 @@ import httpx
 from ..config import SB_UPSTREAM_ORIGIN, is_ip_in_trusted_proxies
 from .context import RequestContext
 from .tls import FORGED_TLS_HEADERS
+
+logger = logging.getLogger("sb.edge.proxy")
 
 # Global async client for proxying
 _client: httpx.AsyncClient | None = None
@@ -43,8 +46,9 @@ async def close_client() -> None:
     if client is not None:
         try:
             await client.aclose()
-        except Exception:
-            pass
+        except (httpx.HTTPError, OSError, RuntimeError):
+            # Best-effort shutdown: a failing close must not block cleanup.
+            logger.debug("Error closing proxy client", exc_info=True)
 
 
 # Standard hop-by-hop headers (RFC 7230 §6.1) that must not be forwarded

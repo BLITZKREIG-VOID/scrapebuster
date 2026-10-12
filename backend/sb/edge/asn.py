@@ -55,7 +55,8 @@ def _load_cidr_table(path: str) -> list[tuple[ipaddress.IPv4Network | ipaddress.
                     try:
                         net = ipaddress.ip_network(cidr_str.strip(), strict=False)
                         entries.append((net, int(asn_val)))
-                    except Exception:
+                    except (ValueError, TypeError, AttributeError):
+                        logger.debug("Skipping invalid ASN JSON entry %r", cidr_str)
                         continue
             elif isinstance(data, list):
                 for item in data:
@@ -63,9 +64,10 @@ def _load_cidr_table(path: str) -> list[tuple[ipaddress.IPv4Network | ipaddress.
                         try:
                             net = ipaddress.ip_network(str(item["cidr"]).strip(), strict=False)
                             entries.append((net, int(item["asn"])))
-                        except Exception:
+                        except (ValueError, TypeError, AttributeError):
+                            logger.debug("Skipping invalid ASN JSON list entry %r", item)
                             continue
-        except Exception as exc:
+        except (OSError, ValueError) as exc:
             logger.warning("Failed to parse JSON ASN database %s: %s", path, exc)
     elif ext in (".csv", ".tsv", ".txt"):
         try:
@@ -79,9 +81,10 @@ def _load_cidr_table(path: str) -> list[tuple[ipaddress.IPv4Network | ipaddress.
                     try:
                         net = ipaddress.ip_network(cidr_str, strict=False)
                         entries.append((net, int(asn_str)))
-                    except Exception:
+                    except (ValueError, TypeError):
+                        logger.debug("Skipping invalid ASN CSV row %r", row)
                         continue
-        except Exception as exc:
+        except (OSError, ValueError, csv.Error) as exc:
             logger.warning("Failed to parse CSV/TSV ASN database %s: %s", path, exc)
     return entries
 
@@ -141,7 +144,7 @@ def lookup_asn(ip: str | None, db_path: str | None = None) -> tuple[int | None, 
         except ImportError:
             logger.warning("maxminddb module not installed; cannot read mmdb database")
             return None, "unavailable"
-        except Exception as exc:
+        except (OSError, ValueError, TypeError) as exc:
             logger.warning("MMDB ASN lookup failed for %s: %s", ip_clean, exc)
             return None, "unavailable"
 
@@ -159,7 +162,7 @@ def lookup_asn(ip: str | None, db_path: str | None = None) -> tuple[int | None, 
                     return int(row[0]), "ok"
             finally:
                 conn.close()
-        except Exception as exc:
+        except (sqlite3.Error, OSError, ValueError, TypeError) as exc:
             logger.warning("SQLite ASN lookup failed for %s: %s", ip_clean, exc)
         return None, "unavailable"
 
@@ -179,10 +182,9 @@ def lookup_asn(ip: str | None, db_path: str | None = None) -> tuple[int | None, 
     best_prefix_len: int = -1
 
     for net, asn_val in table:
-        if addr in net:
-            if net.prefixlen > best_prefix_len:
-                best_prefix_len = net.prefixlen
-                best_asn = asn_val
+        if addr in net and net.prefixlen > best_prefix_len:
+            best_prefix_len = net.prefixlen
+            best_asn = asn_val
 
     if best_asn is not None:
         return best_asn, "ok"

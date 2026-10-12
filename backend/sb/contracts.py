@@ -64,7 +64,7 @@ class TrafficEvent(BaseModel):
                 if isinstance(val, str):
                     try:
                         data[list_field] = json.loads(val)
-                    except Exception:
+                    except (ValueError, TypeError):
                         data[list_field] = []
         return data
 
@@ -130,7 +130,7 @@ class SessionDetail(SessionSummary):
                 if isinstance(val, str):
                     try:
                         data[list_field] = json.loads(val)
-                    except Exception:
+                    except (ValueError, TypeError):
                         data[list_field] = []
         return data
 

@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from .db import get_connection
 from .models import TrafficEventRecord
+
+logger = logging.getLogger("sb.store.traffic")
 
 
 def _json(value: Any) -> str:
@@ -33,7 +36,7 @@ def _format_event_row(event: dict[str, Any] | TrafficEventRecord) -> tuple:
     data = event.to_dict() if hasattr(event, "to_dict") else dict(event)
 
     event_id = str(data.get("event_id") or f"evt-{uuid.uuid4().hex}")
-    ts = str(data.get("ts") or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"))
+    ts = str(data.get("ts") or datetime.now(UTC).isoformat().replace("+00:00", "Z"))
     session_id = str(data.get("session_id") or "unknown")
     client_key = str(data.get("client_key") or "")
     client_ip = str(data.get("client_ip") or data.get("ip") or "127.0.0.1")
@@ -162,8 +165,9 @@ def save_traffic_event(
         if manage_conn:
             try:
                 target_conn.execute("ROLLBACK")
-            except Exception:
-                pass
+            except sqlite3.Error:
+                # Best-effort rollback: surface the original error, not this one.
+                logger.warning("ROLLBACK failed after transaction error", exc_info=True)
         raise
     finally:
         if manage_conn:

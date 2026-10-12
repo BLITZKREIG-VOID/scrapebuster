@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sb.edge.context import RequestContext
 from sb.edge.session import Session
@@ -10,7 +10,7 @@ from sb.edge.session import Session
 
 def init_request(ctx: RequestContext, session: Session) -> None:
     """Initialize or update basic profile fields on an incoming request."""
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     if not session.first_seen:
         session.first_seen = now

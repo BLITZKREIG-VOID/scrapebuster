@@ -139,7 +139,7 @@ class RequestContext:
         self.header_fp: str = hashlib.sha256(headers_order_str.encode("utf-8")).hexdigest()[:16]
 
         # 7. Server-side client key and path
-        raw_key = f"{self.ip}|{self.user_agent}".encode("utf-8")
+        raw_key = f"{self.ip}|{self.user_agent}".encode()
         self.client_key: str = hashlib.sha256(raw_key).hexdigest()[:16]
         self.path: str = request.url.path if request else "/"
 
@@ -148,14 +148,12 @@ class RequestContext:
         has_static_ext = any(path_lower.endswith(ext) for ext in STATIC_EXTENSIONS)
         self.is_static: bool = (
             has_static_ext
-            or path_lower.startswith("/static/")
-            or path_lower.startswith("/assets/")
+            or path_lower.startswith(("/static/", "/assets/"))
             or path_lower == "/favicon.ico"
         )
 
         self.is_api: bool = not self.is_static and (
-            path_lower.startswith("/api/")
-            or path_lower.startswith("/trap/api/")
+            path_lower.startswith(("/api/", "/trap/api/"))
         )
 
         self.is_document: bool = (

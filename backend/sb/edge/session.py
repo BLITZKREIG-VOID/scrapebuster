@@ -11,8 +11,9 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import sqlite3
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from .context import RequestContext
@@ -147,7 +148,7 @@ class Session:
 
     def record_request(self, ctx: RequestContext) -> None:
         """Update session state, counters, rolling asset ratio, and bounds."""
-        now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        now = datetime.now(UTC).isoformat().replace("+00:00", "Z")
         if not self.first_seen:
             self.first_seen = now
         self.last_seen = now
@@ -285,7 +286,7 @@ class SessionsManager:
     def get_or_create(self, ctx: RequestContext) -> Session:
         # Deterministic opaque server-side session hash (PRD FR1.2)
         # hashlib.sha256(f"{ip}|{user_agent}|{ja3_hash}".encode()).hexdigest()[:16]
-        sid_input = f"{ctx.ip}|{ctx.user_agent}|{ctx.ja3_hash}".encode("utf-8")
+        sid_input = f"{ctx.ip}|{ctx.user_agent}|{ctx.ja3_hash}".encode()
         sid = hashlib.sha256(sid_input).hexdigest()[:16]
 
         if sid not in self._sessions:
@@ -295,7 +296,7 @@ class SessionsManager:
                 from ..store.sessions import get_session
 
                 stored = get_session(sid)
-            except Exception as exc:
+            except (ImportError, sqlite3.Error, ValueError, TypeError, KeyError) as exc:
                 logger.debug("Could not restore session %s from store: %s", sid, exc)
 
             if stored is not None:

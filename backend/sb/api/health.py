@@ -1,3 +1,5 @@
+import sqlite3
+
 from fastapi import APIRouter
 
 from ..contracts import Health
@@ -16,7 +18,7 @@ async def get_health() -> Health:
             conn.execute("SELECT 1").fetchone()
         finally:
             conn.close()
-    except Exception:
+    except sqlite3.Error:
         db_status = "down"
 
     # 2. Forensic ledger chain integrity
@@ -29,7 +31,7 @@ async def get_health() -> Health:
             if chain_info.get("result") != "VALID":
                 ledger_status = "down"
                 db_status = "down"
-        except Exception:
+        except (ImportError, sqlite3.Error, ValueError, TypeError, KeyError):
             ledger_status = "down"
             db_status = "down"
     else:
@@ -43,10 +45,10 @@ async def get_health() -> Health:
         if hasattr(TelemetryTap, "get_status"):
             queue_status = TelemetryTap.get_status()
         elif hasattr(TelemetryTap, "_queue"):
-            q = getattr(TelemetryTap, "_queue")
+            q = TelemetryTap._queue
             if q is not None and hasattr(q, "full") and q.full():
                 queue_status = "degraded"
-    except Exception:
+    except (ImportError, AttributeError, RuntimeError):
         queue_status = "ok"
 
     # 4. Upstream origin configuration
@@ -58,7 +60,7 @@ async def get_health() -> Health:
             upstream_status = "not_checked"
         else:
             upstream_status = "ok"
-    except Exception:
+    except ImportError:
         upstream_status = "not_checked"
 
     overall_status = "ok"

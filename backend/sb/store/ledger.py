@@ -17,12 +17,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import sqlite3
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from .db import _lock, get_connection
+
+logger = logging.getLogger("sb.store.ledger")
 
 GENESIS: str = "0" * 64
 _ledger_lock = threading.RLock()
@@ -144,7 +147,7 @@ def append_events_batch(
                 current_seq += 1
                 seq = current_seq
                 prev_hash = current_prev_hash
-                ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+                ts = datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
                 envelope = {
                     "seq": seq,
@@ -183,8 +186,9 @@ def append_events_batch(
             if manage_conn:
                 try:
                     target_conn.execute("ROLLBACK")
-                except Exception:
-                    pass
+                except sqlite3.Error:
+                    # Best-effort rollback: surface the original error, not this one.
+                    logger.warning("ROLLBACK failed after transaction error", exc_info=True)
             raise
         finally:
             if manage_conn:
@@ -260,8 +264,9 @@ def persist_telemetry_batch(
             if manage_conn:
                 try:
                     target_conn.execute("ROLLBACK")
-                except Exception:
-                    pass
+                except sqlite3.Error:
+                    # Best-effort rollback: surface the original error, not this one.
+                    logger.warning("ROLLBACK failed after transaction error", exc_info=True)
             raise
         finally:
             if manage_conn:
@@ -332,7 +337,7 @@ def verify_chain() -> dict[str, Any]:
 
                 try:
                     rec_obj = json.loads(r_raw)
-                except Exception as exc:
+                except (ValueError, TypeError) as exc:
                     errors.append(f"Invalid record JSON encoding at seq {r_seq}: {exc}")
                     rec_obj = r_raw
 
@@ -344,7 +349,7 @@ def verify_chain() -> dict[str, Any]:
                 }
                 try:
                     envelope_bytes = canonical_json_bytes(envelope)
-                except Exception as exc:
+                except (ValueError, TypeError, OverflowError, RecursionError) as exc:
                     errors.append(f"Failed to canonicalize envelope at seq {r_seq}: {exc}")
                     envelope_bytes = b""
 
@@ -366,7 +371,7 @@ def verify_chain() -> dict[str, Any]:
                 "head": head,
                 "errors": errors,
             }
-        except Exception as exc:
+        except (sqlite3.Error, ValueError, TypeError, KeyError, IndexError) as exc:
             return {
                 "result": "TAMPERED",
                 "count": 0,
@@ -386,7 +391,7 @@ def get_ledger_head() -> str:
                 "SELECT hash FROM forensic_ledger ORDER BY seq DESC LIMIT 1"
             ).fetchone()
             return str(row["hash"]) if row else GENESIS
-        except Exception:
+        except sqlite3.Error:
             return GENESIS
         finally:
             conn.close()
@@ -412,7 +417,7 @@ def get_ledger_events(limit: int | None = None) -> list[dict[str, Any]]:
                     "ts": str(r["ts"]),
                 })
             return events
-        except Exception:
+        except (sqlite3.Error, ValueError, TypeError, KeyError, IndexError):
             return []
         finally:
             conn.close()

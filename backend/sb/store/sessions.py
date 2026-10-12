@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 from typing import Any
 
 from .db import get_connection
 from .models import Session
+
+logger = logging.getLogger("sb.store.sessions")
 
 
 def _json(value: Any) -> str:
@@ -215,8 +218,9 @@ def save_session(session: Any, conn: sqlite3.Connection | None = None) -> None:
         if manage_conn:
             try:
                 target_conn.execute("ROLLBACK")
-            except Exception:
-                pass
+            except sqlite3.Error:
+                # Best-effort rollback: surface the original error, not this one.
+                logger.warning("ROLLBACK failed after transaction error", exc_info=True)
         raise
     finally:
         if manage_conn:
