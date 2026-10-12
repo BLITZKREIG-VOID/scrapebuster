@@ -18,7 +18,7 @@ import threading
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Header, HTTPException, Request, Response
+from fastapi import APIRouter, Header, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field
 from sb.canary import registry
 from sb.store import db
@@ -260,8 +260,8 @@ async def honeykey_interception(
 
 @router.get("/events", response_model=list[CallbackEventResponse])
 async def list_callback_events(
-    limit: int = Field(default=100, ge=1, le=1000),
-    offset: int = Field(default=0, ge=0),
+    limit: int = Query(default=100, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
     session_id: str | None = None,
     canary_id: str | None = None,
 ) -> list[CallbackEventResponse]:
