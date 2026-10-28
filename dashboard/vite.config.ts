@@ -13,8 +13,14 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api': 'http://127.0.0.1:8000',
-      '/health': 'http://127.0.0.1:8000',
+      '/api': {
+        target: process.env.SB_BACKEND_URL ?? 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/health': {
+        target: process.env.SB_BACKEND_URL ?? 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
     },
   },
 })
